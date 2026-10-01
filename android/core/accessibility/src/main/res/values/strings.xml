@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vc_accessibility_label">VoiceControl</string>
+    <string name="vc_accessibility_summary">Fill forms and press buttons in any app using your voice.</string>
+    <string name="vc_accessibility_description">VoiceControl reads the input fields and buttons on your current screen so it can ask you, by voice, what to fill and then type it for you. It also presses buttons when you say \"next\", \"submit\", \"back\" or \"scroll\". Password, OTP and PIN fields are never read, spoken, stored or sent anywhere. Screen content is sent to the VoiceControl server only to understand your speech and to match saved flows, and only while a voice session is active. You can turn on local-only mode in Settings.</string>
+</resources>

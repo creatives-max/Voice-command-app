@@ -13,11 +13,11 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Commit + push `Phase 1: ...`
 
 ## Phase 2 — AccessibilityService screen reading
-- [ ] Node abstraction + screen parser (fields, buttons, labels, types)
-- [ ] Stable IDs (viewId / hierarchy path / label hash)
-- [ ] Password / OTP masking
-- [ ] VoiceControlAccessibilityService + live screen inspector UI
-- [ ] Unit tests, commit + push
+- [x] Node abstraction + screen parser (fields, buttons, labels, types)
+- [x] Stable IDs (viewId / hierarchy path / label hash)
+- [x] Password / OTP masking
+- [x] VoiceControlAccessibilityService + live screen inspector UI
+- [x] Unit tests, commit + push
 
 ## Phase 3 — Act on screen + floating overlay
 - [ ] Fill fields (ACTION_SET_TEXT, paste fallback), click, scroll, back, focus

@@ -48,3 +48,14 @@ fun interface FlowLauncher {
 fun interface TeachLauncher {
     fun startTeaching(): LaunchResult
 }
+
+/** Voice shortcuts ("say this to run that flow") and the flows they run. */
+interface ShortcutSource {
+    suspend fun shortcuts(): List<com.voicecontrol.core.engine.VoiceShortcut>
+
+    /** The flow to run, from the phone's cache or the account. */
+    suspend fun flow(flowId: String): FlowDefinition?
+
+    /** Called when a shortcut's flow starts (for the dashboard's run log). */
+    suspend fun started(shortcut: com.voicecontrol.core.engine.VoiceShortcut) = Unit
+}

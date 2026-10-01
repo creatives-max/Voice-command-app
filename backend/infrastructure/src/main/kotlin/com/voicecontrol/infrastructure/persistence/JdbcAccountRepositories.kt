@@ -25,7 +25,7 @@ class JdbcAccountDataRepository(private val db: Database) : AccountDataRepositor
             ),
             "history" to section("SELECT id, app_package, started_at, ended_at, status, language, filled_count, step_count, screens FROM runs WHERE user_id = ? ORDER BY started_at"),
             "devices" to section("SELECT id, name, platform, app_version, remote_runs, last_seen_at, created_at FROM devices WHERE user_id = ?"),
-            "triggers" to section("SELECT id, flow_id, type, enabled, cron, timezone, device_id, next_run_at, last_run_at, created_at FROM flow_triggers WHERE user_id = ?"),
+            "triggers" to section("SELECT id, flow_id, type, enabled, cron, timezone, device_id, phrase, next_run_at, last_run_at, created_at FROM flow_triggers WHERE user_id = ?"),
             "remoteRuns" to section(
                 """
                 SELECT r.id, r.flow_id, r.flow_name, r.app_package, r.device_id, r.source, r.status, r.created_at,

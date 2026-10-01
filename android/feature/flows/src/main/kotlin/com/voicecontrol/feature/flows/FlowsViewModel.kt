@@ -22,6 +22,7 @@ class FlowsViewModel @Inject constructor(
     private val launcher: FlowLauncher,
     private val teach: com.voicecontrol.core.engine.port.TeachLauncher,
     private val profiles: com.voicecontrol.core.engine.port.ProfileSource,
+    private val shortcuts: com.voicecontrol.core.data.shortcuts.VoiceShortcutRepository,
     remoteRuns: RemoteRunRepository,
     templates: TemplateRepository,
 ) : MviViewModel<FlowsState, FlowsIntent, FlowsEffect>(FlowsState()) {
@@ -40,6 +41,10 @@ class FlowsViewModel @Inject constructor(
             setState { copy(templates = list.map { TemplateSummary(it.template.id, it.template.name, it.description, it.template.steps.size) }) }
         }.launchIn(viewModelScope)
         viewModelScope.launch { templates.load() }
+        shortcuts.all.onEach { list ->
+            setState { copy(shortcuts = list.map { ShortcutItem(it.phrase, it.flowId, local = it.triggerId == null) }) }
+        }.launchIn(viewModelScope)
+        viewModelScope.launch { remoteRuns.loadCachedTriggers() }
         remoteRuns.appOpenTriggers.onEach { triggers ->
             setState { copy(appOpenFlowIds = triggers.map { it.flowId }.toSet()) }
         }.launchIn(viewModelScope)
@@ -67,6 +72,14 @@ class FlowsViewModel @Inject constructor(
             FlowsIntent.DryRunUndo -> setState { copy(dryRun = dryRun?.undo()) }
             FlowsIntent.DryRunRestart -> setState { copy(dryRun = dryRun?.restart()) }
             FlowsIntent.CloseDryRun -> setState { copy(dryRun = null) }
+            is FlowsIntent.AddShortcut -> {
+                val flow = currentState.selected ?: return
+                shortcuts.add(intent.phrase, flow).fold(
+                    onSuccess = { sendEffect(FlowsEffect.Message("Say “${intent.phrase.trim()}” to run this flow")) },
+                    onFailure = { sendEffect(FlowsEffect.Message(it.message ?: "Can't use that phrase")) },
+                )
+            }
+            is FlowsIntent.RemoveShortcut -> if (intent.item.local) shortcuts.remove(intent.item.phrase, intent.item.flowId)
             FlowsIntent.Teach -> {
                 val result = teach.startTeaching()
                 teachMessage(result)?.let { sendEffect(FlowsEffect.Message(it)) } ?: sendEffect(FlowsEffect.GoHome)

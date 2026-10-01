@@ -57,7 +57,7 @@ fun Application.voiceControl(services: Services) {
         aiRoutes(services.ai, services.rateLimiter)
         historyRoutes(services.history)
         marketplaceRoutes(services.marketplace)
-        automationRoutes(services.devices, services.triggers, services.runRequests, services::flowApp, services.flows)
+        automationRoutes(services.devices, services.triggers, services.runRequests, services::flowInfo, services.flows)
         orgRoutes(services.orgs, services.apiKeys, services.webhooks, services.audit)
         collabRoutes(services.analytics, services.comments, services.presence, services.layouts)
         accountRoutes(services.account, services.crashes, services.rateLimiter)

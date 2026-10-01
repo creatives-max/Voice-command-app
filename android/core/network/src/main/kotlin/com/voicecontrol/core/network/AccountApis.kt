@@ -119,10 +119,10 @@ class AutomationApi @Inject constructor(private val api: ApiClient) {
 
     suspend fun triggers(deviceId: String): List<com.voicecontrol.core.network.dto.TriggerDto> = api.get("/v1/devices/$deviceId/triggers")
 
-    suspend fun appOpenRun(deviceId: String, flowId: String, triggerId: String?): com.voicecontrol.core.network.dto.RunRequestDto =
+    suspend fun appOpenRun(deviceId: String, flowId: String, triggerId: String?, source: String = "APP_OPEN"): com.voicecontrol.core.network.dto.RunRequestDto =
         api.post<com.voicecontrol.core.network.dto.AppOpenRunDto, com.voicecontrol.core.network.dto.RunRequestDto>(
             "/v1/devices/$deviceId/app-open-runs",
-            com.voicecontrol.core.network.dto.AppOpenRunDto(flowId, triggerId),
+            com.voicecontrol.core.network.dto.AppOpenRunDto(flowId, triggerId, source),
         )
 
     suspend fun report(requestId: String, report: com.voicecontrol.core.network.dto.RunReportDto): com.voicecontrol.core.network.dto.RunRequestDto =

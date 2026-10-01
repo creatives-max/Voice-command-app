@@ -115,6 +115,8 @@ class AssistantEngine(
     private val vision: VisionDetector? = null,
     /** Barge-in: detects the user speaking over a question. */
     private val speechDetector: SpeechDetector? = null,
+    /** Voice macros: on a screen without a form, saying a shortcut phrase runs its flow. */
+    private val shortcuts: com.voicecontrol.core.engine.port.ShortcutSource? = null,
 ) {
     private val _state = MutableStateFlow(EngineState())
     val state: StateFlow<EngineState> = _state.asStateFlow()
@@ -193,7 +195,7 @@ class AssistantEngine(
         data object Navigated : StepResult
     }
 
-    private enum class ScreenOutcome { COMPLETED, NAVIGATED, STOPPED }
+    private enum class ScreenOutcome { COMPLETED, NAVIGATED, STOPPED, SWITCHED }
 
     /** Mutable context for one running session. */
     private inner class Session(val cfg: SessionConfig) {
@@ -217,6 +219,8 @@ class AssistantEngine(
         val hybrid = HashMap<String, HybridVision.Result>()
         /** Signature of the screen as last seen (loops can change it by adding rows). */
         var currentSignature: String = ""
+        /** Flow chosen by a voice shortcut, run next ([ScreenOutcome.SWITCHED]). */
+        var switchTo: FlowDefinition? = null
 
         fun lookup(name: String): Any? = vars[name] ?: profileVar(name) ?: screenVars[name]
 
@@ -277,11 +281,7 @@ class AssistantEngine(
             // A multi-screen (or preselected) flow in progress, and which of its screens is next.
             var active: FlowDefinition? = preselected
             var segment = 0
-            val opening = preselected?.let { flow ->
-                flow.segments.firstOrNull()?.firstOrNull()?.takeIf { it.action.isScreenBoundary }
-                    // A flow started on demand runs in its own app: open it unless it is already in front.
-                    ?: FlowStep("open", -1, "", flow.name, ElementKind.BUTTON, action = StepAction.OPEN_APP, appPackage = flow.appPackage)
-            }
+            val opening = preselected?.let(::openingStep)
             opening?.let { boundary ->
                 if (!enterSegment(session, boundary, previousSignature = null)) {
                     emit(EngineEvent.ERROR, "Could not open ${boundary.appPackage ?: "the app"}")
@@ -345,6 +345,20 @@ class AssistantEngine(
                     session.status = RunStatus.STOPPED
                     return
                 }
+                val chosen = session.switchTo
+                if (outcome == ScreenOutcome.SWITCHED && chosen != null) {
+                    // A voice shortcut: run its flow from its first screen, in its own app.
+                    session.switchTo = null
+                    active = chosen
+                    segment = 0
+                    if (!enterSegment(session, openingStep(chosen), previousSignature = null)) {
+                        emit(EngineEvent.ERROR, "Could not open ${chosen.appPackage}")
+                        say(session, session.phrases.screenNotReached())
+                        session.status = RunStatus.FAILED
+                        return
+                    }
+                    continue
+                }
                 val multi = active
                 if (multi != null && segment + 1 < multi.segments.size) {
                     // Continue the same flow on its next screen (possibly in another app).
@@ -383,6 +397,34 @@ class AssistantEngine(
                 finish(session)
             }
         }
+    }
+
+    /** How a flow started on demand gets to its first screen: its own boundary step, else opening its app. */
+    private fun openingStep(flow: FlowDefinition): FlowStep =
+        flow.segments.firstOrNull()?.firstOrNull()?.takeIf { it.action.isScreenBoundary }
+            // A flow started on demand runs in its own app: open it unless it is already in front.
+            ?: FlowStep("open", -1, "", flow.name, ElementKind.BUTTON, action = StepAction.OPEN_APP, appPackage = flow.appPackage)
+
+    /**
+     * The flow of the voice shortcut the user just said, if any. A visible button with the same name
+     * wins, so shortcuts never hide what is on the screen.
+     */
+    private suspend fun shortcutFlow(session: Session, snapshot: ScreenSnapshot, heard: String): FlowDefinition? {
+        val source = shortcuts ?: return null
+        val buttons = snapshot.buttons.map { ShortcutMatcher.normalize(it.label) }.toSet()
+        if (ShortcutMatcher.core(heard) in buttons) return null
+        val hit = ShortcutMatcher.match(heard, runCatching { source.shortcuts() }.getOrDefault(emptyList())) ?: return null
+        if (ShortcutMatcher.core(hit.phrase) in buttons) return null
+        val flow = runCatching { source.flow(hit.flowId) }.getOrNull()
+        if (flow == null) {
+            emit(EngineEvent.ERROR, "Voice shortcut “${hit.phrase}”: its flow is not available")
+            say(session, session.phrases.shortcutUnavailable(hit.phrase))
+            return null
+        }
+        say(session, session.phrases.startingShortcut(flow.name))
+        runCatching { source.started(hit) }
+        emit(EngineEvent.STATUS, "Voice shortcut “${hit.phrase}”: ${flow.name}")
+        return flow
     }
 
     /**
@@ -568,6 +610,10 @@ class AssistantEngine(
         var prompt = if (buttons.isEmpty()) phrases.nothingToFill() else phrases.whichButton(buttons)
         repeat(MAX_ATTEMPTS) {
             val heard = askAndListen(session, prompt) ?: return@repeat
+            shortcutFlow(session, snapshot, heard)?.let { flow ->
+                session.switchTo = flow
+                return ScreenOutcome.SWITCHED
+            }
             val interp = interpret(session, snapshot, null, heard, prompt)
             when (interp.intent) {
                 IntentKind.CLICK -> if (clickTarget(session, snapshot, interp, log)) return ScreenOutcome.NAVIGATED

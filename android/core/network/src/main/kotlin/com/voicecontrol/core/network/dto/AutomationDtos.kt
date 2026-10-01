@@ -32,9 +32,13 @@ import kotlinx.serialization.Serializable
     val enabled: Boolean,
     val appPackage: String? = null,
     val deviceId: String? = null,
+    /** VOICE triggers: what the user says to run the flow. */
+    val phrase: String? = null,
+    val flowName: String? = null,
 )
 
-@Serializable data class AppOpenRunDto(val flowId: String, val triggerId: String? = null)
+/** A run the phone started by itself; [source] is APP_OPEN or VOICE. */
+@Serializable data class AppOpenRunDto(val flowId: String, val triggerId: String? = null, val source: String = "APP_OPEN")
 
 @Serializable data class RunEventInDto(val kind: String, val message: String)
 

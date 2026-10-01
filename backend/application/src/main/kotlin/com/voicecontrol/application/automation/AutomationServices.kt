@@ -59,9 +59,16 @@ class DeviceService(private val devices: DeviceRepository, private val now: () -
 }
 
 /** Input for creating or updating a trigger. */
-data class TriggerInput(val type: TriggerType, val enabled: Boolean, val cron: String?, val timezone: String?, val deviceId: UUID?)
+data class TriggerInput(
+    val type: TriggerType,
+    val enabled: Boolean,
+    val cron: String?,
+    val timezone: String?,
+    val deviceId: UUID?,
+    val phrase: String? = null,
+)
 
-/** Per-flow triggers: when the app opens, or on a schedule. */
+/** Per-flow triggers: when the app opens, on a schedule, or when a phrase is said (voice macro). */
 class TriggerService(
     private val triggers: TriggerRepository,
     private val flows: FlowRepository,
@@ -96,7 +103,21 @@ class TriggerService(
     private suspend fun validated(userId: UUID, base: FlowTrigger, input: TriggerInput): FlowTrigger {
         input.deviceId?.let { devices.find(userId, it) ?: throw DomainException.Validation("Unknown device") }
         return when (input.type) {
-            TriggerType.APP_OPEN -> base.copy(type = input.type, enabled = input.enabled, cron = null, timezone = null, deviceId = input.deviceId, nextRunAt = null, updatedAt = now())
+            TriggerType.APP_OPEN -> base.copy(
+                type = input.type, enabled = input.enabled, cron = null, timezone = null, deviceId = input.deviceId, nextRunAt = null, phrase = null,
+                updatedAt = now(),
+            )
+            TriggerType.VOICE -> {
+                val phrase = input.phrase?.trim()?.replace(Regex("\\s+"), " ").orEmpty()
+                VoicePhrases.validate(phrase)?.let { throw DomainException.Validation(it) }
+                val key = VoicePhrases.key(phrase)
+                val taken = triggers.listForUser(userId).any { it.type == TriggerType.VOICE && it.id != base.id && it.phrase?.let(VoicePhrases::key) == key }
+                if (taken) throw DomainException.Conflict("You already use \"$phrase\" for another flow")
+                base.copy(
+                    type = input.type, enabled = input.enabled, cron = null, timezone = null, deviceId = input.deviceId, nextRunAt = null, phrase = phrase,
+                    updatedAt = now(),
+                )
+            }
             TriggerType.SCHEDULE -> {
                 val cron = input.cron?.trim()?.takeIf { it.isNotEmpty() } ?: throw DomainException.Validation("A schedule is required")
                 val zone = zoneOf(input.timezone)
@@ -109,6 +130,7 @@ class TriggerService(
                     timezone = zone.id,
                     deviceId = input.deviceId,
                     nextRunAt = if (input.enabled) next else null,
+                    phrase = null,
                     updatedAt = now(),
                 )
             }
@@ -155,15 +177,17 @@ class RunRequestService(
     }
 
     /** The phone started a flow by itself because its app opened; recorded so the dashboard can follow it. */
-    suspend fun reportAppOpen(userId: UUID, deviceId: UUID, flowId: UUID, triggerId: UUID?): RunRequest {
+    /** A run the phone started by itself: its app opened ([RunSource.APP_OPEN]) or a voice shortcut was said ([RunSource.VOICE]). */
+    suspend fun reportAppOpen(userId: UUID, deviceId: UUID, flowId: UUID, triggerId: UUID?, source: RunSource = RunSource.APP_OPEN): RunRequest {
+        if (source != RunSource.APP_OPEN && source != RunSource.VOICE) throw DomainException.Validation("source must be APP_OPEN or VOICE")
         val flow = flows.find(userId, flowId) ?: throw DomainException.NotFound("Flow not found")
         devices.find(userId, deviceId) ?: throw DomainException.NotFound("Device not found")
         val t = now()
         val request = RunRequest(
-            UUID.randomUUID(), userId, flowId, flow.flow.name, flow.flow.appPackage, deviceId, triggerId, RunSource.APP_OPEN,
+            UUID.randomUUID(), userId, flowId, flow.flow.name, flow.flow.appPackage, deviceId, triggerId, source,
             RunRequestStatus.RUNNING, t, t, t.plus(ttl),
         )
-        return requests.insert(request, "Started because ${flow.flow.appPackage} opened")
+        return requests.insert(request, if (source == RunSource.VOICE) "Started by a voice shortcut" else "Started because ${flow.flow.appPackage} opened")
     }
 
     suspend fun list(userId: UUID, flowId: UUID?, limit: Int): List<RunRequest> = requests.list(userId, flowId, limit.coerceIn(1, 200))

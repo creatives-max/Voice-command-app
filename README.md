@@ -127,6 +127,14 @@ floating panel (or the record icon in *Saved flows*), fill the form by touch acr
 red bubble. Review the steps, choose which typed values to keep as defaults (never passwords, OTPs or PINs) and save.
 Next time VoiceControl asks for each field in that order.
 
+## Voice shortcuts (voice macros)
+
+Say a phrase to run a flow: "pay electricity bill", "बिजली का बिल". Add phrases in a flow's details on the phone
+(kept on the phone) or as a *When I say…* trigger on the dashboard (synced to your phones, unique per account).
+Tap the mic (or say the wake word) on any screen without a form and say the phrase: VoiceControl opens the flow's
+app and runs it. Polite words ("please … karo") and small recognition slips are fine; a button on screen with the
+same name always wins.
+
 ## Test runs (dry run)
 
 Try a flow without touching the app: *Test* in a flow's details (or while editing it on the phone), the

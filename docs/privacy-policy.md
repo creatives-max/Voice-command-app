@@ -22,6 +22,12 @@ While you record a flow by touch, VoiceControl notes which fields you type into 
 you typed stays in the phone's memory until you review the recording; it is saved only for fields you tick as
 defaults, and never for password, OTP, PIN or CVV fields.
 
+## Voice shortcuts
+
+Phrases you add on the phone stay on the phone. Phrases you add on the dashboard are stored with your account
+so your phones can use them. When you say one, VoiceControl compares what you said with your phrases on the phone;
+nothing extra is sent. Runs started this way show in the flow's run log (step names only, never values).
+
 ## Microphone
 
 Audio is captured only while a voice session is running, or — if you turn on **Wake phrase** — while VoiceControl

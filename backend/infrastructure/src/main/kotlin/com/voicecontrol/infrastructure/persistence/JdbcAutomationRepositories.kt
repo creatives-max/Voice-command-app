@@ -1,5 +1,6 @@
 package com.voicecontrol.infrastructure.persistence
 
+import com.voicecontrol.application.automation.VoicePhrases
 import com.voicecontrol.domain.automation.Device
 import com.voicecontrol.domain.automation.DeviceCommands
 import com.voicecontrol.domain.automation.DeviceRepository
@@ -80,11 +81,12 @@ class JdbcTriggerRepository(private val db: Database) : TriggerRepository {
     override suspend fun insert(trigger: FlowTrigger): FlowTrigger = db.tx {
         query(
             """
-            INSERT INTO flow_triggers (id, user_id, flow_id, type, enabled, cron, timezone, device_id, next_run_at, last_run_at, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *
+            INSERT INTO flow_triggers (id, user_id, flow_id, type, enabled, cron, timezone, device_id, next_run_at, last_run_at, created_at, updated_at,
+                                       phrase, phrase_key)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *
             """.trimIndent(),
             trigger.id, trigger.userId, trigger.flowId, trigger.type.name, trigger.enabled, trigger.cron, trigger.timezone, trigger.deviceId,
-            trigger.nextRunAt, trigger.lastRunAt, trigger.createdAt, trigger.updatedAt,
+            trigger.nextRunAt, trigger.lastRunAt, trigger.createdAt, trigger.updatedAt, trigger.phrase, trigger.phrase?.let(VoicePhrases::key),
             map = ::toTrigger,
         ).first()
     }
@@ -92,10 +94,12 @@ class JdbcTriggerRepository(private val db: Database) : TriggerRepository {
     override suspend fun update(trigger: FlowTrigger): FlowTrigger? = db.tx {
         query(
             """
-            UPDATE flow_triggers SET type = ?, enabled = ?, cron = ?, timezone = ?, device_id = ?, next_run_at = ?, updated_at = ?
+            UPDATE flow_triggers SET type = ?, enabled = ?, cron = ?, timezone = ?, device_id = ?, next_run_at = ?, updated_at = ?,
+                                     phrase = ?, phrase_key = ?
             WHERE user_id = ? AND id = ? RETURNING *
             """.trimIndent(),
             trigger.type.name, trigger.enabled, trigger.cron, trigger.timezone, trigger.deviceId, trigger.nextRunAt, trigger.updatedAt,
+            trigger.phrase, trigger.phrase?.let(VoicePhrases::key),
             trigger.userId, trigger.id,
             map = ::toTrigger,
         ).firstOrNull()
@@ -160,6 +164,7 @@ internal fun toTrigger(rs: ResultSet) = FlowTrigger(
     lastRunAt = rs.instantOrNull("last_run_at"),
     createdAt = rs.instant("created_at"),
     updatedAt = rs.instant("updated_at"),
+    phrase = rs.getString("phrase"),
 )
 
 internal fun Connection.insertRequest(r: RunRequest, firstEvent: String): RunRequest {

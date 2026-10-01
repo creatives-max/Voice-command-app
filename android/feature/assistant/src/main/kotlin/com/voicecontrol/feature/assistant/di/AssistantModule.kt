@@ -69,6 +69,7 @@ abstract class AssistantModule {
             config: SessionConfigProvider,
             vision: VisionDetector,
             speechDetector: SpeechDetector,
+            shortcuts: com.voicecontrol.core.engine.port.ShortcutSource,
         ): AssistantEngine = AssistantEngine(
             screen = screen,
             stt = stt,
@@ -81,6 +82,7 @@ abstract class AssistantModule {
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
             vision = vision,
             speechDetector = speechDetector,
+            shortcuts = shortcuts,
         )
 
         @Provides

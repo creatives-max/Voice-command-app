@@ -18,7 +18,8 @@ data class Device(
 )
 
 @Serializable
-enum class TriggerType { APP_OPEN, SCHEDULE }
+/** VOICE: saying [FlowTrigger.phrase] on the phone runs the flow (a voice macro). */
+enum class TriggerType { APP_OPEN, SCHEDULE, VOICE }
 
 data class FlowTrigger(
     val id: UUID,
@@ -36,10 +37,12 @@ data class FlowTrigger(
     val lastRunAt: Instant?,
     val createdAt: Instant,
     val updatedAt: Instant,
+    /** What the user says to run the flow, VOICE only. */
+    val phrase: String? = null,
 )
 
 @Serializable
-enum class RunSource { MANUAL, SCHEDULE, APP_OPEN }
+enum class RunSource { MANUAL, SCHEDULE, APP_OPEN, VOICE }
 
 @Serializable
 enum class RunRequestStatus {

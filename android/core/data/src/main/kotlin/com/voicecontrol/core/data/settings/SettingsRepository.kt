@@ -40,6 +40,8 @@ class SettingsRepository @Inject constructor(
         val deviceName = stringPreferencesKey("device_name")
         val deviceId = stringPreferencesKey("device_id")
         val appOpenTriggers = stringPreferencesKey("app_open_triggers")
+        val voiceTriggers = stringPreferencesKey("voice_triggers")
+        val localShortcuts = stringPreferencesKey("local_voice_shortcuts")
         val templates = stringPreferencesKey("starter_templates")
         val useTemplates = booleanPreferencesKey("use_templates")
         val bargeIn = booleanPreferencesKey("barge_in")
@@ -79,6 +81,20 @@ class SettingsRepository @Inject constructor(
 
     suspend fun saveAppOpenTriggersJson(json: String) {
         store.edit { it[Keys.appOpenTriggers] = json }
+    }
+
+    /** Voice shortcuts set on the dashboard, last fetched from the server (JSON). */
+    suspend fun voiceTriggersJson(): String? = store.data.first()[Keys.voiceTriggers]
+
+    suspend fun saveVoiceTriggersJson(json: String) {
+        store.edit { it[Keys.voiceTriggers] = json }
+    }
+
+    /** Voice shortcuts made on this phone (JSON). */
+    val localShortcutsJson: Flow<String?> = store.data.map { it[Keys.localShortcuts] }
+
+    suspend fun saveLocalShortcutsJson(json: String) {
+        store.edit { it[Keys.localShortcuts] = json }
     }
 
     suspend fun templatesJson(): String? = store.data.first()[Keys.templates]

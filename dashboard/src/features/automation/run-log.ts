@@ -18,6 +18,7 @@ export const SOURCE_LABELS: Record<RunRequest["source"], string> = {
   MANUAL: "Run now",
   SCHEDULE: "Schedule",
   APP_OPEN: "App opened",
+  VOICE: "Voice shortcut",
 };
 
 export const statusTone = (status: RunRequest["status"]): "default" | "secondary" | "destructive" | "outline" =>

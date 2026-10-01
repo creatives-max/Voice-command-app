@@ -25,6 +25,10 @@ import javax.inject.Singleton
 @Serializable
 data class AppOpenTrigger(val id: String, val flowId: String, val appPackage: String)
 
+/** A voice shortcut set on the dashboard (a VOICE trigger): saying [phrase] runs the flow. */
+@Serializable
+data class VoiceTrigger(val id: String, val flowId: String, val phrase: String, val flowName: String? = null)
+
 /**
  * The phone's side of remote runs: registers this phone, long-polls for flows to run or stop,
  * reports status and value-free log lines, and keeps the app-open triggers (cached for offline use).
@@ -41,7 +45,12 @@ class RemoteRunRepository @Inject constructor(
     private val triggers = MutableStateFlow<List<AppOpenTrigger>>(emptyList())
     val appOpenTriggers: StateFlow<List<AppOpenTrigger>> = triggers.asStateFlow()
 
+    private val voice = MutableStateFlow<List<VoiceTrigger>>(emptyList())
+    /** Voice shortcuts from the dashboard (cached for offline use). */
+    val voiceTriggers: StateFlow<List<VoiceTrigger>> = voice.asStateFlow()
+
     private val serializer = ListSerializer(AppOpenTrigger.serializer())
+    private val voiceSerializer = ListSerializer(VoiceTrigger.serializer())
 
     /** Signed in, online mode, and remote runs allowed. */
     suspend fun remoteEnabled(): Boolean {
@@ -70,17 +79,31 @@ class RemoteRunRepository @Inject constructor(
 
     /** Loads the cached triggers, then refreshes them from the server when online. */
     suspend fun refreshTriggers() {
+        loadCachedTriggers()
+        if (!online()) return
+        val all = api.triggers(deviceId()).filter { it.enabled }
+        val fresh = all
+            .filter { it.type == "APP_OPEN" && it.appPackage != null }
+            .map { AppOpenTrigger(it.id, it.flowId, it.appPackage!!) }
+        triggers.value = fresh
+        settings.saveAppOpenTriggersJson(NetworkJson.encodeToString(serializer, fresh))
+        val shortcuts = all.filter { it.type == "VOICE" && !it.phrase.isNullOrBlank() }.map { VoiceTrigger(it.id, it.flowId, it.phrase!!, it.flowName) }
+        voice.value = shortcuts
+        settings.saveVoiceTriggersJson(NetworkJson.encodeToString(voiceSerializer, shortcuts))
+    }
+
+    /** Cached triggers from the last refresh, so they work offline and right after a restart. */
+    suspend fun loadCachedTriggers() {
         if (triggers.value.isEmpty()) {
             settings.appOpenTriggersJson()?.let { json ->
                 runCatching { NetworkJson.decodeFromString(serializer, json) }.getOrNull()?.let { triggers.value = it }
             }
         }
-        if (!online()) return
-        val fresh = api.triggers(deviceId())
-            .filter { it.type == "APP_OPEN" && it.enabled && it.appPackage != null }
-            .map { AppOpenTrigger(it.id, it.flowId, it.appPackage!!) }
-        triggers.value = fresh
-        settings.saveAppOpenTriggersJson(NetworkJson.encodeToString(serializer, fresh))
+        if (voice.value.isEmpty()) {
+            settings.voiceTriggersJson()?.let { json ->
+                runCatching { NetworkJson.decodeFromString(voiceSerializer, json) }.getOrNull()?.let { voice.value = it }
+            }
+        }
     }
 
     fun triggerFor(appPackage: String): AppOpenTrigger? = triggers.value.firstOrNull { it.appPackage == appPackage }
@@ -98,6 +121,9 @@ class RemoteRunRepository @Inject constructor(
 
     /** Tells the dashboard a flow started because its app opened; returns the run id for the live log. */
     suspend fun reportAppOpen(trigger: AppOpenTrigger): String = api.appOpenRun(deviceId(), trigger.flowId, trigger.id).id
+
+    /** Tells the dashboard a flow started from a voice shortcut; returns the run id for the live log. */
+    suspend fun reportVoiceRun(flowId: String, triggerId: String?): String = api.appOpenRun(deviceId(), flowId, triggerId, source = "VOICE").id
 }
 
 /** Device facts used to register the phone (abstracted for tests). */

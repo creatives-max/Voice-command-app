@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { AppWindow, CalendarClock, Play, Plus, Smartphone, Trash2 } from "lucide-react";
+import { AppWindow, CalendarClock, Mic, Play, Plus, Smartphone, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { devicesQuery, flowQuery, runRequestsQuery, triggersQuery, useDeleteTrig
 import type { Device, Trigger } from "@/lib/types";
 import { SOURCE_LABELS, STATUS_LABELS, statusTone } from "./run-log";
 import { DAY_NAMES, INTERVALS, describeCron, timeZones, toCron, type ScheduleSpec } from "./schedule";
+import { PHRASE_MAX, phraseError } from "./voice";
 
 const formatWhen = (iso: string, timeZone?: string | null) => {
   try {
@@ -25,7 +26,7 @@ const formatWhen = (iso: string, timeZone?: string | null) => {
   }
 };
 
-/** "Triggers & runs" for one flow: run it now, run it when its app opens, or on a schedule. */
+/** "Triggers & runs" for one flow: run it now, when its app opens, on a schedule, or when a phrase is said. */
 export function AutomationPage() {
   const { flowId } = useParams({ from: "/app/flows/$flowId/automation" });
   const flow = useQuery(flowQuery(flowId));
@@ -53,7 +54,7 @@ export function AutomationPage() {
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
             <CardTitle>Triggers</CardTitle>
-            <CardDescription>Start this flow by itself when its app opens, or at set times.</CardDescription>
+            <CardDescription>Start this flow by itself when its app opens, at set times, or when you say a phrase on the phone.</CardDescription>
           </div>
           {!adding && (
             <Button variant="outline" onClick={() => setAdding(true)}>
@@ -71,7 +72,7 @@ export function AutomationPage() {
       <Card>
         <CardHeader>
           <CardTitle>Recent runs</CardTitle>
-          <CardDescription>Runs started from the dashboard, by a schedule, or when the app opened.</CardDescription>
+          <CardDescription>Runs started from the dashboard, by a schedule, when the app opened, or by a voice shortcut.</CardDescription>
         </CardHeader>
         <CardContent>
           {runs.data?.length ? (
@@ -157,14 +158,20 @@ function TriggerRow({ flowId, trigger, devices }: { flowId: string; trigger: Tri
   const save = useSaveTrigger(flowId);
   const remove = useDeleteTrigger(flowId);
   const device = devices.find((d) => d.id === trigger.deviceId);
-  const input: TriggerInput = { type: trigger.type, enabled: trigger.enabled, cron: trigger.cron, timezone: trigger.timezone, deviceId: trigger.deviceId };
+  const input: TriggerInput = {
+    type: trigger.type, enabled: trigger.enabled, cron: trigger.cron, timezone: trigger.timezone, deviceId: trigger.deviceId, phrase: trigger.phrase,
+  };
   const isSchedule = trigger.type === "SCHEDULE";
+  const isVoice = trigger.type === "VOICE";
+  const Icon = isSchedule ? CalendarClock : isVoice ? Mic : AppWindow;
 
   return (
     <div className="flex flex-wrap items-start gap-3 rounded-md border p-3" data-testid={`trigger-${trigger.id}`}>
-      {isSchedule ? <CalendarClock className="mt-0.5 size-5 text-primary" /> : <AppWindow className="mt-0.5 size-5 text-primary" />}
+      <Icon className="mt-0.5 size-5 text-primary" />
       <div className="grid min-w-0 flex-1 gap-1 text-sm">
-        <span className="font-medium">{isSchedule ? describeCron(trigger.cron ?? "") : "When the app opens"}</span>
+        <span className="font-medium">
+          {isSchedule ? describeCron(trigger.cron ?? "") : isVoice ? `When I say “${trigger.phrase ?? ""}”` : "When the app opens"}
+        </span>
         <span className="text-muted-foreground">
           {isSchedule && `${trigger.timezone} · `}
           <Smartphone className="inline size-3" /> {device?.name ?? (isSchedule ? "Most recently used phone" : "Any of my phones")}
@@ -190,9 +197,14 @@ function TriggerRow({ flowId, trigger, devices }: { flowId: string; trigger: Tri
   );
 }
 
+const TYPE_LABELS: Record<TriggerInput["type"], string> = { SCHEDULE: "On a schedule", APP_OPEN: "When the app opens", VOICE: "When I say…" };
+const TYPE_ICONS = { SCHEDULE: CalendarClock, APP_OPEN: AppWindow, VOICE: Mic } as const;
+
 function TriggerForm({ flowId, devices, onDone }: { flowId: string; devices: Device[]; onDone: () => void }) {
   const zones = timeZones();
-  const [type, setType] = useState<"APP_OPEN" | "SCHEDULE">("SCHEDULE");
+  const [type, setType] = useState<TriggerInput["type"]>("SCHEDULE");
+  const [phrase, setPhrase] = useState("");
+  const phraseProblem = type === "VOICE" && phrase.trim() ? phraseError(phrase) : null;
   const [spec, setSpec] = useState<ScheduleSpec>({ kind: "daily", time: "09:00" });
   const [timezone, setTimezone] = useState(zones[0]!);
   const [device, setDevice] = useState("");
@@ -201,8 +213,15 @@ function TriggerForm({ flowId, devices, onDone }: { flowId: string; devices: Dev
 
   async function submit() {
     try {
-      await save.mutateAsync({ input: { type, enabled: true, cron, timezone: type === "SCHEDULE" ? timezone : null, deviceId: device || null } });
-      toast.success(type === "SCHEDULE" ? "Schedule saved" : "The phone will run this flow when the app opens");
+      await save.mutateAsync({
+        input: {
+          type, enabled: true, cron, timezone: type === "SCHEDULE" ? timezone : null, deviceId: device || null,
+          phrase: type === "VOICE" ? phrase.trim() : null,
+        },
+      });
+      toast.success(
+        type === "SCHEDULE" ? "Schedule saved" : type === "VOICE" ? `Say “${phrase.trim()}” on the phone to run this flow` : "The phone will run this flow when the app opens",
+      );
       onDone();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save the trigger");
@@ -225,11 +244,14 @@ function TriggerForm({ flowId, devices, onDone }: { flowId: string; devices: Dev
   return (
     <div className="grid gap-4 rounded-md border border-dashed p-4" aria-label="New trigger">
       <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Trigger type">
-        {(["SCHEDULE", "APP_OPEN"] as const).map((t) => (
-          <Button key={t} type="button" role="radio" aria-checked={type === t} variant={type === t ? "default" : "outline"} size="sm" onClick={() => setType(t)}>
-            {t === "SCHEDULE" ? <CalendarClock /> : <AppWindow />} {t === "SCHEDULE" ? "On a schedule" : "When the app opens"}
-          </Button>
-        ))}
+        {(["SCHEDULE", "APP_OPEN", "VOICE"] as const).map((t) => {
+          const TypeIcon = TYPE_ICONS[t];
+          return (
+            <Button key={t} type="button" role="radio" aria-checked={type === t} variant={type === t ? "default" : "outline"} size="sm" onClick={() => setType(t)}>
+              <TypeIcon /> {TYPE_LABELS[t]}
+            </Button>
+          );
+        })}
       </div>
 
       {type === "SCHEDULE" && (
@@ -315,6 +337,25 @@ function TriggerForm({ flowId, devices, onDone }: { flowId: string; devices: Dev
         </p>
       )}
 
+      {type === "VOICE" && (
+        <div className="grid gap-1 sm:max-w-md">
+          <Label htmlFor="trigger-phrase">Phrase</Label>
+          <Input
+            id="trigger-phrase"
+            value={phrase}
+            maxLength={PHRASE_MAX + 10}
+            placeholder="Pay electricity bill"
+            aria-invalid={!!phraseProblem}
+            aria-describedby="trigger-phrase-help"
+            onChange={(e) => setPhrase(e.target.value)}
+          />
+          <p id="trigger-phrase-help" className={phraseProblem ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
+            {phraseProblem ??
+              "On the phone, tap the mic (or say the wake word) on a screen without a form and say this to run the flow. Any language works; each phrase can run one flow."}
+          </p>
+        </div>
+      )}
+
       <div className="grid gap-1 sm:max-w-sm">
         <Label htmlFor="trigger-device">Phone</Label>
         <DeviceSelect
@@ -327,7 +368,7 @@ function TriggerForm({ flowId, devices, onDone }: { flowId: string; devices: Dev
       </div>
 
       <div className="flex gap-2">
-        <Button onClick={submit} disabled={save.isPending || (type === "SCHEDULE" && !cron)}>
+        <Button onClick={submit} disabled={save.isPending || (type === "SCHEDULE" && !cron) || (type === "VOICE" && (!phrase.trim() || !!phraseProblem))}>
           Save trigger
         </Button>
         <Button variant="ghost" onClick={onDone}>

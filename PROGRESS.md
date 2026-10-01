@@ -148,7 +148,11 @@ phase notes say which earlier phase covered the rest.
 - [x] Tests, commit + push
 
 ## Phase 19 — Routines & triggers (voice macros; app-open and schedules were done in Phase 10)
-- [ ] Voice macros, tests, commit + push
+- [x] Engine `ShortcutMatcher` (polite words, slips, ties) and voice shortcuts in sessions: on a screen without a form, a phrase runs its flow in its app; visible buttons win
+- [x] Backend VOICE triggers with a phrase (migration V9, unique per account, reserved command words), sent to phones; VOICE run source for the run log
+- [x] Phone: shortcuts in a flow's details (kept on the phone, follow the flow when it syncs), dashboard shortcuts cached offline, voice runs logged on the dashboard
+- [x] Dashboard: "When I say…" trigger with phrase checks; "Voice shortcut" run source
+- [x] Tests, commit + push
 
 ## Phase 20 — Photo/document auto-fill (OCR → fill)
 - [ ] OCR, field mapping, review, fill, tests, commit + push

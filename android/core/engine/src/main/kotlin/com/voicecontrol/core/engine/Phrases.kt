@@ -571,4 +571,26 @@ class Phrases(private val language: Language) {
         "ঠিক আছে, $label চাপিনি।",
         "બરાબર, $label દબાવ્યું નહીં.",
     )
+
+    fun startingShortcut(flowName: String) = t(
+        "Starting $flowName.",
+        "$flowName शुरू कर रहा हूँ।",
+        "$flowName shuru kar raha hoon.",
+        "$flowName सुरू करत आहे.",
+        "$flowName தொடங்குகிறேன்.",
+        "$flowName ప్రారంభిస్తున్నాను.",
+        "$flowName শুরু করছি।",
+        "$flowName શરૂ કરું છું.",
+    )
+
+    fun shortcutUnavailable(phrase: String) = t(
+        "The flow for \"$phrase\" is not on this phone yet. Connect to the internet and try again.",
+        "\"$phrase\" वाला फ्लो अभी इस फ़ोन पर नहीं है। इंटरनेट चालू करके फिर कोशिश करें।",
+        "\"$phrase\" wala flow abhi is phone par nahi hai. Internet chalu karke phir koshish karein.",
+        "\"$phrase\" चा फ्लो अजून या फोनवर नाही. इंटरनेट चालू करून पुन्हा प्रयत्न करा.",
+        "\"$phrase\" க்கான செயல்முறை இந்த போனில் இல்லை. இணையத்தை இயக்கி மீண்டும் முயற்சிக்கவும்.",
+        "\"$phrase\" కోసం ఫ్లో ఈ ఫోన్‌లో ఇంకా లేదు. ఇంటర్నెట్ ఆన్ చేసి మళ్ళీ ప్రయత్నించండి.",
+        "\"$phrase\" এর ফ্লো এখনও এই ফোনে নেই। ইন্টারনেট চালু করে আবার চেষ্টা করুন।",
+        "\"$phrase\" માટેનો ફ્લો હજી આ ફોન પર નથી. ઇન્ટરનેટ ચાલુ કરીને ફરી પ્રયાસ કરો.",
+    )
 }

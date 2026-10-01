@@ -164,8 +164,9 @@ class Services(
     }
 
     /** App package of a user's flow (for app-open triggers sent to the phone). */
-    suspend fun flowApp(userId: java.util.UUID, flowId: java.util.UUID): String? =
-        runCatching { flows.get(userId, flowId).flow.appPackage }.getOrNull()
+    /** App package and name of a flow the user can see (nulls when it can't be read). */
+    suspend fun flowInfo(userId: java.util.UUID, flowId: java.util.UUID): Pair<String?, String?> =
+        runCatching { flows.get(userId, flowId).flow }.getOrNull().let { it?.appPackage to it?.name }
 
     override fun close() {
         schedulerScope.cancel()

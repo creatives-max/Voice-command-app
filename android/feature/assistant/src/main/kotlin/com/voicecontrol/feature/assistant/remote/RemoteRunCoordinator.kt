@@ -27,6 +27,7 @@ import javax.inject.Singleton
  * Runs flows on this phone without a tap, while the accessibility service is on:
  * - long-polls the backend for "Run now" and scheduled runs (and for stop requests),
  * - starts a flow when its app opens if it has an app-open trigger,
+ * - logs runs started by voice shortcuts (voice macros) on the dashboard,
  * - streams each run's value-free progress (labels and outcomes, never values) to the dashboard log.
  */
 @Singleton
@@ -34,6 +35,7 @@ class RemoteRunCoordinator @Inject constructor(
     private val repository: RemoteRunRepository,
     private val launcher: FlowLauncher,
     private val engine: AssistantEngine,
+    private val shortcuts: com.voicecontrol.core.data.shortcuts.VoiceShortcutRepository,
 ) : ServiceListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -46,6 +48,15 @@ class RemoteRunCoordinator @Inject constructor(
 
     override fun onServiceConnected(service: AccessibilityService) {
         scope.launch { pollLoop() }
+        scope.launch {
+            shortcuts.started.collect { shortcut ->
+                // The session is already running: log the rest of it as a voice run of an account flow.
+                if (currentRequest != null || shortcut.flowId.startsWith(FlowDefinition.LOCAL_PREFIX) || !repository.online()) return@collect
+                val buffer = subscribe()
+                val requestId = runCatching { repository.reportVoiceRun(shortcut.flowId, shortcut.triggerId) }.getOrNull()
+                if (requestId == null) buffer.second.cancel() else stream(requestId, buffer)
+            }
+        }
         scope.launch {
             while (isActive) {
                 runCatching { repository.refreshTriggers() }
@@ -122,19 +133,30 @@ class RemoteRunCoordinator @Inject constructor(
         follow(request.id, flow)
     }
 
+    /** Buffers the engine's events from now on (subscribe before starting so none are missed). */
+    private fun subscribe(): Pair<Channel<EngineEvent>, Job> {
+        val buffer = Channel<EngineEvent>(Channel.UNLIMITED)
+        val collector = scope.launch(start = CoroutineStart.UNDISPATCHED) { engine.events.collect { buffer.trySend(it) } }
+        return buffer to collector
+    }
+
     /** Starts [flow] and forwards its events to the run log of [requestId] until it ends. */
     private fun follow(requestId: String, flow: FlowDefinition) {
-        val buffer = Channel<EngineEvent>(Channel.UNLIMITED)
-        // Subscribe before starting so the first events are not missed.
-        val collector = scope.launch(start = CoroutineStart.UNDISPATCHED) { engine.events.collect { buffer.trySend(it) } }
+        val subscription = subscribe()
         when (val result = launcher.launch(flow)) {
             LaunchResult.STARTED -> Unit
             else -> {
-                collector.cancel()
+                subscription.second.cancel()
                 scope.launch { report(requestId, "FAILED", "error" to reason(result)) }
                 return
             }
         }
+        stream(requestId, subscription)
+    }
+
+    /** Forwards buffered engine events to the run log of [requestId] until the session ends. */
+    private fun stream(requestId: String, subscription: Pair<Channel<EngineEvent>, Job>) {
+        val (buffer, collector) = subscription
         currentRequest = requestId
         scope.launch {
             try {

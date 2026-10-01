@@ -467,7 +467,7 @@ paths:
   /v1/devices/{id}/triggers:
     get:
       tags: [Automation]
-      summary: Enabled app-open triggers that apply to this phone
+      summary: Enabled app-open triggers and voice shortcuts that apply to this phone
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
@@ -475,10 +475,10 @@ paths:
   /v1/devices/{id}/app-open-runs:
     post:
       tags: [Automation]
-      summary: The phone started a flow because its app opened
+      summary: The phone started a flow by itself (its app opened, or a voice shortcut was said)
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [flowId], properties: { flowId: { type: string }, triggerId: { type: string } } } } } }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [flowId], properties: { flowId: { type: string }, triggerId: { type: string }, source: { type: string, enum: [APP_OPEN, VOICE], default: APP_OPEN } } } } } }
       responses:
         "201": { description: Run request, content: { application/json: { schema: { $ref: "#/components/schemas/RunRequest" } } } }
   /v1/flows/{id}/triggers:
@@ -1190,8 +1190,9 @@ components:
       type: object
       required: [type]
       properties:
-        type: { type: string, enum: [APP_OPEN, SCHEDULE] }
+        type: { type: string, enum: [APP_OPEN, SCHEDULE, VOICE], description: "VOICE: a voice macro, saying `phrase` on the phone runs the flow" }
         enabled: { type: boolean, default: true }
+        phrase: { type: string, nullable: true, minLength: 2, maxLength: 60, description: "VOICE only; unique per account ignoring case and punctuation (409 otherwise)" }
         cron: { type: string, nullable: true, description: "5-field cron (minute hour day month weekday), SCHEDULE only" }
         timezone: { type: string, nullable: true, description: IANA zone, SCHEDULE only }
         deviceId: { type: string, nullable: true, description: Phone to run on; null = most recently seen }
@@ -1206,6 +1207,7 @@ components:
             lastRunAt: { type: string, format: date-time, nullable: true }
             upcoming: { type: array, items: { type: string, format: date-time } }
             appPackage: { type: string, nullable: true }
+            flowName: { type: string, nullable: true, description: Device list only }
     RunRequestStatus:
       type: string
       enum: [PENDING, DELIVERED, RUNNING, COMPLETED, FAILED, STOPPED, CANCEL_REQUESTED, CANCELLED, EXPIRED]
@@ -1218,7 +1220,7 @@ components:
         appPackage: { type: string }
         deviceId: { type: string, nullable: true }
         triggerId: { type: string, nullable: true }
-        source: { type: string, enum: [MANUAL, SCHEDULE, APP_OPEN] }
+        source: { type: string, enum: [MANUAL, SCHEDULE, APP_OPEN, VOICE] }
         status: { $ref: "#/components/schemas/RunRequestStatus" }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }

@@ -172,7 +172,7 @@ private fun FlowPane(state: FlowsState, selected: FlowDefinition, onIntent: (Flo
     } else if (draft != null && draft.id == selected.id) {
         FlowEditor(draft, state.saving, Modifier.fillMaxSize(), onIntent)
     } else {
-        FlowDetail(selected, selected.id in state.appOpenFlowIds, Modifier.fillMaxSize(), onIntent)
+        FlowDetail(selected, selected.id in state.appOpenFlowIds, state.shortcuts.filter { it.flowId == selected.id }, Modifier.fillMaxSize(), onIntent)
     }
 }
 
@@ -326,7 +326,13 @@ private fun FlowCard(flow: FlowDefinition, selected: Boolean, onClick: () -> Uni
 }
 
 @Composable
-private fun FlowDetail(flow: FlowDefinition, startsOnAppOpen: Boolean, modifier: Modifier, onIntent: (FlowsIntent) -> Unit) {
+private fun FlowDetail(
+    flow: FlowDefinition,
+    startsOnAppOpen: Boolean,
+    shortcuts: List<ShortcutItem>,
+    modifier: Modifier,
+    onIntent: (FlowsIntent) -> Unit,
+) {
     var confirmDelete by remember { mutableStateOf(false) }
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
@@ -362,6 +368,7 @@ private fun FlowDetail(flow: FlowDefinition, startsOnAppOpen: Boolean, modifier:
                 }
             }
         }
+        item { ShortcutsCard(shortcuts, onIntent) }
         items(flow.orderedSteps, key = { it.id }) { step -> StepCard(step) }
         item {
             Row {

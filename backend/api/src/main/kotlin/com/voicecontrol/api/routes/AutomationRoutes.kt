@@ -69,8 +69,10 @@ import java.util.UUID
     val cron: String? = null,
     val timezone: String? = null,
     val deviceId: String? = null,
+    /** VOICE: what the user says to run the flow. */
+    val phrase: String? = null,
 ) {
-    fun toInput() = TriggerInput(type, enabled, cron, timezone, deviceId?.takeIf { it.isNotBlank() }?.let { parseUuid(it, "deviceId") })
+    fun toInput() = TriggerInput(type, enabled, cron, timezone, deviceId?.takeIf { it.isNotBlank() }?.let { parseUuid(it, "deviceId") }, phrase)
 }
 
 @Serializable data class TriggerDto(
@@ -87,9 +89,13 @@ import java.util.UUID
     val upcoming: List<String> = emptyList(),
     /** App of the flow, so the phone can match app-open triggers without loading the flow. */
     val appPackage: String? = null,
+    /** VOICE: what the user says to run the flow. */
+    val phrase: String? = null,
+    /** Name of the flow (device list only), for the phone's shortcut list. */
+    val flowName: String? = null,
 ) {
     companion object {
-        fun from(t: FlowTrigger, appPackage: String? = null): TriggerDto {
+        fun from(t: FlowTrigger, appPackage: String? = null, flowName: String? = null): TriggerDto {
             val upcoming = if (t.type == TriggerType.SCHEDULE && t.enabled && t.cron != null && t.timezone != null) {
                 runCatching { CronSchedule.parse(t.cron!!).upcoming(Instant.now(), ZoneId.of(t.timezone), 3).map(Instant::toString) }.getOrDefault(emptyList())
             } else {
@@ -97,14 +103,15 @@ import java.util.UUID
             }
             return TriggerDto(
                 t.id.toString(), t.flowId.toString(), t.type, t.enabled, t.cron, t.timezone, t.deviceId?.toString(),
-                t.nextRunAt?.toString(), t.lastRunAt?.toString(), upcoming, appPackage,
+                t.nextRunAt?.toString(), t.lastRunAt?.toString(), upcoming, appPackage, t.phrase, flowName,
             )
         }
     }
 }
 
 @Serializable data class RunNowRequest(val flowId: String, val deviceId: String? = null)
-@Serializable data class AppOpenRunRequest(val flowId: String, val triggerId: String? = null)
+/** A run the phone started by itself: APP_OPEN (its app opened) or VOICE (a voice shortcut was said). */
+@Serializable data class AppOpenRunRequest(val flowId: String, val triggerId: String? = null, val source: RunSource = RunSource.APP_OPEN)
 @Serializable data class RunRequestDto(
     val id: String,
     val flowId: String? = null,
@@ -145,7 +152,7 @@ fun Route.automationRoutes(
     devices: DeviceService,
     triggers: TriggerService,
     runs: RunRequestService,
-    flowApp: suspend (UUID, UUID) -> String?,
+    flowInfo: suspend (UUID, UUID) -> Pair<String?, String?>,
     flows: FlowService,
 ) {
     // "Run now" is also available to organization API keys with runs:write: the run goes to the key
@@ -182,19 +189,19 @@ fun Route.automationRoutes(
                     val commands = runs.commands(call.userId, call.idParam(), call.intQuery("wait", 25))
                     call.respond(DeviceCommandsDto(commands.run.map(RunRequestDto::from), commands.cancel.map { it.id.toString() }))
                 }
-                // App-open triggers that apply to this phone.
+                // App-open triggers and voice shortcuts that apply to this phone.
                 get("/triggers") {
                     val userId = call.userId
                     val deviceId = call.idParam()
                     val list = triggers.listForUser(userId)
-                        .filter { it.type == TriggerType.APP_OPEN && it.enabled && (it.deviceId == null || it.deviceId == deviceId) }
-                        .map { TriggerDto.from(it, flowApp(userId, it.flowId)) }
+                        .filter { it.type != TriggerType.SCHEDULE && it.enabled && (it.deviceId == null || it.deviceId == deviceId) }
+                        .map { t -> flowInfo(userId, t.flowId).let { (app, name) -> TriggerDto.from(t, app, name) } }
                     call.respond(list)
                 }
                 post("/app-open-runs") {
                     val body = call.receive<AppOpenRunRequest>()
                     val request = runs.reportAppOpen(
-                        call.userId, call.idParam(), parseUuid(body.flowId, "flowId"), body.triggerId?.let { parseUuid(it, "triggerId") },
+                        call.userId, call.idParam(), parseUuid(body.flowId, "flowId"), body.triggerId?.let { parseUuid(it, "triggerId") }, body.source,
                     )
                     call.respond(HttpStatusCode.Created, RunRequestDto.from(request))
                 }

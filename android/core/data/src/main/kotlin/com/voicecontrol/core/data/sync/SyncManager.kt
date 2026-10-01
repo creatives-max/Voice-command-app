@@ -30,6 +30,7 @@ class SyncManager @Inject constructor(
     private val historyApi: HistoryApi,
     private val remoteRuns: com.voicecontrol.core.data.automation.RemoteRunRepository,
     private val templates: com.voicecontrol.core.data.flows.TemplateRepository,
+    private val shortcuts: com.voicecontrol.core.data.shortcuts.VoiceShortcutRepository,
 ) {
     suspend fun syncAll(pullProfile: Boolean): SyncReport {
         var failures = 0
@@ -46,7 +47,10 @@ class SyncManager @Inject constructor(
                     flows.save(local, synced = true)
                     continue
                 }
-                flows.replace(local.id, flowApi.create(local))
+                val saved = flowApi.create(local)
+                flows.replace(local.id, saved)
+                // Voice shortcuts made for the phone-only draft now point at the account's copy.
+                shortcuts.renameFlow(local.id, saved.id)
                 uploaded++
             } catch (e: ApiException) {
                 if (e.isUnauthorized) return SyncReport(uploaded, failures, unauthorized = true)

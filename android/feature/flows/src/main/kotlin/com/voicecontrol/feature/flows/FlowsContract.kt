@@ -17,7 +17,12 @@ data class FlowsState(
     val saving: Boolean = false,
     /** Test run of the selected flow (or of the draft being edited). */
     val dryRun: DryRunSession? = null,
+    /** Voice shortcuts (voice macros) of every flow: the account's and this phone's. */
+    val shortcuts: List<ShortcutItem> = emptyList(),
 )
+
+/** A phrase that runs a flow; [local] ones were made on this phone and can be removed here. */
+data class ShortcutItem(val phrase: String, val flowId: String, val local: Boolean)
 
 data class TemplateSummary(val id: String, val name: String, val description: String, val stepCount: Int)
 
@@ -46,6 +51,9 @@ sealed interface FlowsIntent {
     data object DryRunUndo : FlowsIntent
     data object DryRunRestart : FlowsIntent
     data object CloseDryRun : FlowsIntent
+    /** Saying [phrase] (on a screen without a form) will run the selected flow. */
+    data class AddShortcut(val phrase: String) : FlowsIntent
+    data class RemoveShortcut(val item: ShortcutItem) : FlowsIntent
 }
 
 sealed interface FlowsEffect {

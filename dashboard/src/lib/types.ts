@@ -179,7 +179,7 @@ export const deviceSchema = z.object({
 });
 export type Device = z.infer<typeof deviceSchema>;
 
-export const triggerTypes = ["APP_OPEN", "SCHEDULE"] as const;
+export const triggerTypes = ["APP_OPEN", "SCHEDULE", "VOICE"] as const;
 export const triggerSchema = z.object({
   id: z.string(),
   flowId: z.string(),
@@ -191,6 +191,8 @@ export const triggerSchema = z.object({
   nextRunAt: z.string().nullish(),
   lastRunAt: z.string().nullish(),
   upcoming: z.array(z.string()).default([]),
+  /** VOICE: what the user says to run the flow (a voice macro). */
+  phrase: z.string().nullish(),
 });
 export type Trigger = z.infer<typeof triggerSchema>;
 
@@ -205,7 +207,7 @@ export const runRequestSchema = z.object({
   appPackage: z.string(),
   deviceId: z.string().nullish(),
   triggerId: z.string().nullish(),
-  source: z.enum(["MANUAL", "SCHEDULE", "APP_OPEN"]),
+  source: z.enum(["MANUAL", "SCHEDULE", "APP_OPEN", "VOICE"]),
   status: z.enum(runRequestStatuses),
   createdAt: z.string(),
   updatedAt: z.string(),

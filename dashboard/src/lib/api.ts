@@ -57,11 +57,13 @@ export interface PublishInput {
 }
 
 export interface TriggerInput {
-  type: "APP_OPEN" | "SCHEDULE";
+  type: "APP_OPEN" | "SCHEDULE" | "VOICE";
   enabled: boolean;
   cron?: string | null;
   timezone?: string | null;
   deviceId?: string | null;
+  /** VOICE only. */
+  phrase?: string | null;
 }
 
 const zStringArray = z.array(z.string());

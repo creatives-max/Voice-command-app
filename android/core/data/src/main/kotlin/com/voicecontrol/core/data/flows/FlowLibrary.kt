@@ -15,6 +15,7 @@ class FlowLibrary @Inject constructor(
     private val sync: SyncScheduler,
     private val tokens: com.voicecontrol.core.data.auth.TokenStore,
     private val settings: com.voicecontrol.core.data.settings.SettingsRepository,
+    private val shortcuts: com.voicecontrol.core.data.shortcuts.VoiceShortcutRepository,
 ) {
     fun observe(): Flow<List<FlowDefinition>> = flows.observeFlows()
 
@@ -23,6 +24,7 @@ class FlowLibrary @Inject constructor(
     suspend fun delete(flow: FlowDefinition): Result<Unit> = runCatching {
         if (flow.isSynced) api.delete(flow.id)
         flows.delete(flow.id)
+        shortcuts.removeFlow(flow.id)
     }
 
     fun syncNow() = sync.syncNow(pullProfile = false)

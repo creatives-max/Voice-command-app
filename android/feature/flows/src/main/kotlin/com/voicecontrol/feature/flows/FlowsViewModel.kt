@@ -21,6 +21,7 @@ class FlowsViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val launcher: FlowLauncher,
     private val teach: com.voicecontrol.core.engine.port.TeachLauncher,
+    private val profiles: com.voicecontrol.core.engine.port.ProfileSource,
     remoteRuns: RemoteRunRepository,
     templates: TemplateRepository,
 ) : MviViewModel<FlowsState, FlowsIntent, FlowsEffect>(FlowsState()) {
@@ -55,7 +56,17 @@ class FlowsViewModel @Inject constructor(
     override suspend fun handleIntent(intent: FlowsIntent) {
         when (intent) {
             is FlowsIntent.Open -> setState { copy(selected = apps.flatMap { it.flows }.firstOrNull { it.id == intent.flowId }) }
-            FlowsIntent.CloseDetail -> setState { copy(selected = null, editing = null) }
+            FlowsIntent.CloseDetail -> setState { copy(selected = null, editing = null, dryRun = null) }
+            FlowsIntent.StartDryRun -> {
+                val flow = currentState.editing ?: currentState.selected ?: return
+                val profile = runCatching { profiles.profile() }.getOrNull()
+                val variables = profile?.let { p -> com.voicecontrol.core.engine.FlowSimulator.profileVariables(p::value) }.orEmpty()
+                setState { copy(dryRun = DryRunSession.start(flow, variables)) }
+            }
+            is FlowsIntent.DryRunAnswer -> setState { copy(dryRun = dryRun?.answer(intent.text)) }
+            FlowsIntent.DryRunUndo -> setState { copy(dryRun = dryRun?.undo()) }
+            FlowsIntent.DryRunRestart -> setState { copy(dryRun = dryRun?.restart()) }
+            FlowsIntent.CloseDryRun -> setState { copy(dryRun = null) }
             FlowsIntent.Teach -> {
                 val result = teach.startTeaching()
                 teachMessage(result)?.let { sendEffect(FlowsEffect.Message(it)) } ?: sendEffect(FlowsEffect.GoHome)

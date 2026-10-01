@@ -1,6 +1,7 @@
 package com.voicecontrol.api.routes
 
 import com.voicecontrol.application.auth.AuthResult
+import com.voicecontrol.application.flow.FlowSimulator
 import com.voicecontrol.domain.flow.AppSummary
 import com.voicecontrol.domain.flow.Flow
 import com.voicecontrol.domain.flow.FlowStep
@@ -111,3 +112,35 @@ import kotlinx.serialization.Serializable
 
 @Serializable data class MatchRequest(val appPackage: String, val signature: String)
 @Serializable data class MatchResponse(val flow: FlowDto? = null, val matchedBy: String? = null, val similarity: Double? = null)
+
+/**
+ * Dry run of a flow with scripted [answers]. [steps] simulates unsaved edits instead of the saved
+ * version; [useProfile] lets profile values answer questions (signed-in people only).
+ */
+@Serializable data class DryRunRequest(
+    val answers: List<String> = emptyList(),
+    val steps: List<FlowStep>? = null,
+    val useProfile: Boolean = true,
+    val today: String? = null,
+)
+@Serializable data class DryRunEntryDto(val kind: String, val text: String, val stepId: String? = null)
+@Serializable data class DryRunPendingDto(val stepId: String, val question: String, val expects: String)
+@Serializable data class DryRunResponse(
+    val flowVersion: Int,
+    val transcript: List<DryRunEntryDto>,
+    val vars: Map<String, String>,
+    val values: Map<String, String>,
+    val pending: DryRunPendingDto? = null,
+    val finished: Boolean,
+) {
+    companion object {
+        fun from(version: Int, r: FlowSimulator.Result) = DryRunResponse(
+            flowVersion = version,
+            transcript = r.transcript.map { DryRunEntryDto(it.kind.name.lowercase(), it.text, it.stepId) },
+            vars = r.vars,
+            values = r.values,
+            pending = r.pending?.let { DryRunPendingDto(it.stepId, it.question, it.expects.name.lowercase()) },
+            finished = r.finished,
+        )
+    }
+}

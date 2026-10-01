@@ -15,6 +15,8 @@ data class FlowsState(
     /** Draft while the selected flow is being edited on the phone. */
     val editing: FlowDefinition? = null,
     val saving: Boolean = false,
+    /** Test run of the selected flow (or of the draft being edited). */
+    val dryRun: DryRunSession? = null,
 )
 
 data class TemplateSummary(val id: String, val name: String, val description: String, val stepCount: Int)
@@ -38,6 +40,12 @@ sealed interface FlowsIntent {
     data class RemoveStep(val stepId: String) : FlowsIntent
     /** Start "teach by doing" and send the user to the app they want to teach. */
     data object Teach : FlowsIntent
+    /** Test the selected flow (or the draft being edited) with typed answers; nothing is filled. */
+    data object StartDryRun : FlowsIntent
+    data class DryRunAnswer(val text: String) : FlowsIntent
+    data object DryRunUndo : FlowsIntent
+    data object DryRunRestart : FlowsIntent
+    data object CloseDryRun : FlowsIntent
 }
 
 sealed interface FlowsEffect {

@@ -225,6 +225,59 @@ paths:
             schema: { type: object, required: [version], properties: { version: { type: integer } } }
       responses:
         "200": { description: New current version, content: { application/json: { schema: { $ref: "#/components/schemas/Flow" } } } }
+  /v1/flows/{id}/dry-run:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Flows]
+      description: |
+        Dry run (test mode): walks the flow like a phone would (conditions, else values, variables,
+        templates, rules, loops, screen and app changes) and answers each question from `answers`.
+        When the answers run out, `pending` is the next question; call again with one more answer.
+        Nothing runs on a phone and nothing is stored. `steps` simulates unsaved edits. Profile values
+        are offered as suggestions for signed-in people only (never with an API key).
+        Needs `flows:read` with an API key. Shared vectors: `docs/spec/simulation.json`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                answers: { type: array, maxItems: 500, items: { type: string, maxLength: 500 } }
+                steps: { type: array, items: { $ref: "#/components/schemas/FlowStep" } }
+                useProfile: { type: boolean, default: true }
+                today: { type: string, format: date, description: "Date used by today() and year(); default: today (UTC)" }
+      responses:
+        "200":
+          description: Transcript so far
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [flowVersion, transcript, vars, values, finished]
+                properties:
+                  flowVersion: { type: integer }
+                  transcript:
+                    type: array
+                    items:
+                      type: object
+                      required: [kind, text]
+                      properties:
+                        kind: { type: string, enum: [screen, ask, answer, fill, skip, press, variable, error, manual, done] }
+                        text: { type: string }
+                        stepId: { type: string, nullable: true }
+                  vars: { type: object, additionalProperties: { type: string } }
+                  values: { type: object, additionalProperties: { type: string }, description: Final value of each element step by step id }
+                  pending:
+                    type: object
+                    nullable: true
+                    properties:
+                      stepId: { type: string }
+                      question: { type: string }
+                      expects: { type: string, enum: [text, yesno] }
+                  finished: { type: boolean }
+        "400": { description: Invalid steps, answers or date }
   /v1/ai/interpret:
     post:
       tags: [AI]

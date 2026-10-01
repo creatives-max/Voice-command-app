@@ -140,8 +140,12 @@ phase notes say which earlier phase covered the rest.
 - [x] Backend version source RECORDED; dashboard label "taught on phone"
 - [x] Tests, commit + push
 
-## Phase 18 — Smarter flows (gaps; conditions, loops, variables, cross-app and dry-run were done in Phase 9)
-- [ ] Gap-fill, tests, commit + push
+## Phase 18 — Smarter flows (gaps; conditions, loops, variables, cross-app and the dashboard dry-run were done in Phase 9)
+- [x] Flow simulator in the phone engine (`FlowSimulator`), same walk as the dashboard test mode
+- [x] Shared simulator vectors `docs/spec/simulation.json`, run by the dashboard, the phone engine and the backend
+- [x] Backend `POST /v1/flows/{id}/dry-run` (signed-in or `flows:read` API key; unsaved steps; profile only for people) + OpenAPI
+- [x] Phone "Test" run of a saved flow or of unsaved edits: type or tap answers, undo, start over
+- [x] Tests, commit + push
 
 ## Phase 19 — Routines & triggers (voice macros; app-open and schedules were done in Phase 10)
 - [ ] Voice macros, tests, commit + push

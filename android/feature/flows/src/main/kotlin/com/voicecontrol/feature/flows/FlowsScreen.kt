@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -91,8 +92,9 @@ fun FlowsRoute(onBack: () -> Unit, viewModel: FlowsViewModel = hiltViewModel()) 
             }.onFailure { snackbar.showSnackbar("No browser available") }
         }
     }
-    BackHandler(enabled = state.editing != null) { viewModel.dispatch(FlowsIntent.CancelEdit) }
-    BackHandler(enabled = state.selected != null && state.editing == null) { viewModel.dispatch(FlowsIntent.CloseDetail) }
+    BackHandler(enabled = state.editing != null && state.dryRun == null) { viewModel.dispatch(FlowsIntent.CancelEdit) }
+    BackHandler(enabled = state.dryRun != null) { viewModel.dispatch(FlowsIntent.CloseDryRun) }
+    BackHandler(enabled = state.selected != null && state.editing == null && state.dryRun == null) { viewModel.dispatch(FlowsIntent.CloseDetail) }
     FlowsScreen(state, snackbar, onBack, viewModel::dispatch)
 }
 
@@ -103,10 +105,19 @@ fun FlowsScreen(state: FlowsState, snackbar: SnackbarHostState, onBack: () -> Un
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (state.editing != null) "Edit flow" else selected?.name ?: "Saved flows") },
+                title = {
+                    Text(
+                        when {
+                            state.dryRun != null -> "Test run · ${state.dryRun.flow.name}"
+                            state.editing != null -> "Edit flow"
+                            else -> selected?.name ?: "Saved flows"
+                        },
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = {
                         when {
+                            state.dryRun != null -> onIntent(FlowsIntent.CloseDryRun)
                             state.editing != null -> onIntent(FlowsIntent.CancelEdit)
                             selected != null -> onIntent(FlowsIntent.CloseDetail)
                             else -> onBack()
@@ -155,7 +166,10 @@ fun FlowsScreen(state: FlowsState, snackbar: SnackbarHostState, onBack: () -> Un
 @Composable
 private fun FlowPane(state: FlowsState, selected: FlowDefinition, onIntent: (FlowsIntent) -> Unit) {
     val draft = state.editing
-    if (draft != null && draft.id == selected.id) {
+    val dryRun = state.dryRun
+    if (dryRun != null) {
+        DryRunPane(dryRun, Modifier.fillMaxSize(), onIntent)
+    } else if (draft != null && draft.id == selected.id) {
         FlowEditor(draft, state.saving, Modifier.fillMaxSize(), onIntent)
     } else {
         FlowDetail(selected, selected.id in state.appOpenFlowIds, Modifier.fillMaxSize(), onIntent)
@@ -231,6 +245,7 @@ private fun FlowEditor(draft: FlowDefinition, saving: Boolean, modifier: Modifie
                     Spacer(Modifier.width(6.dp))
                     Text(if (saving) "Saving…" else "Save")
                 }
+                OutlinedButton(onClick = { onIntent(FlowsIntent.StartDryRun) }, enabled = !saving) { Text("Test") }
                 OutlinedButton(onClick = { onIntent(FlowsIntent.CancelEdit) }, enabled = !saving) { Text("Cancel") }
             }
         }
@@ -334,6 +349,12 @@ private fun FlowDetail(flow: FlowDefinition, startsOnAppOpen: Boolean, modifier:
                     Icon(Icons.Filled.Edit, null)
                     Spacer(Modifier.width(6.dp))
                     Text("Edit")
+                }
+                Spacer(Modifier.width(8.dp))
+                OutlinedButton(onClick = { onIntent(FlowsIntent.StartDryRun) }) {
+                    Icon(Icons.Filled.Science, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Test")
                 }
                 if (startsOnAppOpen) {
                     Spacer(Modifier.width(8.dp))

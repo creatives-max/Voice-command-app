@@ -127,6 +127,13 @@ floating panel (or the record icon in *Saved flows*), fill the form by touch acr
 red bubble. Review the steps, choose which typed values to keep as defaults (never passwords, OTPs or PINs) and save.
 Next time VoiceControl asks for each field in that order.
 
+## Test runs (dry run)
+
+Try a flow without touching the app: *Test* in a flow's details (or while editing it on the phone), the
+dashboard's test mode, or `POST /v1/flows/{id}/dry-run` with scripted `answers`. All three walk conditions, loops,
+variables, rules and screen/app changes identically (shared vectors in `docs/spec/simulation.json`) and return the
+transcript plus the next pending question.
+
 ## Security, privacy and platform
 
 - **App lock** (Settings): fingerprint, face or screen lock to open the app, re-locks after a chosen time in the

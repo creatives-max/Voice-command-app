@@ -1,21 +1,25 @@
 package com.voicecontrol.api.routes
 
 import com.voicecontrol.api.plugins.API_KEY_AUTH
+import com.voicecontrol.api.plugins.ApiKeyPrincipal
 import com.voicecontrol.api.plugins.JWT_AUTH
 import com.voicecontrol.api.plugins.keyContext
 import com.voicecontrol.api.plugins.orgContext
 import com.voicecontrol.api.plugins.requireScope
 import com.voicecontrol.api.plugins.requireUser
 import com.voicecontrol.api.plugins.userId
+import com.voicecontrol.application.flow.FlowDryRun
 import com.voicecontrol.application.flow.FlowService
 import com.voicecontrol.application.flow.NewFlow
 import com.voicecontrol.application.match.FlowMatchService
+import com.voicecontrol.application.profile.ProfileService
 import com.voicecontrol.domain.common.DomainException
 import com.voicecontrol.domain.org.ApiScope
 import kotlinx.serialization.Serializable
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -29,7 +33,7 @@ import java.util.UUID
 /** Moves a flow to an organization, or back to the caller's personal flows when [orgId] is null. */
 @Serializable data class TransferFlowRequest(val orgId: String? = null)
 
-fun Route.flowRoutes(flows: FlowService, matcher: FlowMatchService) {
+fun Route.flowRoutes(flows: FlowService, matcher: FlowMatchService, profiles: ProfileService) {
     // Signed-in people and organization API keys (flows:read / flows:write).
     authenticate(JWT_AUTH, API_KEY_AUTH) {
         route("/v1/flows") {
@@ -89,6 +93,15 @@ fun Route.flowRoutes(flows: FlowService, matcher: FlowMatchService) {
                     call.requireScope(ApiScope.FLOWS_WRITE)
                     val body = call.receive<RollbackRequest>()
                     call.respond(FlowDto.from(flows.rollback(call.userId, call.flowId(), body.version, call.keyContext)))
+                }
+                post("/dry-run") {
+                    call.requireScope(ApiScope.FLOWS_READ)
+                    val body = call.receive<DryRunRequest>()
+                    val saved = flows.get(call.userId, call.flowId(), call.keyContext)
+                    // API keys never see a person's profile.
+                    val profile = if (body.useProfile && call.principal<ApiKeyPrincipal>() == null) profiles.get(call.userId) else null
+                    val result = FlowDryRun.run(body.steps ?: saved.version.steps, body.answers, profile, body.today)
+                    call.respond(DryRunResponse.from(saved.version.version, result))
                 }
                 post("/transfer") {
                     call.requireUser()

@@ -52,6 +52,9 @@ object Expressions {
         "हाँ", "हां", "हा", "जी", "होय", "ஆம்", "అవును", "হ্যাঁ", "হ্যা", "હા",
     )
 
+    /** True for a spoken "yes" in any supported language (same words as the `yes()` function). */
+    fun isYes(s: String): Boolean = s.trim().lowercase() in yesWords
+
     fun parse(source: String): Node = Parser(Lexer(source).tokens(), source).parseAll()
 
     /** Returns null when valid, otherwise a human-readable error. */

@@ -1,0 +1,138 @@
+{
+  "description": "Shared test vectors for the flow dry-run simulator. Used by the dashboard simulator, the phone engine (FlowSimulator) and the backend dry-run API so all three walk a flow identically. today() is fixed to 2026-10-01. 'values' must match exactly; 'vars' is a subset; 'asks', 'presses' and 'screens' list the transcript entries of that kind in order.",
+  "today": "2026-10-01",
+  "cases": [
+    {
+      "name": "condition false fills the else value",
+      "steps": [
+        { "id": "m", "order": 0, "elementId": "vid:m", "label": "Married", "kind": "CHECKBOX", "action": "TOGGLE", "variable": "married" },
+        { "id": "s", "order": 1, "elementId": "vid:s", "label": "Spouse name", "kind": "TEXT_FIELD", "fieldType": "TEXT", "condition": "yes(married)", "elseValue": "'N/A'" },
+        { "id": "go", "order": 2, "elementId": "vid:go", "label": "Submit", "kind": "BUTTON", "action": "CLICK", "skip": true }
+      ],
+      "answers": ["no"],
+      "expected": { "finished": true, "values": { "m": "no", "s": "N/A" }, "vars": { "married": "no" }, "presses": ["Pressed Submit"], "screens": ["Start"] }
+    },
+    {
+      "name": "condition true asks the question",
+      "steps": [
+        { "id": "m", "order": 0, "elementId": "vid:m", "label": "Married", "kind": "CHECKBOX", "action": "TOGGLE", "variable": "married" },
+        { "id": "s", "order": 1, "elementId": "vid:s", "label": "Spouse name", "kind": "TEXT_FIELD", "fieldType": "TEXT", "condition": "yes(married)", "elseValue": "'N/A'" }
+      ],
+      "answers": ["haan", "Priya"],
+      "expected": { "finished": true, "values": { "m": "yes", "s": "Priya" }, "vars": { "spouse_name": "Priya" }, "asks": ["Should I select \"Married\"? Say yes or no.", "Please say Spouse name."] }
+    },
+    {
+      "name": "stops at the next question when the answers run out",
+      "steps": [
+        { "id": "m", "order": 0, "elementId": "vid:m", "label": "Married", "kind": "CHECKBOX", "action": "TOGGLE", "variable": "married" },
+        { "id": "s", "order": 1, "elementId": "vid:s", "label": "Spouse name", "kind": "TEXT_FIELD", "fieldType": "TEXT", "condition": "yes(married)" }
+      ],
+      "answers": ["yes"],
+      "expected": { "finished": false, "values": { "m": "yes" }, "pending": { "stepId": "s", "question": "Please say Spouse name.", "expects": "text" } }
+    },
+    {
+      "name": "templates, computed values, set-variable and the profile",
+      "profile": { "fullName": "Rahul Kumar" },
+      "steps": [
+        { "id": "f", "order": 0, "elementId": "vid:f", "label": "First name", "kind": "TEXT_FIELD", "fieldType": "NAME", "variable": "first", "valueExpression": "profile.first_name" },
+        { "id": "l", "order": 1, "elementId": "vid:l", "label": "Last name", "kind": "TEXT_FIELD", "fieldType": "NAME", "question": "{first}, your last name?" },
+        { "id": "v", "order": 2, "elementId": "", "label": "Set variable", "kind": "BUTTON", "action": "SET_VARIABLE", "variable": "full", "valueExpression": "concat(first, ' ', last_name)" },
+        { "id": "d", "order": 3, "elementId": "vid:d", "label": "Display", "kind": "TEXT_FIELD", "fieldType": "TEXT", "valueExpression": "upper(full)" }
+      ],
+      "answers": ["Sharma"],
+      "expected": { "finished": true, "values": { "f": "Rahul", "l": "Sharma", "d": "RAHUL SHARMA" }, "vars": { "first": "Rahul", "last_name": "Sharma", "full": "Rahul Sharma" }, "asks": ["Rahul, your last name?"] }
+    },
+    {
+      "name": "answers are validated with the field type and rules",
+      "steps": [
+        { "id": "e", "order": 0, "elementId": "vid:e", "label": "Email", "kind": "TEXT_FIELD", "fieldType": "EMAIL" },
+        { "id": "p", "order": 1, "elementId": "vid:p", "label": "PIN code", "kind": "TEXT_FIELD", "fieldType": "TEXT", "rules": ["digits:6"] }
+      ],
+      "answers": ["not an email", "a@b.co", "1234", "110001"],
+      "expected": { "finished": true, "values": { "e": "a@b.co", "p": "110001" }, "errorCount": 2 }
+    },
+    {
+      "name": "a profile suggestion can be declined without using up an attempt",
+      "profile": { "email": "r@x.in" },
+      "steps": [
+        { "id": "e", "order": 0, "elementId": "vid:e", "label": "Email", "kind": "TEXT_FIELD", "fieldType": "EMAIL", "profileKey": "EMAIL" }
+      ],
+      "answers": ["no", "a@b.co"],
+      "expected": { "finished": true, "values": { "e": "a@b.co" }, "asks": ["What is your email address? Say yes to use r@x.in.", "What is your email address?"] }
+    },
+    {
+      "name": "a suggestion is used on yes",
+      "steps": [
+        { "id": "c", "order": 0, "elementId": "vid:c", "label": "Country", "kind": "TEXT_FIELD", "fieldType": "TEXT", "defaultValue": "India" }
+      ],
+      "answers": ["ha"],
+      "expected": { "finished": true, "values": { "c": "India" }, "asks": ["Please say Country. Say yes to use India."] }
+    },
+    {
+      "name": "skipped steps fill their default silently; skip words skip",
+      "steps": [
+        { "id": "c", "order": 0, "elementId": "vid:c", "label": "Country", "kind": "TEXT_FIELD", "fieldType": "TEXT", "defaultValue": "India", "skip": true },
+        { "id": "n", "order": 1, "elementId": "vid:n", "label": "Nickname", "kind": "TEXT_FIELD", "fieldType": "TEXT" }
+      ],
+      "answers": ["chhodo"],
+      "expected": { "finished": true, "values": { "c": "India" }, "asks": ["Please say Nickname."] }
+    },
+    {
+      "name": "unclear yes/no answers are retried three times",
+      "steps": [
+        { "id": "t", "order": 0, "elementId": "vid:t", "label": "Accept terms", "kind": "CHECKBOX", "action": "TOGGLE" }
+      ],
+      "answers": ["maybe", "maybe", "maybe"],
+      "expected": { "finished": true, "values": {}, "errorCount": 3 }
+    },
+    {
+      "name": "the last button is the submit and is confirmed",
+      "steps": [
+        { "id": "n", "order": 0, "elementId": "vid:n", "label": "Name", "kind": "TEXT_FIELD", "fieldType": "NAME" },
+        { "id": "go", "order": 1, "elementId": "vid:go", "label": "Submit", "kind": "BUTTON", "action": "CLICK" }
+      ],
+      "answers": ["Asha", "nahi"],
+      "expected": { "finished": true, "values": { "n": "Asha" }, "presses": [], "asks": ["Please say Name.", "All done. Shall I press Submit?"] }
+    },
+    {
+      "name": "the submit question is pending",
+      "steps": [
+        { "id": "n", "order": 0, "elementId": "vid:n", "label": "Name", "kind": "TEXT_FIELD", "fieldType": "NAME" },
+        { "id": "go", "order": 1, "elementId": "vid:go", "label": "Submit", "kind": "BUTTON", "action": "CLICK" }
+      ],
+      "answers": ["Asha"],
+      "expected": { "finished": false, "values": { "n": "Asha" }, "pending": { "stepId": "go", "question": "All done. Shall I press Submit?", "expects": "yesno" } }
+    },
+    {
+      "name": "repeat asks whether to add another item",
+      "steps": [
+        { "id": "i", "order": 0, "elementId": "vid:i", "label": "Item", "kind": "TEXT_FIELD", "fieldType": "TEXT", "question": "Item {index}?" },
+        { "id": "r", "order": 1, "elementId": "", "label": "Repeat for each item", "kind": "BUTTON", "action": "REPEAT", "repeat": { "stepIds": ["i"], "maxIterations": 5, "addMoreLabel": "Add item", "itemLabel": "item" } }
+      ],
+      "answers": ["Rice", "yes", "Dal", "no"],
+      "expected": { "finished": true, "values": { "i": "Dal" }, "vars": { "item_1": "Rice", "item_2": "Dal" }, "presses": ["Pressed Add item"], "asks": ["Item 1?", "Add another item?", "Item 2?", "Add another item?"] }
+    },
+    {
+      "name": "repeat counts items with an expression",
+      "steps": [
+        { "id": "k", "order": 0, "elementId": "vid:k", "label": "Kids", "kind": "TEXT_FIELD", "fieldType": "NUMBER", "variable": "kids" },
+        { "id": "i", "order": 1, "elementId": "vid:i", "label": "Child name", "kind": "TEXT_FIELD", "fieldType": "NAME", "question": "Name of child {index}?" },
+        { "id": "r", "order": 2, "elementId": "", "label": "Repeat", "kind": "BUTTON", "action": "REPEAT", "repeat": { "stepIds": ["i"], "maxIterations": 5, "countExpression": "kids", "addMoreLabel": "Add child", "itemLabel": "child" } }
+      ],
+      "answers": ["3", "Asha", "Ravi", "Meena"],
+      "expected": { "finished": true, "vars": { "child_name_1": "Asha", "child_name_3": "Meena" }, "values": { "k": "3", "i": "Meena" }, "presses": ["Pressed Add child", "Pressed Add child"], "screens": ["Start", "child 1", "child 2", "child 3"] }
+    },
+    {
+      "name": "walks screens and apps and never asks for sensitive fields",
+      "steps": [
+        { "id": "p", "order": 0, "elementId": "vid:p", "label": "PIN", "kind": "TEXT_FIELD", "fieldType": "PIN" },
+        { "id": "n", "order": 1, "elementId": "", "label": "Next screen", "kind": "BUTTON", "action": "NEXT_SCREEN" },
+        { "id": "a", "order": 2, "elementId": "vid:a", "label": "Note", "kind": "TEXT_FIELD", "fieldType": "TEXT", "valueExpression": "'hi'" },
+        { "id": "o", "order": 3, "elementId": "", "label": "Open app", "kind": "BUTTON", "action": "OPEN_APP", "appPackage": "com.pay" },
+        { "id": "b", "order": 4, "elementId": "vid:b", "label": "Amount", "kind": "TEXT_FIELD", "fieldType": "AMOUNT", "valueExpression": "100 + 50" }
+      ],
+      "answers": [],
+      "expected": { "finished": true, "values": { "a": "hi", "b": "150" }, "screens": ["Start", "Wait for the next screen", "Open app com.pay"], "manualCount": 1 }
+    }
+  ]
+}

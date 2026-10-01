@@ -53,7 +53,7 @@ fun Application.voiceControl(services: Services) {
         swaggerUI(path = "docs", swaggerFile = "openapi/documentation.yaml")
         authRoutes(services.auth, services.rateLimiter, services.config.authRateLimitPerMinute)
         profileRoutes(services.profiles)
-        flowRoutes(services.flows, services.matcher)
+        flowRoutes(services.flows, services.matcher, services.profiles)
         aiRoutes(services.ai, services.rateLimiter)
         historyRoutes(services.history)
         marketplaceRoutes(services.marketplace)

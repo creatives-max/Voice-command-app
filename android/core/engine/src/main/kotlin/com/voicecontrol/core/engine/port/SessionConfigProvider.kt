@@ -26,6 +26,8 @@ data class SessionConfig(
     val confirmDestructive: Boolean = true,
     /** Recognize speech on the phone when the language pack is installed (works without internet). */
     val preferOffline: Boolean = false,
+    /** Remember answers on this phone and offer them next time (see [AnswerMemory]). */
+    val rememberAnswers: Boolean = false,
 )
 
 fun interface SessionConfigProvider {

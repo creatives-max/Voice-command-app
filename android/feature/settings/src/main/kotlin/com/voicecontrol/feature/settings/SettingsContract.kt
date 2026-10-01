@@ -11,6 +11,7 @@ data class SettingsState(
     val deviceNameDraft: String = "",
     val wakeWordDraft: String = "",
     val busy: Boolean = false,
+    val testingWake: Boolean = false,
 )
 
 sealed interface SettingsIntent {
@@ -24,6 +25,8 @@ sealed interface SettingsIntent {
     data object SaveDeviceName : SettingsIntent
     data class EditWakeWord(val value: String) : SettingsIntent
     data object SaveWakeWord : SettingsIntent
+    /** Listen once and say whether that would wake VoiceControl. */
+    data object TestWakeWord : SettingsIntent
     data object TestVoice : SettingsIntent
     /** Only sent after the fingerprint/face/screen lock check succeeded. */
     data class SetAppLock(val enabled: Boolean) : SettingsIntent
@@ -32,7 +35,7 @@ sealed interface SettingsIntent {
     data object WipePhone : SettingsIntent
 }
 
-enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START, REMOTE_RUNS, USE_TEMPLATES, BARGE_IN, CONFIRM_LOW_CONFIDENCE, WAKE_WORD, CONFIRM_DESTRUCTIVE, CRASH_REPORTS, OFFLINE_SPEECH }
+enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START, REMOTE_RUNS, USE_TEMPLATES, BARGE_IN, CONFIRM_LOW_CONFIDENCE, WAKE_WORD, CONFIRM_DESTRUCTIVE, CRASH_REPORTS, OFFLINE_SPEECH, REMEMBER_ANSWERS }
 
 sealed interface SettingsEffect {
     data class Message(val text: String) : SettingsEffect
@@ -58,6 +61,7 @@ fun AppSettings.with(option: Option, enabled: Boolean): AppSettings = when (opti
     Option.CONFIRM_DESTRUCTIVE -> copy(confirmDestructive = enabled)
     Option.CRASH_REPORTS -> copy(crashReports = enabled)
     Option.OFFLINE_SPEECH -> copy(offlineSpeech = enabled)
+    Option.REMEMBER_ANSWERS -> copy(rememberAnswers = enabled)
 }
 
 fun AppSettings.isOn(option: Option): Boolean = when (option) {
@@ -78,6 +82,19 @@ fun AppSettings.isOn(option: Option): Boolean = when (option) {
     Option.CONFIRM_DESTRUCTIVE -> confirmDestructive
     Option.CRASH_REPORTS -> crashReports
     Option.OFFLINE_SPEECH -> offlineSpeech
+    Option.REMEMBER_ANSWERS -> rememberAnswers
+}
+
+/** What to tell the user after testing their wake phrase. */
+fun wakeTestMessage(result: com.voicecontrol.core.engine.port.ListenResult, phrase: String): String = when (result) {
+    is com.voicecontrol.core.engine.port.ListenResult.Heard ->
+        if ((listOf(result.text) + result.alternatives).any { com.voicecontrol.core.nlp.WakeWord.matches(it, phrase) }) {
+            "Heard “${result.text}”. That wakes VoiceControl."
+        } else {
+            "Heard “${result.text}”, which doesn't match “$phrase”. Say it clearly, or choose a longer phrase with unusual words."
+        }
+    com.voicecontrol.core.engine.port.ListenResult.NoMatch -> "Didn't hear anything. Tap Test and say your wake phrase."
+    is com.voicecontrol.core.engine.port.ListenResult.Error -> "Couldn't listen: ${result.message}"
 }
 
 /** Accepts http(s) URLs only; blank means "use the build default". */

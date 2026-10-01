@@ -39,6 +39,7 @@ class AccountDataRepository @Inject constructor(
     private val tokens: TokenStore,
     private val crashes: CrashStore,
     private val authApi: AuthApi,
+    private val answers: com.voicecontrol.core.data.memory.AnswerMemoryRepository,
 ) {
     private val json = Json { encodeDefaults = true; explicitNulls = false; prettyPrint = true }
 
@@ -61,6 +62,11 @@ class AccountDataRepository @Inject constructor(
                 put("profile", json.encodeToJsonElement(UserProfile.serializer(), profiles.profile.first()))
                 put("flows", json.encodeToJsonElement(ListSerializer(FlowDefinition.serializer()), flows.observeFlows().first()))
                 put("history", json.encodeToJsonElement(ListSerializer(SessionSummary.serializer()), history.observeRecent(10_000).first()))
+                put(
+                    "rememberedAnswers",
+                    json.encodeToJsonElement(ListSerializer(com.voicecontrol.core.data.memory.RememberedAnswer.serializer()), answers.answers.first()),
+                )
+                settings.localShortcutsJson.first()?.let { put("voiceShortcuts", json.parseToJsonElement(it)) }
             })
             server?.let { put("server", it) }
         }

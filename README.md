@@ -127,6 +127,13 @@ floating panel (or the record icon in *Saved flows*), fill the form by touch acr
 red bubble. Review the steps, choose which typed values to keep as defaults (never passwords, OTPs or PINs) and save.
 Next time VoiceControl asks for each field in that order.
 
+## Voice memory and wake phrase test
+
+*Remember my answers* (Settings, off by default) keeps the last answer per app and field on the phone and offers it
+next time: "Last time you said Pune. Say yes to use it again", or say "same as last time" / "pichhli baar wala".
+Review or forget them under *Remembered answers*; passwords, OTPs and PINs are never kept. Next to the wake phrase,
+*Test* listens once and tells you whether what it heard would wake VoiceControl.
+
 ## Narrator (screen reader mode)
 
 Tap the read-aloud button in the panel or say "read screen": VoiceControl reads the title, text and controls in

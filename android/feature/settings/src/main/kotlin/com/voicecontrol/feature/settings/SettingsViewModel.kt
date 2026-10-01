@@ -15,6 +15,8 @@ class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
     private val tts: TextToSpeech,
     private val account: com.voicecontrol.core.data.account.AccountDataRepository,
+    private val stt: com.voicecontrol.core.engine.port.SpeechToText,
+    private val memory: com.voicecontrol.core.data.memory.AnswerMemoryRepository,
 ) : MviViewModel<SettingsState, SettingsIntent, SettingsEffect>(SettingsState()) {
 
     init {
@@ -36,7 +38,26 @@ class SettingsViewModel @Inject constructor(
         when (intent) {
             is SettingsIntent.SetLanguage -> repository.update { it.copy(language = intent.language) }
             is SettingsIntent.SetSpeechRate -> repository.update { it.copy(speechRate = intent.rate.coerceIn(0.5f, 2f)) }
-            is SettingsIntent.Toggle -> repository.update { it.with(intent.option, intent.enabled) }
+            is SettingsIntent.Toggle -> {
+                repository.update { it.with(intent.option, intent.enabled) }
+                if (intent.option == Option.REMEMBER_ANSWERS && !intent.enabled) {
+                    memory.forgetAll()
+                    sendEffect(SettingsEffect.Message("Remembered answers deleted from this phone"))
+                }
+            }
+            SettingsIntent.TestWakeWord -> {
+                val phrase = currentState.wakeWordDraft.trim().ifEmpty { currentState.settings.wakeWord }
+                if (!WakeWord.isValidPhrase(phrase)) {
+                    sendEffect(SettingsEffect.Message("Choose a longer wake phrase, like “Hey VoiceControl”"))
+                    return
+                }
+                setState { copy(testingWake = true) }
+                val result = stt.listen(
+                    com.voicecontrol.core.engine.port.ListenRequest(currentState.settings.language.speechTag, preferOffline = true),
+                )
+                setState { copy(testingWake = false) }
+                sendEffect(SettingsEffect.Message(wakeTestMessage(result, phrase)))
+            }
             is SettingsIntent.EditBackendUrl -> setState { copy(backendUrlDraft = intent.value) }
             is SettingsIntent.EditDashboardUrl -> setState { copy(dashboardUrlDraft = intent.value) }
             SettingsIntent.SaveUrls -> {

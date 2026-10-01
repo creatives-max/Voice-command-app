@@ -30,6 +30,16 @@ object ContextResolver {
         "એ જ", "તે જ", "ઉપર મુજબ", "પહેલાં જેવું",
     )
 
+    private val lastTimeMarkers = setOf(
+        "same as last time", "like last time", "last time", "the last one", "previous time", "same as before last time",
+        "pichhli baar wala", "pichli baar wala", "pichhli baar jaisa", "pichli baar jaisa", "pichhli baar", "pichli baar", "last time wala",
+        "पिछली बार वाला", "पिछली बार जैसा", "पिछली बार", "मागच्या वेळेसारखे", "मागच्या वेळी",
+        "கடந்த முறை போல", "போன முறை", "గత సారి లాగే", "గతసారి", "আগের বারের মত", "আগের বার", "ગયા વખત જેવું", "ગયા વખતે",
+    )
+
+    /** "same as last time", "pichhli baar wala": the answer remembered from an earlier session. */
+    fun isLastTimeReference(utterance: String): Boolean = simplify(utterance) in lastTimeMarkers
+
     private val samePrefixes = listOf("same as", "same like", "use the same as", "copy from", "copy")
     private val possessives = setOf("my", "use my", "mera", "meri", "mere", "apna", "apni", "मेरा", "मेरी", "मेरे", "अपना", "अपनी", "माझा", "माझी", "माझे", "என்", "என்னுடைய", "నా", "আমার", "મારો", "મારું", "મારી")
     private val filler = setOf("the", "above", "before", "previous", "one", "field", "wala", "wali", "वाला", "वाली")

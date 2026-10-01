@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,6 +71,7 @@ fun SettingsRoute(
     onOpenPrivacy: () -> Unit,
     onOpenCare: () -> Unit = {},
     onOpenOfflineLanguages: () -> Unit = {},
+    onOpenRememberedAnswers: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -83,7 +85,7 @@ fun SettingsRoute(
             }
         }
     }
-    SettingsScreen(state, snackbar, onBack, onOpenPrivacy, viewModel::dispatch, onOpenCare, onOpenOfflineLanguages)
+    SettingsScreen(state, snackbar, onBack, onOpenPrivacy, viewModel::dispatch, onOpenCare, onOpenOfflineLanguages, onOpenRememberedAnswers)
 }
 
 private val toggles = listOf(
@@ -94,6 +96,7 @@ private val toggles = listOf(
     Triple(Option.TRANSLITERATE, "Type Hindi names in English letters", "राहुल → Rahul for name, email and address fields."),
     Triple(Option.AUTO_START, "Start automatically on saved screens", "Begin asking when an app with a saved flow opens."),
     Triple(Option.CONFIRM_DESTRUCTIVE, "Confirm risky buttons", "Ask before pressing Pay, Delete, Sign out and other buttons that can't be undone."),
+    Triple(Option.REMEMBER_ANSWERS, "Remember my answers", "Offer what you said last time on the same field (\"same as last time\"). Kept only on this phone, never passwords, OTPs or PINs."),
     Triple(Option.OFFLINE_SPEECH, "Speech on the phone", "Understand speech with downloaded language packs, even without internet. See Offline languages."),
     Triple(Option.BARGE_IN, "Interrupt by speaking", "Start answering while VoiceControl is still talking; it stops and listens."),
     Triple(Option.CONFIRM_LOW_CONFIDENCE, "Check unclear answers", "Ask \"Did you say …?\" when speech recognition is unsure."),
@@ -116,6 +119,7 @@ fun SettingsScreen(
     onIntent: (SettingsIntent) -> Unit,
     onOpenCare: () -> Unit = {},
     onOpenOfflineLanguages: () -> Unit = {},
+    onOpenRememberedAnswers: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -171,7 +175,12 @@ fun SettingsScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedButton(onClick = { onIntent(SettingsIntent.SaveWakeWord) }) { Text("Save wake phrase") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { onIntent(SettingsIntent.SaveWakeWord) }) { Text("Save wake phrase") }
+                    OutlinedButton(onClick = { onIntent(SettingsIntent.TestWakeWord) }, enabled = !state.testingWake) {
+                        Text(if (state.testingWake) "Listening… say it now" else "Test")
+                    }
+                }
             }
             OutlinedTextField(
                 value = state.deviceNameDraft,
@@ -208,6 +217,11 @@ fun SettingsScreen(
             HorizontalDivider()
             SecurityAndData(state, onIntent, snackbar)
             HorizontalDivider()
+            OutlinedButton(onClick = onOpenRememberedAnswers, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Filled.History, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Remembered answers")
+            }
             OutlinedButton(onClick = onOpenOfflineLanguages, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Filled.CloudOff, null)
                 Spacer(Modifier.width(8.dp))

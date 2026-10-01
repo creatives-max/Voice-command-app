@@ -107,6 +107,17 @@ class Phrases(private val language: Language) {
         "$label માટે કયો વિકલ્પ?",
     )
 
+    fun askUseLastTime(question: String, value: String) = t(
+        "$question Last time you said $value. Say yes to use it again.",
+        "$question पिछली बार आपने $value कहा था। फिर से वही रखने के लिए हाँ बोलिए।",
+        "$question Pichhli baar aapne $value kaha tha. Wahi rakhne ke liye haan boliye.",
+        "$question मागच्या वेळी तुम्ही $value म्हणालात. तेच वापरण्यासाठी हो म्हणा.",
+        "$question கடந்த முறை $value என்றீர்கள். மீண்டும் பயன்படுத்த ஆம் சொல்லுங்கள்.",
+        "$question గతసారి మీరు $value అన్నారు. మళ్ళీ వాడాలంటే అవును చెప్పండి.",
+        "$question আগের বার আপনি $value বলেছিলেন। আবার ব্যবহার করতে হ্যাঁ বলুন।",
+        "$question ગયા વખતે તમે $value કહ્યું હતું. ફરી વાપરવા હા કહો.",
+    )
+
     fun askUseSuggested(question: String, value: String) = t(
         "$question Say yes to use $value.",
         "$question $value के लिए हाँ बोलिए।",

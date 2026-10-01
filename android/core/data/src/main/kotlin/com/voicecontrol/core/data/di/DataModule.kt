@@ -44,6 +44,7 @@ abstract class DataModule {
     @Binds abstract fun interpreter(impl: CompositeInterpreter): Interpreter
     @Binds abstract fun backendSession(impl: BackendSessionImpl): BackendSession
     @Binds abstract fun visionDetector(impl: RemoteVisionDetector): VisionDetector
+    @Binds abstract fun answerMemory(impl: com.voicecontrol.core.data.memory.AnswerMemoryRepository): com.voicecontrol.core.engine.port.AnswerMemory
     @Binds abstract fun shortcutSource(impl: com.voicecontrol.core.data.shortcuts.VoiceShortcutRepository): com.voicecontrol.core.engine.port.ShortcutSource
 
     companion object {

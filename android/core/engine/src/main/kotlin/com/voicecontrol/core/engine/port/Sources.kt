@@ -59,3 +59,12 @@ interface ShortcutSource {
     /** Called when a shortcut's flow starts (for the dashboard's run log). */
     suspend fun started(shortcut: com.voicecontrol.core.engine.VoiceShortcut) = Unit
 }
+
+/**
+ * Answers remembered across sessions (opt-in), per app and field, to offer next time
+ * ("Last time you said …"). Never holds password, OTP or PIN values.
+ */
+interface AnswerMemory {
+    suspend fun recall(appPackage: String, key: String): String?
+    suspend fun remember(appPackage: String, key: String, label: String, value: String)
+}

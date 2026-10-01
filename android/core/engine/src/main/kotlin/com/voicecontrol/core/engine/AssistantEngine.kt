@@ -117,6 +117,8 @@ class AssistantEngine(
     private val speechDetector: SpeechDetector? = null,
     /** Voice macros: on a screen without a form, saying a shortcut phrase runs its flow. */
     private val shortcuts: com.voicecontrol.core.engine.port.ShortcutSource? = null,
+    /** Answers remembered across sessions (used when [SessionConfig.rememberAnswers] is on). */
+    private val answers: com.voicecontrol.core.engine.port.AnswerMemory? = null,
 ) {
     private val _state = MutableStateFlow(EngineState())
     val state: StateFlow<EngineState> = _state.asStateFlow()
@@ -403,6 +405,23 @@ class AssistantEngine(
                 finish(session)
             }
         }
+    }
+
+    /** Key of a field in [AnswerMemory]: its type and label, so the same field of the same app matches. */
+    private fun answerKey(step: PlanStep): String = "${step.fieldType?.name ?: "TEXT"}:${FlowVariables.slug(step.label, 0)}"
+
+    private fun remembersAnswers(session: Session, step: PlanStep): Boolean =
+        answers != null && session.cfg.rememberAnswers && !step.isSensitive && step.fieldType?.isSensitive != true &&
+            step.action == StepAction.FILL && step.kind == ElementKind.TEXT_FIELD && session.appPackage.isNotEmpty()
+
+    private suspend fun recallAnswer(session: Session, step: PlanStep): String? {
+        if (!remembersAnswers(session, step)) return null
+        return runCatching { answers?.recall(session.appPackage, answerKey(step)) }.getOrNull()?.takeIf { it.isNotBlank() }
+    }
+
+    private suspend fun rememberAnswer(session: Session, step: PlanStep, value: String) {
+        if (!remembersAnswers(session, step) || value.isBlank()) return
+        runCatching { answers?.remember(session.appPackage, answerKey(step), step.label, value) }
     }
 
     /** How a flow started on demand gets to its first screen: its own boundary step, else opening its app. */
@@ -1079,7 +1098,13 @@ class AssistantEngine(
             }
         }
         var suggestion = step.suggestedValue
-        if (suggestion != null) question = phrases.askUseSuggested(question, suggestion)
+        val lastTime = recallAnswer(session, step)
+        if (suggestion != null) {
+            question = phrases.askUseSuggested(question, suggestion)
+        } else if (lastTime != null) {
+            suggestion = lastTime
+            question = phrases.askUseLastTime(question, lastTime)
+        }
 
         if (step.kind == ElementKind.DROPDOWN) return handleDropdown(session, step, question, log)
 
@@ -1092,7 +1117,8 @@ class AssistantEngine(
             }
             // "same as above", "my email": resolved from earlier answers or the profile, offline.
             val referenced = if (step.action == StepAction.FILL && step.kind == ElementKind.TEXT_FIELD) {
-                ContextResolver.resolve(heard, element, session.memory, session.profile)
+                lastTime?.takeIf { ContextResolver.isLastTimeReference(heard) }
+                    ?: ContextResolver.resolve(heard, element, session.memory, session.profile)
             } else {
                 null
             }
@@ -1209,6 +1235,7 @@ class AssistantEngine(
         }
         log.put(step, StepOutcome.FILLED, question, source)
         remember(session, step, value)
+        rememberAnswer(session, step, value)
         say(session, if (session.cfg.confirmValues && value.length <= MAX_READBACK) session.phrases.filled(value) else session.phrases.filledShort())
         return StepResult.Done
     }

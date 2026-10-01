@@ -35,6 +35,8 @@ data class AppSettings(
     val confirmDestructive: Boolean = true,
     /** Recognize speech on the phone (downloaded language packs) instead of online; works without internet. */
     val offlineSpeech: Boolean = false,
+    /** Remember answers on this phone and offer them next time ("Last time you said …"). */
+    val rememberAnswers: Boolean = false,
     val wakeWord: String = "hey voice control",
     /** Ask for fingerprint, face or the screen lock to open VoiceControl. */
     val appLock: Boolean = false,
@@ -62,5 +64,6 @@ data class AppSettings(
         confirmDestructive = confirmDestructive,
         // On-device only mode never uses online recognition either.
         preferOffline = offlineSpeech || localOnly,
+        rememberAnswers = rememberAnswers,
     )
 }

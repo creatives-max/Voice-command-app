@@ -73,6 +73,7 @@ abstract class AssistantModule {
             vision: VisionDetector,
             speechDetector: SpeechDetector,
             shortcuts: com.voicecontrol.core.engine.port.ShortcutSource,
+            answers: com.voicecontrol.core.engine.port.AnswerMemory,
         ): AssistantEngine = AssistantEngine(
             screen = screen,
             stt = stt,
@@ -86,6 +87,7 @@ abstract class AssistantModule {
             vision = vision,
             speechDetector = speechDetector,
             shortcuts = shortcuts,
+            answers = answers,
         )
 
         @Provides

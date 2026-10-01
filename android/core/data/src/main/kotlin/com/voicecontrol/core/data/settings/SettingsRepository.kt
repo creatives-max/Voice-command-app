@@ -46,6 +46,8 @@ class SettingsRepository @Inject constructor(
         val useTemplates = booleanPreferencesKey("use_templates")
         val bargeIn = booleanPreferencesKey("barge_in")
         val offlineSpeech = booleanPreferencesKey("offline_speech")
+        val rememberAnswers = booleanPreferencesKey("remember_answers")
+        val rememberedAnswers = stringPreferencesKey("remembered_answers")
         val confirmLowConfidence = booleanPreferencesKey("confirm_low_confidence")
         val wakeWordEnabled = booleanPreferencesKey("wake_word_enabled")
         val wakeWord = stringPreferencesKey("wake_word")
@@ -98,6 +100,13 @@ class SettingsRepository @Inject constructor(
         store.edit { it[Keys.localShortcuts] = json }
     }
 
+    /** Answers remembered on this phone (JSON), see AnswerMemoryRepository. */
+    val rememberedAnswersJson: Flow<String?> = store.data.map { it[Keys.rememberedAnswers] }
+
+    suspend fun saveRememberedAnswersJson(json: String) {
+        store.edit { it[Keys.rememberedAnswers] = json }
+    }
+
     suspend fun templatesJson(): String? = store.data.first()[Keys.templates]
 
     suspend fun saveTemplatesJson(json: String) {
@@ -134,6 +143,7 @@ class SettingsRepository @Inject constructor(
             p[Keys.useTemplates] = next.useTemplates
             p[Keys.bargeIn] = next.bargeIn
             p[Keys.offlineSpeech] = next.offlineSpeech
+            p[Keys.rememberAnswers] = next.rememberAnswers
             p[Keys.confirmLowConfidence] = next.confirmLowConfidence
             p[Keys.wakeWordEnabled] = next.wakeWordEnabled
             p[Keys.wakeWord] = next.wakeWord.trim().take(60)
@@ -166,6 +176,7 @@ class SettingsRepository @Inject constructor(
             useTemplates = p[Keys.useTemplates] ?: d.useTemplates,
             bargeIn = p[Keys.bargeIn] ?: d.bargeIn,
             offlineSpeech = p[Keys.offlineSpeech] ?: d.offlineSpeech,
+            rememberAnswers = p[Keys.rememberAnswers] ?: d.rememberAnswers,
             confirmLowConfidence = p[Keys.confirmLowConfidence] ?: d.confirmLowConfidence,
             wakeWordEnabled = p[Keys.wakeWordEnabled] ?: d.wakeWordEnabled,
             wakeWord = p[Keys.wakeWord]?.takeIf { it.isNotBlank() } ?: d.wakeWord,

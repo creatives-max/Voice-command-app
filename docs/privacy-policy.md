@@ -22,6 +22,13 @@ While you record a flow by touch, VoiceControl notes which fields you type into 
 you typed stays in the phone's memory until you review the recording; it is saved only for fields you tick as
 defaults, and never for password, OTP, PIN or CVV fields.
 
+## Remembered answers
+
+If you turn on *Remember my answers*, the last answer you gave for each field of each app is kept on your phone so
+VoiceControl can offer it next time. These answers never leave the phone (not synced, not sent to the server), are
+never kept for password, OTP or PIN fields, can be viewed and deleted under *Settings → Remembered answers*, and are
+deleted when you turn the setting off or wipe the phone. They are included in the phone's data export.
+
 ## Caregivers
 
 You can let someone you trust (a caregiver) set up your flows from the VoiceControl website. Nothing is shared

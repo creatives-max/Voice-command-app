@@ -181,8 +181,11 @@ phase notes say which earlier phase covered the rest.
 - [x] "Read everything": reads to the end and keeps scrolling the page, never repeating what was read
 - [x] Spoken narrator help in 8 languages; tests, commit + push
 
-## Phase 24 — Voice & AI upgrades (gaps; Phase 12)
-- [ ] Gap-fill, tests, commit + push
+## Phase 24 — Voice & AI upgrades (gaps; streaming partials, barge-in, custom wake word, confidence re-ask and in-session context memory were done in Phase 12)
+- [x] Context memory across sessions (opt-in, phone only): last answer per app and field offered next time; "same as last time" in 8 languages; never sensitive fields
+- [x] Remembered answers screen (by app, forget one or all); forgotten when the setting is turned off; part of the phone export
+- [x] Wake phrase test (listen once, say whether it would wake VoiceControl)
+- [x] Tests, commit + push
 
 ## Phase 25 — Flow marketplace + templates (gaps; Phase 11)
 - [ ] Gap-fill, tests, commit + push

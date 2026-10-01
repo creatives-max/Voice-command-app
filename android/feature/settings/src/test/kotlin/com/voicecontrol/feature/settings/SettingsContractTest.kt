@@ -35,6 +35,21 @@ class SettingsContractTest {
     }
 
     @Test
+    fun `wake phrase test results and remembered answers by app`() {
+        val phrase = "hey voice control"
+        assertEquals("Heard “Hey voice control”. That wakes VoiceControl.", wakeTestMessage(com.voicecontrol.core.engine.port.ListenResult.Heard("Hey voice control"), phrase))
+        assertTrue(wakeTestMessage(com.voicecontrol.core.engine.port.ListenResult.Heard("hello there"), phrase).contains("doesn't match"))
+        assertTrue(wakeTestMessage(com.voicecontrol.core.engine.port.ListenResult.Heard("hey boys", listOf("hey voicecontrol")), phrase).endsWith("That wakes VoiceControl."))
+        assertTrue(wakeTestMessage(com.voicecontrol.core.engine.port.ListenResult.NoMatch, phrase).startsWith("Didn't hear"))
+
+        val a = com.voicecontrol.core.data.memory.RememberedAnswer("com.a", "TEXT:city", "City", "Pune", 1)
+        val b = com.voicecontrol.core.data.memory.RememberedAnswer("com.b", "NAME:name", "Name", "Asha", 5)
+        val c = com.voicecontrol.core.data.memory.RememberedAnswer("com.a", "EMAIL:email", "Email", "a@b.co", 3)
+        assertEquals(listOf("com.b", "com.a"), groupByApp(listOf(a, b, c)).map { it.first })
+        assertTrue(AppSettings().with(Option.REMEMBER_ANSWERS, true).toSessionConfig().rememberAnswers)
+    }
+
+    @Test
     fun `server urls`() {
         assertTrue(isValidServerUrl(""))
         assertTrue(isValidServerUrl("https://api.voicecontrol.app"))

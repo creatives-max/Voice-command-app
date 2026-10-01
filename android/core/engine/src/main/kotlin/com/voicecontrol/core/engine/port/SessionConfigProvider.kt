@@ -16,6 +16,8 @@ data class SessionConfig(
     val localOnly: Boolean = false,
     /** Skip fields that already have a value instead of asking whether to keep it. */
     val skipFilledFields: Boolean = false,
+    /** Use a screenshot + backend vision model when the app exposes no readable fields. */
+    val visionFallback: Boolean = false,
 )
 
 fun interface SessionConfigProvider {

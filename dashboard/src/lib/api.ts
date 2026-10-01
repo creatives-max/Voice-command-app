@@ -6,6 +6,8 @@ import {
   flowSchema,
   flowVersionSchema,
   profileSchema,
+  runPageSchema,
+  runStatsSchema,
   userSchema,
   type Flow,
   type FlowStep,
@@ -65,6 +67,12 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args)) {
     deleteFlow: (id: string) => request(null, `/flows/${id}`, { method: "DELETE" }),
     versions: (id: string) => request(flowVersionSchema.array(), `/flows/${id}/versions`),
     rollback: (id: string, version: number) => request(flowSchema, `/flows/${id}/rollback`, { method: "POST", body: json({ version }) }),
+
+    runs: (appPackage?: string) =>
+      request(runPageSchema, `/runs?limit=100${appPackage ? `&appPackage=${encodeURIComponent(appPackage)}` : ""}`),
+    runStats: () => request(runStatsSchema, "/runs/stats"),
+    deleteRun: (id: string) => request(null, `/runs/${id}`, { method: "DELETE" }),
+    clearRuns: () => request(null, "/runs", { method: "DELETE" }),
 
     profile: () => request(profileSchema, "/profile"),
     saveProfile: (profile: Profile) => request(profileSchema, "/profile", { method: "PUT", body: json(profile) }),

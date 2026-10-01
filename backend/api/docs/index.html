@@ -1019,6 +1019,99 @@
     }
   }
 };
+            defs["Run"] = {
+  "required" : [ "appPackage", "endedAtMillis", "language", "screens", "sessionId", "startedAtMillis", "status" ],
+  "type" : "object",
+  "properties" : {
+    "sessionId" : {
+      "type" : "string",
+      "format" : "uuid"
+    },
+    "appPackage" : {
+      "type" : "string"
+    },
+    "startedAtMillis" : {
+      "type" : "integer",
+      "format" : "int64"
+    },
+    "endedAtMillis" : {
+      "type" : "integer",
+      "format" : "int64"
+    },
+    "status" : {
+      "type" : "string",
+      "enum" : [ "COMPLETED", "STOPPED", "FAILED" ]
+    },
+    "language" : {
+      "type" : "string",
+      "enum" : [ "ENGLISH", "HINDI", "HINGLISH" ]
+    },
+    "filledCount" : {
+      "type" : "integer",
+      "readOnly" : true
+    },
+    "stepCount" : {
+      "type" : "integer",
+      "readOnly" : true
+    },
+    "screens" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "properties" : {
+          "appPackage" : {
+            "type" : "string"
+          },
+          "activityName" : {
+            "type" : "string"
+          },
+          "screenTitle" : {
+            "type" : "string"
+          },
+          "screenSignature" : {
+            "type" : "string"
+          },
+          "flowId" : {
+            "type" : "string"
+          },
+          "flowVersion" : {
+            "type" : "integer"
+          },
+          "steps" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "properties" : {
+                "elementId" : {
+                  "type" : "string"
+                },
+                "label" : {
+                  "type" : "string"
+                },
+                "kind" : {
+                  "$ref" : "#/components/schemas/ElementKind"
+                },
+                "fieldType" : {
+                  "$ref" : "#/components/schemas/FieldType"
+                },
+                "question" : {
+                  "type" : "string"
+                },
+                "outcome" : {
+                  "type" : "string",
+                  "enum" : [ "FILLED", "DEFAULT_FILLED", "KEPT", "SKIPPED", "MANUAL", "CLICKED", "TOGGLED", "FAILED" ]
+                },
+                "interpretedBy" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+};
             defs["ScreenContext"] = {
   "required" : [ "elements", "packageName" ],
   "type" : "object",
@@ -1138,6 +1231,9 @@
                     <li data-group="AI" data-name="v1AiInterpretPost" class="">
                       <a href="#api-AI-v1AiInterpretPost">v1AiInterpretPost</a>
                     </li>
+                    <li data-group="AI" data-name="v1AiVisionPost" class="">
+                      <a href="#api-AI-v1AiVisionPost">v1AiVisionPost</a>
+                    </li>
                   <li class="nav-header" data-group="Auth"><a href="#api-Auth">API Methods - Auth</a></li>
                     <li data-group="Auth" data-name="v1AuthLoginPost" class="">
                       <a href="#api-Auth-v1AuthLoginPost">v1AuthLoginPost</a>
@@ -1179,8 +1275,30 @@
                     <li data-group="Flows" data-name="v1FlowsIdVersionsVersionGet" class="">
                       <a href="#api-Flows-v1FlowsIdVersionsVersionGet">v1FlowsIdVersionsVersionGet</a>
                     </li>
+                    <li data-group="Flows" data-name="v1FlowsMatchPost" class="">
+                      <a href="#api-Flows-v1FlowsMatchPost">v1FlowsMatchPost</a>
+                    </li>
                     <li data-group="Flows" data-name="v1FlowsPost" class="">
                       <a href="#api-Flows-v1FlowsPost">v1FlowsPost</a>
+                    </li>
+                  <li class="nav-header" data-group="History"><a href="#api-History">API Methods - History</a></li>
+                    <li data-group="History" data-name="v1RunsDelete" class="">
+                      <a href="#api-History-v1RunsDelete">v1RunsDelete</a>
+                    </li>
+                    <li data-group="History" data-name="v1RunsGet" class="">
+                      <a href="#api-History-v1RunsGet">v1RunsGet</a>
+                    </li>
+                    <li data-group="History" data-name="v1RunsIdDelete" class="">
+                      <a href="#api-History-v1RunsIdDelete">v1RunsIdDelete</a>
+                    </li>
+                    <li data-group="History" data-name="v1RunsIdGet" class="">
+                      <a href="#api-History-v1RunsIdGet">v1RunsIdGet</a>
+                    </li>
+                    <li data-group="History" data-name="v1RunsPost" class="">
+                      <a href="#api-History-v1RunsPost">v1RunsPost</a>
+                    </li>
+                    <li data-group="History" data-name="v1RunsStatsGet" class="">
+                      <a href="#api-History-v1RunsStatsGet">v1RunsStatsGet</a>
                     </li>
                   <li class="nav-header" data-group="Ops"><a href="#api-Ops">API Methods - Ops</a></li>
                     <li data-group="Ops" data-name="healthGet" class="">
@@ -1534,6 +1652,401 @@ except ApiException as e:
                                     </script>
                                   </div>
                                   <input id='responses-v1AiInterpretPost-200-schema-data' type='hidden' value=''></input>
+                                </div>
+                            </div>
+
+                            <h3> Status: 400 -  </h3>
+
+                            <ul class="nav nav-tabs nav-tabs-examples" >
+                            </ul>
+
+                            <div class="tab-content" style='margin-bottom: 10px;'>
+                            </div>
+
+                            <h3> Status: 429 -  </h3>
+
+                            <ul class="nav nav-tabs nav-tabs-examples" >
+                            </ul>
+
+                            <div class="tab-content" style='margin-bottom: 10px;'>
+                            </div>
+
+                        </article>
+                      </div>
+                      <hr>
+                    <div id="api-AI-v1AiVisionPost">
+                      <article id="api-AI-v1AiVisionPost-0" data-group="User" data-name="v1AiVisionPost" data-version="0">
+                        <div class="pull-left">
+                          <h1>v1AiVisionPost</h1>
+                          <p></p>
+                        </div>
+                        <div class="pull-right"></div>
+                        <div class="clearfix"></div>
+                        <p></p>
+                        <p class="marked">Vision fallback for apps that expose no readable accessibility nodes: detects input fields and
+buttons on a screenshot (JPEG, base64) and returns their boxes in image pixels.
+Requires a vision-capable provider (anthropic or openai).
+</p>
+                        <p></p>
+                        <br />
+                        <pre class="prettyprint language-html prettyprinted" data-type="post"><code><span class="pln">/v1/ai/vision</span></code></pre>
+                        <p>
+                          <h3>Usage and SDK Samples</h3>
+                        </p>
+                        <ul class="nav nav-tabs nav-tabs-examples">
+                          <li class="active"><a href="#examples-AI-v1AiVisionPost-0-curl">Curl</a></li>
+                          <li class=""><a href="#examples-AI-v1AiVisionPost-0-java">Java</a></li>
+                          <li class=""><a href="#examples-AI-v1AiVisionPost-0-android">Android</a></li>
+                          <!--<li class=""><a href="#examples-AI-v1AiVisionPost-0-groovy">Groovy</a></li>-->
+                          <li class=""><a href="#examples-AI-v1AiVisionPost-0-objc">Obj-C</a></li>
+                          <li class=""><a href="#examples-AI-v1AiVisionPost-0-javascript">JavaScript</a></li>
+                          <!--<li class=""><a href="#examples-AI-v1AiVisionPost-0-angular">Angular</a></li>-->
+                          <li class=""><a href="#examples-AI-v1AiVisionPost-0-csharp">C#</a></li>
+                          <li class=""><a href="#examples-AI-v1AiVisionPost-0-php">PHP</a></li>
+                          <li class=""><a href="#examples-AI-v1AiVisionPost-0-perl">Perl</a></li>
+                          <li class=""><a href="#examples-AI-v1AiVisionPost-0-python">Python</a></li>
+                        </ul>
+
+                        <div class="tab-content">
+                          <div class="tab-pane active" id="examples-AI-v1AiVisionPost-0-curl">
+                           <pre class="prettyprint"><code class="language-bsh">curl -X POST\
+ -H "Authorization: Bearer [[accessToken]]"\
+-H "Accept: application/json"\
+-H "Content-Type: application/json"\
+"//v1/ai/vision"</code></pre>
+                          </div>
+                          <div class="tab-pane" id="examples-AI-v1AiVisionPost-0-java">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.*;
+import io.swagger.client.auth.*;
+import io.swagger.client.model.*;
+import io.swagger.client.api.AIApi;
+
+import java.io.File;
+import java.util.*;
+
+public class AIApiExample {
+
+    public static void main(String[] args) {
+        ApiClient defaultClient = Configuration.getDefaultApiClient();
+
+
+        AIApi apiInstance = new AIApi();
+        Object body = ; // Object | 
+        try {
+            Object result = apiInstance.v1AiVisionPost(body);
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling AIApi#v1AiVisionPost");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+
+                          <div class="tab-pane" id="examples-AI-v1AiVisionPost-0-android">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.api.AIApi;
+
+public class AIApiExample {
+
+    public static void main(String[] args) {
+        AIApi apiInstance = new AIApi();
+        Object body = ; // Object | 
+        try {
+            Object result = apiInstance.v1AiVisionPost(body);
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling AIApi#v1AiVisionPost");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+  <!--
+  <div class="tab-pane" id="examples-AI-v1AiVisionPost-0-groovy">
+  <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+  </div> -->
+                            <div class="tab-pane" id="examples-AI-v1AiVisionPost-0-objc">
+                              <pre class="prettyprint"><code class="language-cpp">Configuration *apiConfig = [Configuration sharedConfig];
+Object *body = ; // 
+
+AIApi *apiInstance = [[AIApi alloc] init];
+
+[apiInstance v1AiVisionPostWith:body
+              completionHandler: ^(Object output, NSError* error) {
+                            if (output) {
+                                NSLog(@"%@", output);
+                            }
+                            if (error) {
+                                NSLog(@"Error: %@", error);
+                            }
+                        }];
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-AI-v1AiVisionPost-0-javascript">
+                              <pre class="prettyprint"><code class="language-js">var VoiceControlApi = require('voice_control_api');
+var defaultClient = VoiceControlApi.ApiClient.instance;
+
+
+var api = new VoiceControlApi.AIApi()
+var body = ; // {{Object}} 
+
+var callback = function(error, data, response) {
+  if (error) {
+    console.error(error);
+  } else {
+    console.log('API called successfully. Returned data: ' + data);
+  }
+};
+api.v1AiVisionPost(body, callback);
+</code></pre>
+                            </div>
+
+                            <!--<div class="tab-pane" id="examples-AI-v1AiVisionPost-0-angular">
+              <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+            </div>-->
+                            <div class="tab-pane" id="examples-AI-v1AiVisionPost-0-csharp">
+                              <pre class="prettyprint"><code class="language-cs">using System;
+using System.Diagnostics;
+using IO.Swagger.Api;
+using IO.Swagger.Client;
+using IO.Swagger.Model;
+
+namespace Example
+{
+    public class v1AiVisionPostExample
+    {
+        public void main()
+        {
+
+
+            var apiInstance = new AIApi();
+            var body = new Object(); // Object | 
+
+            try
+            {
+                Object result = apiInstance.v1AiVisionPost(body);
+                Debug.WriteLine(result);
+            }
+            catch (Exception e)
+            {
+                Debug.Print("Exception when calling AIApi.v1AiVisionPost: " + e.Message );
+            }
+        }
+    }
+}
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-AI-v1AiVisionPost-0-php">
+                              <pre class="prettyprint"><code class="language-php"><&#63;php
+require_once(__DIR__ . '/vendor/autoload.php');
+
+
+$api_instance = new Swagger\Client\ApiAIApi();
+$body = ; // Object | 
+
+try {
+    $result = $api_instance->v1AiVisionPost($body);
+    print_r($result);
+} catch (Exception $e) {
+    echo 'Exception when calling AIApi->v1AiVisionPost: ', $e->getMessage(), PHP_EOL;
+}
+?></code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-AI-v1AiVisionPost-0-perl">
+                              <pre class="prettyprint"><code class="language-perl">use Data::Dumper;
+use WWW::SwaggerClient::Configuration;
+use WWW::SwaggerClient::AIApi;
+
+
+my $api_instance = WWW::SwaggerClient::AIApi->new();
+my $body = WWW::SwaggerClient::Object::Object->new(); # Object | 
+
+eval { 
+    my $result = $api_instance->v1AiVisionPost(body => $body);
+    print Dumper($result);
+};
+if ($@) {
+    warn "Exception when calling AIApi->v1AiVisionPost: $@\n";
+}</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-AI-v1AiVisionPost-0-python">
+                              <pre class="prettyprint"><code class="language-python">from __future__ import print_statement
+import time
+import swagger_client
+from swagger_client.rest import ApiException
+from pprint import pprint
+
+
+# create an instance of the API class
+api_instance = swagger_client.AIApi()
+body =  # Object | 
+
+try: 
+    api_response = api_instance.v1_ai_vision_post(body)
+    pprint(api_response)
+except ApiException as e:
+    print("Exception when calling AIApi->v1AiVisionPost: %s\n" % e)</code></pre>
+                            </div>
+                          </div>
+
+                          <h2>Parameters</h2>
+
+
+
+                            <div class="methodsubtabletitle">Body parameters</div>
+                            <table id="methodsubtable">
+                              <tr>
+                                <th width="150px">Name</th>
+                                <th>Description</th>
+                              </tr>
+                                <tr><td style="width:150px;">body <span style="color:red;">*</span></td>
+                                <td>
+                                
+                                
+                                <script>
+                                $(document).ready(function() {
+                                  var schemaWrapper = {
+  "content" : {
+    "application/json" : {
+      "schema" : {
+        "required" : [ "height", "imageBase64", "packageName", "width" ],
+        "type" : "object",
+        "properties" : {
+          "packageName" : {
+            "type" : "string"
+          },
+          "imageBase64" : {
+            "type" : "string"
+          },
+          "width" : {
+            "type" : "integer"
+          },
+          "height" : {
+            "type" : "integer"
+          },
+          "language" : {
+            "type" : "string",
+            "enum" : [ "ENGLISH", "HINDI", "HINGLISH" ]
+          }
+        }
+      }
+    }
+  },
+  "required" : true
+};
+                                  var schema = schemaWrapper.content["application/json"].schema;
+                                  if (schema.$ref != null) {
+                                    schema = defsParser.$refs.get(schema.$ref);
+                                  } else {
+                                    schemaWrapper.components = {};
+                                    schemaWrapper.components.schemas = Object.assign({}, defs);
+                                    $RefParser.dereference(schemaWrapper).catch(function(err) {
+                                      console.log(err);
+                                    });
+                                  }
+                                
+                                  var view = new JSONSchemaView(schema,2,{isBodyParam: true});
+                                  var result = $('#d2e199_v1AiVisionPost_body');
+                                  result.empty();
+                                  result.append(view.render());
+                                });
+                                </script>
+                                <div id="d2e199_v1AiVisionPost_body"></div>
+                                </td>
+                                </tr>
+                            </table>
+
+
+
+                          <h2>Responses</h2>
+                            <h3> Status: 200 - Detected elements </h3>
+
+                            <ul class="nav nav-tabs nav-tabs-examples" >
+                                <li class="active">
+                                  <a data-toggle="tab" href="#responses-v1AiVisionPost-200-schema">Schema</a>
+                                </li>
+
+                            </ul>
+
+                            <div class="tab-content" style='margin-bottom: 10px;'>
+                                <div class="tab-pane active" id="responses-v1AiVisionPost-200-schema">
+                                  <div id='responses-v1AiVisionPost-200-schema-200' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
+                                    <script>
+                                      $(document).ready(function() {
+                                        var schemaWrapper = {
+  "description" : "Detected elements",
+  "content" : {
+    "application/json" : {
+      "schema" : {
+        "type" : "object",
+        "properties" : {
+          "source" : {
+            "type" : "string"
+          },
+          "elements" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "properties" : {
+                "id" : {
+                  "type" : "string",
+                  "example" : "vision:e1"
+                },
+                "kind" : {
+                  "$ref" : "#/components/schemas/ElementKind"
+                },
+                "label" : {
+                  "type" : "string"
+                },
+                "fieldType" : {
+                  "$ref" : "#/components/schemas/FieldType"
+                },
+                "x" : {
+                  "type" : "integer"
+                },
+                "y" : {
+                  "type" : "integer"
+                },
+                "width" : {
+                  "type" : "integer"
+                },
+                "height" : {
+                  "type" : "integer"
+                }
+              }
+            }
+          }
+        },
+        "x-content-type" : "application/json"
+      }
+    }
+  }
+};
+                                        var schema = schemaWrapper.content["application/json"].schema;
+                                        if (schema.$ref != null) {
+                                          schema = defsParser.$refs.get(schema.$ref);
+                                        } else {
+                                          schemaWrapper.components = {};
+                                          schemaWrapper.components.schemas = Object.assign({}, defs);
+                                          $RefParser.dereference(schemaWrapper).catch(function(err) {
+                                            console.log(err);
+                                          });
+                                        }
+
+                                        //console.log(JSON.stringify(schema));
+                                        var view = new JSONSchemaView(schema, 3);
+                                        $('#responses-v1AiVisionPost-200-schema-data').val(stringify(schema));
+                                        var result = $('#responses-v1AiVisionPost-200-schema-200');
+                                        result.empty();
+                                        result.append(view.render());
+                                      });
+                                    </script>
+                                  </div>
+                                  <input id='responses-v1AiVisionPost-200-schema-data' type='hidden' value=''></input>
                                 </div>
                             </div>
 
@@ -5409,6 +5922,349 @@ except ApiException as e:
                         </article>
                       </div>
                       <hr>
+                    <div id="api-Flows-v1FlowsMatchPost">
+                      <article id="api-Flows-v1FlowsMatchPost-0" data-group="User" data-name="v1FlowsMatchPost" data-version="0">
+                        <div class="pull-left">
+                          <h1>v1FlowsMatchPost</h1>
+                          <p></p>
+                        </div>
+                        <div class="pull-right"></div>
+                        <div class="clearfix"></div>
+                        <p></p>
+                        <p class="marked">Finds the user&#x27;s flow for a live screen: exact screen signature first, then the nearest
+pgvector embedding above the similarity threshold. Always returns the current version.
+</p>
+                        <p></p>
+                        <br />
+                        <pre class="prettyprint language-html prettyprinted" data-type="post"><code><span class="pln">/v1/flows/match</span></code></pre>
+                        <p>
+                          <h3>Usage and SDK Samples</h3>
+                        </p>
+                        <ul class="nav nav-tabs nav-tabs-examples">
+                          <li class="active"><a href="#examples-Flows-v1FlowsMatchPost-0-curl">Curl</a></li>
+                          <li class=""><a href="#examples-Flows-v1FlowsMatchPost-0-java">Java</a></li>
+                          <li class=""><a href="#examples-Flows-v1FlowsMatchPost-0-android">Android</a></li>
+                          <!--<li class=""><a href="#examples-Flows-v1FlowsMatchPost-0-groovy">Groovy</a></li>-->
+                          <li class=""><a href="#examples-Flows-v1FlowsMatchPost-0-objc">Obj-C</a></li>
+                          <li class=""><a href="#examples-Flows-v1FlowsMatchPost-0-javascript">JavaScript</a></li>
+                          <!--<li class=""><a href="#examples-Flows-v1FlowsMatchPost-0-angular">Angular</a></li>-->
+                          <li class=""><a href="#examples-Flows-v1FlowsMatchPost-0-csharp">C#</a></li>
+                          <li class=""><a href="#examples-Flows-v1FlowsMatchPost-0-php">PHP</a></li>
+                          <li class=""><a href="#examples-Flows-v1FlowsMatchPost-0-perl">Perl</a></li>
+                          <li class=""><a href="#examples-Flows-v1FlowsMatchPost-0-python">Python</a></li>
+                        </ul>
+
+                        <div class="tab-content">
+                          <div class="tab-pane active" id="examples-Flows-v1FlowsMatchPost-0-curl">
+                           <pre class="prettyprint"><code class="language-bsh">curl -X POST\
+ -H "Authorization: Bearer [[accessToken]]"\
+-H "Accept: application/json"\
+-H "Content-Type: application/json"\
+"//v1/flows/match"</code></pre>
+                          </div>
+                          <div class="tab-pane" id="examples-Flows-v1FlowsMatchPost-0-java">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.*;
+import io.swagger.client.auth.*;
+import io.swagger.client.model.*;
+import io.swagger.client.api.FlowsApi;
+
+import java.io.File;
+import java.util.*;
+
+public class FlowsApiExample {
+
+    public static void main(String[] args) {
+        ApiClient defaultClient = Configuration.getDefaultApiClient();
+
+
+        FlowsApi apiInstance = new FlowsApi();
+        Object body = ; // Object | 
+        try {
+            Object result = apiInstance.v1FlowsMatchPost(body);
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling FlowsApi#v1FlowsMatchPost");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+
+                          <div class="tab-pane" id="examples-Flows-v1FlowsMatchPost-0-android">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.api.FlowsApi;
+
+public class FlowsApiExample {
+
+    public static void main(String[] args) {
+        FlowsApi apiInstance = new FlowsApi();
+        Object body = ; // Object | 
+        try {
+            Object result = apiInstance.v1FlowsMatchPost(body);
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling FlowsApi#v1FlowsMatchPost");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+  <!--
+  <div class="tab-pane" id="examples-Flows-v1FlowsMatchPost-0-groovy">
+  <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+  </div> -->
+                            <div class="tab-pane" id="examples-Flows-v1FlowsMatchPost-0-objc">
+                              <pre class="prettyprint"><code class="language-cpp">Configuration *apiConfig = [Configuration sharedConfig];
+Object *body = ; // 
+
+FlowsApi *apiInstance = [[FlowsApi alloc] init];
+
+[apiInstance v1FlowsMatchPostWith:body
+              completionHandler: ^(Object output, NSError* error) {
+                            if (output) {
+                                NSLog(@"%@", output);
+                            }
+                            if (error) {
+                                NSLog(@"Error: %@", error);
+                            }
+                        }];
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-Flows-v1FlowsMatchPost-0-javascript">
+                              <pre class="prettyprint"><code class="language-js">var VoiceControlApi = require('voice_control_api');
+var defaultClient = VoiceControlApi.ApiClient.instance;
+
+
+var api = new VoiceControlApi.FlowsApi()
+var body = ; // {{Object}} 
+
+var callback = function(error, data, response) {
+  if (error) {
+    console.error(error);
+  } else {
+    console.log('API called successfully. Returned data: ' + data);
+  }
+};
+api.v1FlowsMatchPost(body, callback);
+</code></pre>
+                            </div>
+
+                            <!--<div class="tab-pane" id="examples-Flows-v1FlowsMatchPost-0-angular">
+              <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+            </div>-->
+                            <div class="tab-pane" id="examples-Flows-v1FlowsMatchPost-0-csharp">
+                              <pre class="prettyprint"><code class="language-cs">using System;
+using System.Diagnostics;
+using IO.Swagger.Api;
+using IO.Swagger.Client;
+using IO.Swagger.Model;
+
+namespace Example
+{
+    public class v1FlowsMatchPostExample
+    {
+        public void main()
+        {
+
+
+            var apiInstance = new FlowsApi();
+            var body = new Object(); // Object | 
+
+            try
+            {
+                Object result = apiInstance.v1FlowsMatchPost(body);
+                Debug.WriteLine(result);
+            }
+            catch (Exception e)
+            {
+                Debug.Print("Exception when calling FlowsApi.v1FlowsMatchPost: " + e.Message );
+            }
+        }
+    }
+}
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-Flows-v1FlowsMatchPost-0-php">
+                              <pre class="prettyprint"><code class="language-php"><&#63;php
+require_once(__DIR__ . '/vendor/autoload.php');
+
+
+$api_instance = new Swagger\Client\ApiFlowsApi();
+$body = ; // Object | 
+
+try {
+    $result = $api_instance->v1FlowsMatchPost($body);
+    print_r($result);
+} catch (Exception $e) {
+    echo 'Exception when calling FlowsApi->v1FlowsMatchPost: ', $e->getMessage(), PHP_EOL;
+}
+?></code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-Flows-v1FlowsMatchPost-0-perl">
+                              <pre class="prettyprint"><code class="language-perl">use Data::Dumper;
+use WWW::SwaggerClient::Configuration;
+use WWW::SwaggerClient::FlowsApi;
+
+
+my $api_instance = WWW::SwaggerClient::FlowsApi->new();
+my $body = WWW::SwaggerClient::Object::Object->new(); # Object | 
+
+eval { 
+    my $result = $api_instance->v1FlowsMatchPost(body => $body);
+    print Dumper($result);
+};
+if ($@) {
+    warn "Exception when calling FlowsApi->v1FlowsMatchPost: $@\n";
+}</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-Flows-v1FlowsMatchPost-0-python">
+                              <pre class="prettyprint"><code class="language-python">from __future__ import print_statement
+import time
+import swagger_client
+from swagger_client.rest import ApiException
+from pprint import pprint
+
+
+# create an instance of the API class
+api_instance = swagger_client.FlowsApi()
+body =  # Object | 
+
+try: 
+    api_response = api_instance.v1_flows_match_post(body)
+    pprint(api_response)
+except ApiException as e:
+    print("Exception when calling FlowsApi->v1FlowsMatchPost: %s\n" % e)</code></pre>
+                            </div>
+                          </div>
+
+                          <h2>Parameters</h2>
+
+
+
+                            <div class="methodsubtabletitle">Body parameters</div>
+                            <table id="methodsubtable">
+                              <tr>
+                                <th width="150px">Name</th>
+                                <th>Description</th>
+                              </tr>
+                                <tr><td style="width:150px;">body <span style="color:red;">*</span></td>
+                                <td>
+                                
+                                
+                                <script>
+                                $(document).ready(function() {
+                                  var schemaWrapper = {
+  "content" : {
+    "application/json" : {
+      "schema" : {
+        "required" : [ "appPackage", "signature" ],
+        "type" : "object",
+        "properties" : {
+          "appPackage" : {
+            "type" : "string"
+          },
+          "signature" : {
+            "type" : "string",
+            "example" : "com.shop|SignupActivity|button:create account|text_field/email:email"
+          }
+        }
+      }
+    }
+  },
+  "required" : true
+};
+                                  var schema = schemaWrapper.content["application/json"].schema;
+                                  if (schema.$ref != null) {
+                                    schema = defsParser.$refs.get(schema.$ref);
+                                  } else {
+                                    schemaWrapper.components = {};
+                                    schemaWrapper.components.schemas = Object.assign({}, defs);
+                                    $RefParser.dereference(schemaWrapper).catch(function(err) {
+                                      console.log(err);
+                                    });
+                                  }
+                                
+                                  var view = new JSONSchemaView(schema,2,{isBodyParam: true});
+                                  var result = $('#d2e199_v1FlowsMatchPost_body');
+                                  result.empty();
+                                  result.append(view.render());
+                                });
+                                </script>
+                                <div id="d2e199_v1FlowsMatchPost_body"></div>
+                                </td>
+                                </tr>
+                            </table>
+
+
+
+                          <h2>Responses</h2>
+                            <h3> Status: 200 - Match result (flow is absent when nothing matched) </h3>
+
+                            <ul class="nav nav-tabs nav-tabs-examples" >
+                                <li class="active">
+                                  <a data-toggle="tab" href="#responses-v1FlowsMatchPost-200-schema">Schema</a>
+                                </li>
+
+                            </ul>
+
+                            <div class="tab-content" style='margin-bottom: 10px;'>
+                                <div class="tab-pane active" id="responses-v1FlowsMatchPost-200-schema">
+                                  <div id='responses-v1FlowsMatchPost-200-schema-200' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
+                                    <script>
+                                      $(document).ready(function() {
+                                        var schemaWrapper = {
+  "description" : "Match result (flow is absent when nothing matched)",
+  "content" : {
+    "application/json" : {
+      "schema" : {
+        "type" : "object",
+        "properties" : {
+          "flow" : {
+            "$ref" : "#/components/schemas/Flow"
+          },
+          "matchedBy" : {
+            "type" : "string",
+            "enum" : [ "exact", "vector" ]
+          },
+          "similarity" : {
+            "type" : "number"
+          }
+        },
+        "x-content-type" : "application/json"
+      }
+    }
+  }
+};
+                                        var schema = schemaWrapper.content["application/json"].schema;
+                                        if (schema.$ref != null) {
+                                          schema = defsParser.$refs.get(schema.$ref);
+                                        } else {
+                                          schemaWrapper.components = {};
+                                          schemaWrapper.components.schemas = Object.assign({}, defs);
+                                          $RefParser.dereference(schemaWrapper).catch(function(err) {
+                                            console.log(err);
+                                          });
+                                        }
+
+                                        //console.log(JSON.stringify(schema));
+                                        var view = new JSONSchemaView(schema, 3);
+                                        $('#responses-v1FlowsMatchPost-200-schema-data').val(stringify(schema));
+                                        var result = $('#responses-v1FlowsMatchPost-200-schema-200');
+                                        result.empty();
+                                        result.append(view.render());
+                                      });
+                                    </script>
+                                  </div>
+                                  <input id='responses-v1FlowsMatchPost-200-schema-data' type='hidden' value=''></input>
+                                </div>
+                            </div>
+
+                        </article>
+                      </div>
+                      <hr>
                     <div id="api-Flows-v1FlowsPost">
                       <article id="api-Flows-v1FlowsPost-0" data-group="User" data-name="v1FlowsPost" data-version="0">
                         <div class="pull-left">
@@ -5730,6 +6586,1695 @@ except ApiException as e:
                             </ul>
 
                             <div class="tab-content" style='margin-bottom: 10px;'>
+                            </div>
+
+                        </article>
+                      </div>
+                      <hr>
+                  </section>
+                <section id="api-History">
+                  <h1>History</h1>
+                    <div id="api-History-v1RunsDelete">
+                      <article id="api-History-v1RunsDelete-0" data-group="User" data-name="v1RunsDelete" data-version="0">
+                        <div class="pull-left">
+                          <h1>v1RunsDelete</h1>
+                          <p>Delete all history</p>
+                        </div>
+                        <div class="pull-right"></div>
+                        <div class="clearfix"></div>
+                        <p></p>
+                        <p class="marked"></p>
+                        <p></p>
+                        <br />
+                        <pre class="prettyprint language-html prettyprinted" data-type="delete"><code><span class="pln">/v1/runs</span></code></pre>
+                        <p>
+                          <h3>Usage and SDK Samples</h3>
+                        </p>
+                        <ul class="nav nav-tabs nav-tabs-examples">
+                          <li class="active"><a href="#examples-History-v1RunsDelete-0-curl">Curl</a></li>
+                          <li class=""><a href="#examples-History-v1RunsDelete-0-java">Java</a></li>
+                          <li class=""><a href="#examples-History-v1RunsDelete-0-android">Android</a></li>
+                          <!--<li class=""><a href="#examples-History-v1RunsDelete-0-groovy">Groovy</a></li>-->
+                          <li class=""><a href="#examples-History-v1RunsDelete-0-objc">Obj-C</a></li>
+                          <li class=""><a href="#examples-History-v1RunsDelete-0-javascript">JavaScript</a></li>
+                          <!--<li class=""><a href="#examples-History-v1RunsDelete-0-angular">Angular</a></li>-->
+                          <li class=""><a href="#examples-History-v1RunsDelete-0-csharp">C#</a></li>
+                          <li class=""><a href="#examples-History-v1RunsDelete-0-php">PHP</a></li>
+                          <li class=""><a href="#examples-History-v1RunsDelete-0-perl">Perl</a></li>
+                          <li class=""><a href="#examples-History-v1RunsDelete-0-python">Python</a></li>
+                        </ul>
+
+                        <div class="tab-content">
+                          <div class="tab-pane active" id="examples-History-v1RunsDelete-0-curl">
+                           <pre class="prettyprint"><code class="language-bsh">curl -X DELETE\
+ -H "Authorization: Bearer [[accessToken]]"\
+"//v1/runs"</code></pre>
+                          </div>
+                          <div class="tab-pane" id="examples-History-v1RunsDelete-0-java">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.*;
+import io.swagger.client.auth.*;
+import io.swagger.client.model.*;
+import io.swagger.client.api.HistoryApi;
+
+import java.io.File;
+import java.util.*;
+
+public class HistoryApiExample {
+
+    public static void main(String[] args) {
+        ApiClient defaultClient = Configuration.getDefaultApiClient();
+
+
+        HistoryApi apiInstance = new HistoryApi();
+        try {
+            apiInstance.v1RunsDelete();
+        } catch (ApiException e) {
+            System.err.println("Exception when calling HistoryApi#v1RunsDelete");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+
+                          <div class="tab-pane" id="examples-History-v1RunsDelete-0-android">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.api.HistoryApi;
+
+public class HistoryApiExample {
+
+    public static void main(String[] args) {
+        HistoryApi apiInstance = new HistoryApi();
+        try {
+            apiInstance.v1RunsDelete();
+        } catch (ApiException e) {
+            System.err.println("Exception when calling HistoryApi#v1RunsDelete");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+  <!--
+  <div class="tab-pane" id="examples-History-v1RunsDelete-0-groovy">
+  <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+  </div> -->
+                            <div class="tab-pane" id="examples-History-v1RunsDelete-0-objc">
+                              <pre class="prettyprint"><code class="language-cpp">Configuration *apiConfig = [Configuration sharedConfig];
+
+HistoryApi *apiInstance = [[HistoryApi alloc] init];
+
+// Delete all history
+[apiInstance v1RunsDeleteWithCompletionHandler: 
+              ^(NSError* error) {
+                            if (error) {
+                                NSLog(@"Error: %@", error);
+                            }
+                        }];
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsDelete-0-javascript">
+                              <pre class="prettyprint"><code class="language-js">var VoiceControlApi = require('voice_control_api');
+var defaultClient = VoiceControlApi.ApiClient.instance;
+
+
+var api = new VoiceControlApi.HistoryApi()
+var callback = function(error, data, response) {
+  if (error) {
+    console.error(error);
+  } else {
+    console.log('API called successfully.');
+  }
+};
+api.v1RunsDelete(callback);
+</code></pre>
+                            </div>
+
+                            <!--<div class="tab-pane" id="examples-History-v1RunsDelete-0-angular">
+              <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+            </div>-->
+                            <div class="tab-pane" id="examples-History-v1RunsDelete-0-csharp">
+                              <pre class="prettyprint"><code class="language-cs">using System;
+using System.Diagnostics;
+using IO.Swagger.Api;
+using IO.Swagger.Client;
+using IO.Swagger.Model;
+
+namespace Example
+{
+    public class v1RunsDeleteExample
+    {
+        public void main()
+        {
+
+
+            var apiInstance = new HistoryApi();
+
+            try
+            {
+                // Delete all history
+                apiInstance.v1RunsDelete();
+            }
+            catch (Exception e)
+            {
+                Debug.Print("Exception when calling HistoryApi.v1RunsDelete: " + e.Message );
+            }
+        }
+    }
+}
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsDelete-0-php">
+                              <pre class="prettyprint"><code class="language-php"><&#63;php
+require_once(__DIR__ . '/vendor/autoload.php');
+
+
+$api_instance = new Swagger\Client\ApiHistoryApi();
+
+try {
+    $api_instance->v1RunsDelete();
+} catch (Exception $e) {
+    echo 'Exception when calling HistoryApi->v1RunsDelete: ', $e->getMessage(), PHP_EOL;
+}
+?></code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsDelete-0-perl">
+                              <pre class="prettyprint"><code class="language-perl">use Data::Dumper;
+use WWW::SwaggerClient::Configuration;
+use WWW::SwaggerClient::HistoryApi;
+
+
+my $api_instance = WWW::SwaggerClient::HistoryApi->new();
+
+eval { 
+    $api_instance->v1RunsDelete();
+};
+if ($@) {
+    warn "Exception when calling HistoryApi->v1RunsDelete: $@\n";
+}</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsDelete-0-python">
+                              <pre class="prettyprint"><code class="language-python">from __future__ import print_statement
+import time
+import swagger_client
+from swagger_client.rest import ApiException
+from pprint import pprint
+
+
+# create an instance of the API class
+api_instance = swagger_client.HistoryApi()
+
+try: 
+    # Delete all history
+    api_instance.v1_runs_delete()
+except ApiException as e:
+    print("Exception when calling HistoryApi->v1RunsDelete: %s\n" % e)</code></pre>
+                            </div>
+                          </div>
+
+                          <h2>Parameters</h2>
+
+
+
+
+
+
+                          <h2>Responses</h2>
+                            <h3> Status: 204 - Deleted </h3>
+
+                            <ul class="nav nav-tabs nav-tabs-examples" >
+                            </ul>
+
+                            <div class="tab-content" style='margin-bottom: 10px;'>
+                            </div>
+
+                        </article>
+                      </div>
+                      <hr>
+                    <div id="api-History-v1RunsGet">
+                      <article id="api-History-v1RunsGet-0" data-group="User" data-name="v1RunsGet" data-version="0">
+                        <div class="pull-left">
+                          <h1>v1RunsGet</h1>
+                          <p></p>
+                        </div>
+                        <div class="pull-right"></div>
+                        <div class="clearfix"></div>
+                        <p></p>
+                        <p class="marked"></p>
+                        <p></p>
+                        <br />
+                        <pre class="prettyprint language-html prettyprinted" data-type="get"><code><span class="pln">/v1/runs</span></code></pre>
+                        <p>
+                          <h3>Usage and SDK Samples</h3>
+                        </p>
+                        <ul class="nav nav-tabs nav-tabs-examples">
+                          <li class="active"><a href="#examples-History-v1RunsGet-0-curl">Curl</a></li>
+                          <li class=""><a href="#examples-History-v1RunsGet-0-java">Java</a></li>
+                          <li class=""><a href="#examples-History-v1RunsGet-0-android">Android</a></li>
+                          <!--<li class=""><a href="#examples-History-v1RunsGet-0-groovy">Groovy</a></li>-->
+                          <li class=""><a href="#examples-History-v1RunsGet-0-objc">Obj-C</a></li>
+                          <li class=""><a href="#examples-History-v1RunsGet-0-javascript">JavaScript</a></li>
+                          <!--<li class=""><a href="#examples-History-v1RunsGet-0-angular">Angular</a></li>-->
+                          <li class=""><a href="#examples-History-v1RunsGet-0-csharp">C#</a></li>
+                          <li class=""><a href="#examples-History-v1RunsGet-0-php">PHP</a></li>
+                          <li class=""><a href="#examples-History-v1RunsGet-0-perl">Perl</a></li>
+                          <li class=""><a href="#examples-History-v1RunsGet-0-python">Python</a></li>
+                        </ul>
+
+                        <div class="tab-content">
+                          <div class="tab-pane active" id="examples-History-v1RunsGet-0-curl">
+                           <pre class="prettyprint"><code class="language-bsh">curl -X GET\
+ -H "Authorization: Bearer [[accessToken]]"\
+-H "Accept: application/json"\
+"//v1/runs?appPackage=&limit=&offset="</code></pre>
+                          </div>
+                          <div class="tab-pane" id="examples-History-v1RunsGet-0-java">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.*;
+import io.swagger.client.auth.*;
+import io.swagger.client.model.*;
+import io.swagger.client.api.HistoryApi;
+
+import java.io.File;
+import java.util.*;
+
+public class HistoryApiExample {
+
+    public static void main(String[] args) {
+        ApiClient defaultClient = Configuration.getDefaultApiClient();
+
+
+        HistoryApi apiInstance = new HistoryApi();
+        String appPackage = appPackage_example; // String | 
+        Integer limit = 56; // Integer | 
+        Integer offset = 56; // Integer | 
+        try {
+            Object result = apiInstance.v1RunsGet(appPackage, limit, offset);
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling HistoryApi#v1RunsGet");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+
+                          <div class="tab-pane" id="examples-History-v1RunsGet-0-android">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.api.HistoryApi;
+
+public class HistoryApiExample {
+
+    public static void main(String[] args) {
+        HistoryApi apiInstance = new HistoryApi();
+        String appPackage = appPackage_example; // String | 
+        Integer limit = 56; // Integer | 
+        Integer offset = 56; // Integer | 
+        try {
+            Object result = apiInstance.v1RunsGet(appPackage, limit, offset);
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling HistoryApi#v1RunsGet");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+  <!--
+  <div class="tab-pane" id="examples-History-v1RunsGet-0-groovy">
+  <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+  </div> -->
+                            <div class="tab-pane" id="examples-History-v1RunsGet-0-objc">
+                              <pre class="prettyprint"><code class="language-cpp">Configuration *apiConfig = [Configuration sharedConfig];
+String *appPackage = appPackage_example; //  (optional)
+Integer *limit = 56; //  (optional) (default to 50)
+Integer *offset = 56; //  (optional) (default to 0)
+
+HistoryApi *apiInstance = [[HistoryApi alloc] init];
+
+[apiInstance v1RunsGetWith:appPackage
+    limit:limit
+    offset:offset
+              completionHandler: ^(Object output, NSError* error) {
+                            if (output) {
+                                NSLog(@"%@", output);
+                            }
+                            if (error) {
+                                NSLog(@"Error: %@", error);
+                            }
+                        }];
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsGet-0-javascript">
+                              <pre class="prettyprint"><code class="language-js">var VoiceControlApi = require('voice_control_api');
+var defaultClient = VoiceControlApi.ApiClient.instance;
+
+
+var api = new VoiceControlApi.HistoryApi()
+var opts = { 
+  'appPackage': appPackage_example, // {{String}} 
+  'limit': 56, // {{Integer}} 
+  'offset': 56 // {{Integer}} 
+};
+var callback = function(error, data, response) {
+  if (error) {
+    console.error(error);
+  } else {
+    console.log('API called successfully. Returned data: ' + data);
+  }
+};
+api.v1RunsGet(opts, callback);
+</code></pre>
+                            </div>
+
+                            <!--<div class="tab-pane" id="examples-History-v1RunsGet-0-angular">
+              <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+            </div>-->
+                            <div class="tab-pane" id="examples-History-v1RunsGet-0-csharp">
+                              <pre class="prettyprint"><code class="language-cs">using System;
+using System.Diagnostics;
+using IO.Swagger.Api;
+using IO.Swagger.Client;
+using IO.Swagger.Model;
+
+namespace Example
+{
+    public class v1RunsGetExample
+    {
+        public void main()
+        {
+
+
+            var apiInstance = new HistoryApi();
+            var appPackage = appPackage_example;  // String |  (optional) 
+            var limit = 56;  // Integer |  (optional)  (default to 50)
+            var offset = 56;  // Integer |  (optional)  (default to 0)
+
+            try
+            {
+                Object result = apiInstance.v1RunsGet(appPackage, limit, offset);
+                Debug.WriteLine(result);
+            }
+            catch (Exception e)
+            {
+                Debug.Print("Exception when calling HistoryApi.v1RunsGet: " + e.Message );
+            }
+        }
+    }
+}
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsGet-0-php">
+                              <pre class="prettyprint"><code class="language-php"><&#63;php
+require_once(__DIR__ . '/vendor/autoload.php');
+
+
+$api_instance = new Swagger\Client\ApiHistoryApi();
+$appPackage = appPackage_example; // String | 
+$limit = 56; // Integer | 
+$offset = 56; // Integer | 
+
+try {
+    $result = $api_instance->v1RunsGet($appPackage, $limit, $offset);
+    print_r($result);
+} catch (Exception $e) {
+    echo 'Exception when calling HistoryApi->v1RunsGet: ', $e->getMessage(), PHP_EOL;
+}
+?></code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsGet-0-perl">
+                              <pre class="prettyprint"><code class="language-perl">use Data::Dumper;
+use WWW::SwaggerClient::Configuration;
+use WWW::SwaggerClient::HistoryApi;
+
+
+my $api_instance = WWW::SwaggerClient::HistoryApi->new();
+my $appPackage = appPackage_example; # String | 
+my $limit = 56; # Integer | 
+my $offset = 56; # Integer | 
+
+eval { 
+    my $result = $api_instance->v1RunsGet(appPackage => $appPackage, limit => $limit, offset => $offset);
+    print Dumper($result);
+};
+if ($@) {
+    warn "Exception when calling HistoryApi->v1RunsGet: $@\n";
+}</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsGet-0-python">
+                              <pre class="prettyprint"><code class="language-python">from __future__ import print_statement
+import time
+import swagger_client
+from swagger_client.rest import ApiException
+from pprint import pprint
+
+
+# create an instance of the API class
+api_instance = swagger_client.HistoryApi()
+appPackage = appPackage_example # String |  (optional)
+limit = 56 # Integer |  (optional) (default to 50)
+offset = 56 # Integer |  (optional) (default to 0)
+
+try: 
+    api_response = api_instance.v1_runs_get(appPackage=appPackage, limit=limit, offset=offset)
+    pprint(api_response)
+except ApiException as e:
+    print("Exception when calling HistoryApi->v1RunsGet: %s\n" % e)</code></pre>
+                            </div>
+                          </div>
+
+                          <h2>Parameters</h2>
+
+
+
+
+
+                            <div class="methodsubtabletitle">Query parameters</div>
+                            <table id="methodsubtable">
+                              <tr>
+                                <th width="150px">Name</th>
+                                <th>Description</th>
+                              </tr>
+                                <tr><td style="width:150px;">appPackage</td>
+                                <td>
+                                
+                                
+                                    <div id="d2e199_v1RunsGet_appPackage">
+                                        <div class="json-schema-view">
+                                            <div class="primitive">
+                                                <span class="type">
+                                                    String
+                                                </span>
+                                
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr><td style="width:150px;">limit</td>
+                                <td>
+                                
+                                
+                                    <div id="d2e199_v1RunsGet_limit">
+                                        <div class="json-schema-view">
+                                            <div class="primitive">
+                                                <span class="type">
+                                                    Integer
+                                                </span>
+                                
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr><td style="width:150px;">offset</td>
+                                <td>
+                                
+                                
+                                    <div id="d2e199_v1RunsGet_offset">
+                                        <div class="json-schema-view">
+                                            <div class="primitive">
+                                                <span class="type">
+                                                    Integer
+                                                </span>
+                                
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                </tr>
+                            </table>
+
+                          <h2>Responses</h2>
+                            <h3> Status: 200 - Voice sessions, newest first </h3>
+
+                            <ul class="nav nav-tabs nav-tabs-examples" >
+                                <li class="active">
+                                  <a data-toggle="tab" href="#responses-v1RunsGet-200-schema">Schema</a>
+                                </li>
+
+                            </ul>
+
+                            <div class="tab-content" style='margin-bottom: 10px;'>
+                                <div class="tab-pane active" id="responses-v1RunsGet-200-schema">
+                                  <div id='responses-v1RunsGet-200-schema-200' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
+                                    <script>
+                                      $(document).ready(function() {
+                                        var schemaWrapper = {
+  "description" : "Voice sessions, newest first",
+  "content" : {
+    "application/json" : {
+      "schema" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Run"
+            }
+          },
+          "limit" : {
+            "type" : "integer"
+          },
+          "offset" : {
+            "type" : "integer"
+          }
+        },
+        "x-content-type" : "application/json"
+      }
+    }
+  }
+};
+                                        var schema = schemaWrapper.content["application/json"].schema;
+                                        if (schema.$ref != null) {
+                                          schema = defsParser.$refs.get(schema.$ref);
+                                        } else {
+                                          schemaWrapper.components = {};
+                                          schemaWrapper.components.schemas = Object.assign({}, defs);
+                                          $RefParser.dereference(schemaWrapper).catch(function(err) {
+                                            console.log(err);
+                                          });
+                                        }
+
+                                        //console.log(JSON.stringify(schema));
+                                        var view = new JSONSchemaView(schema, 3);
+                                        $('#responses-v1RunsGet-200-schema-data').val(stringify(schema));
+                                        var result = $('#responses-v1RunsGet-200-schema-200');
+                                        result.empty();
+                                        result.append(view.render());
+                                      });
+                                    </script>
+                                  </div>
+                                  <input id='responses-v1RunsGet-200-schema-data' type='hidden' value=''></input>
+                                </div>
+                            </div>
+
+                        </article>
+                      </div>
+                      <hr>
+                    <div id="api-History-v1RunsIdDelete">
+                      <article id="api-History-v1RunsIdDelete-0" data-group="User" data-name="v1RunsIdDelete" data-version="0">
+                        <div class="pull-left">
+                          <h1>v1RunsIdDelete</h1>
+                          <p></p>
+                        </div>
+                        <div class="pull-right"></div>
+                        <div class="clearfix"></div>
+                        <p></p>
+                        <p class="marked"></p>
+                        <p></p>
+                        <br />
+                        <pre class="prettyprint language-html prettyprinted" data-type="delete"><code><span class="pln">/v1/runs/{id}</span></code></pre>
+                        <p>
+                          <h3>Usage and SDK Samples</h3>
+                        </p>
+                        <ul class="nav nav-tabs nav-tabs-examples">
+                          <li class="active"><a href="#examples-History-v1RunsIdDelete-0-curl">Curl</a></li>
+                          <li class=""><a href="#examples-History-v1RunsIdDelete-0-java">Java</a></li>
+                          <li class=""><a href="#examples-History-v1RunsIdDelete-0-android">Android</a></li>
+                          <!--<li class=""><a href="#examples-History-v1RunsIdDelete-0-groovy">Groovy</a></li>-->
+                          <li class=""><a href="#examples-History-v1RunsIdDelete-0-objc">Obj-C</a></li>
+                          <li class=""><a href="#examples-History-v1RunsIdDelete-0-javascript">JavaScript</a></li>
+                          <!--<li class=""><a href="#examples-History-v1RunsIdDelete-0-angular">Angular</a></li>-->
+                          <li class=""><a href="#examples-History-v1RunsIdDelete-0-csharp">C#</a></li>
+                          <li class=""><a href="#examples-History-v1RunsIdDelete-0-php">PHP</a></li>
+                          <li class=""><a href="#examples-History-v1RunsIdDelete-0-perl">Perl</a></li>
+                          <li class=""><a href="#examples-History-v1RunsIdDelete-0-python">Python</a></li>
+                        </ul>
+
+                        <div class="tab-content">
+                          <div class="tab-pane active" id="examples-History-v1RunsIdDelete-0-curl">
+                           <pre class="prettyprint"><code class="language-bsh">curl -X DELETE\
+ -H "Authorization: Bearer [[accessToken]]"\
+"//v1/runs/{id}"</code></pre>
+                          </div>
+                          <div class="tab-pane" id="examples-History-v1RunsIdDelete-0-java">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.*;
+import io.swagger.client.auth.*;
+import io.swagger.client.model.*;
+import io.swagger.client.api.HistoryApi;
+
+import java.io.File;
+import java.util.*;
+
+public class HistoryApiExample {
+
+    public static void main(String[] args) {
+        ApiClient defaultClient = Configuration.getDefaultApiClient();
+
+
+        HistoryApi apiInstance = new HistoryApi();
+        try {
+            apiInstance.v1RunsIdDelete();
+        } catch (ApiException e) {
+            System.err.println("Exception when calling HistoryApi#v1RunsIdDelete");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+
+                          <div class="tab-pane" id="examples-History-v1RunsIdDelete-0-android">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.api.HistoryApi;
+
+public class HistoryApiExample {
+
+    public static void main(String[] args) {
+        HistoryApi apiInstance = new HistoryApi();
+        try {
+            apiInstance.v1RunsIdDelete();
+        } catch (ApiException e) {
+            System.err.println("Exception when calling HistoryApi#v1RunsIdDelete");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+  <!--
+  <div class="tab-pane" id="examples-History-v1RunsIdDelete-0-groovy">
+  <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+  </div> -->
+                            <div class="tab-pane" id="examples-History-v1RunsIdDelete-0-objc">
+                              <pre class="prettyprint"><code class="language-cpp">Configuration *apiConfig = [Configuration sharedConfig];
+
+HistoryApi *apiInstance = [[HistoryApi alloc] init];
+
+[apiInstance v1RunsIdDeleteWithCompletionHandler: 
+              ^(NSError* error) {
+                            if (error) {
+                                NSLog(@"Error: %@", error);
+                            }
+                        }];
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsIdDelete-0-javascript">
+                              <pre class="prettyprint"><code class="language-js">var VoiceControlApi = require('voice_control_api');
+var defaultClient = VoiceControlApi.ApiClient.instance;
+
+
+var api = new VoiceControlApi.HistoryApi()
+var callback = function(error, data, response) {
+  if (error) {
+    console.error(error);
+  } else {
+    console.log('API called successfully.');
+  }
+};
+api.v1RunsIdDelete(callback);
+</code></pre>
+                            </div>
+
+                            <!--<div class="tab-pane" id="examples-History-v1RunsIdDelete-0-angular">
+              <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+            </div>-->
+                            <div class="tab-pane" id="examples-History-v1RunsIdDelete-0-csharp">
+                              <pre class="prettyprint"><code class="language-cs">using System;
+using System.Diagnostics;
+using IO.Swagger.Api;
+using IO.Swagger.Client;
+using IO.Swagger.Model;
+
+namespace Example
+{
+    public class v1RunsIdDeleteExample
+    {
+        public void main()
+        {
+
+
+            var apiInstance = new HistoryApi();
+
+            try
+            {
+                apiInstance.v1RunsIdDelete();
+            }
+            catch (Exception e)
+            {
+                Debug.Print("Exception when calling HistoryApi.v1RunsIdDelete: " + e.Message );
+            }
+        }
+    }
+}
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsIdDelete-0-php">
+                              <pre class="prettyprint"><code class="language-php"><&#63;php
+require_once(__DIR__ . '/vendor/autoload.php');
+
+
+$api_instance = new Swagger\Client\ApiHistoryApi();
+
+try {
+    $api_instance->v1RunsIdDelete();
+} catch (Exception $e) {
+    echo 'Exception when calling HistoryApi->v1RunsIdDelete: ', $e->getMessage(), PHP_EOL;
+}
+?></code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsIdDelete-0-perl">
+                              <pre class="prettyprint"><code class="language-perl">use Data::Dumper;
+use WWW::SwaggerClient::Configuration;
+use WWW::SwaggerClient::HistoryApi;
+
+
+my $api_instance = WWW::SwaggerClient::HistoryApi->new();
+
+eval { 
+    $api_instance->v1RunsIdDelete();
+};
+if ($@) {
+    warn "Exception when calling HistoryApi->v1RunsIdDelete: $@\n";
+}</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsIdDelete-0-python">
+                              <pre class="prettyprint"><code class="language-python">from __future__ import print_statement
+import time
+import swagger_client
+from swagger_client.rest import ApiException
+from pprint import pprint
+
+
+# create an instance of the API class
+api_instance = swagger_client.HistoryApi()
+
+try: 
+    api_instance.v1_runs_id_delete()
+except ApiException as e:
+    print("Exception when calling HistoryApi->v1RunsIdDelete: %s\n" % e)</code></pre>
+                            </div>
+                          </div>
+
+                          <h2>Parameters</h2>
+
+
+
+
+
+
+                          <h2>Responses</h2>
+                            <h3> Status: 204 - Deleted </h3>
+
+                            <ul class="nav nav-tabs nav-tabs-examples" >
+                            </ul>
+
+                            <div class="tab-content" style='margin-bottom: 10px;'>
+                            </div>
+
+                        </article>
+                      </div>
+                      <hr>
+                    <div id="api-History-v1RunsIdGet">
+                      <article id="api-History-v1RunsIdGet-0" data-group="User" data-name="v1RunsIdGet" data-version="0">
+                        <div class="pull-left">
+                          <h1>v1RunsIdGet</h1>
+                          <p></p>
+                        </div>
+                        <div class="pull-right"></div>
+                        <div class="clearfix"></div>
+                        <p></p>
+                        <p class="marked"></p>
+                        <p></p>
+                        <br />
+                        <pre class="prettyprint language-html prettyprinted" data-type="get"><code><span class="pln">/v1/runs/{id}</span></code></pre>
+                        <p>
+                          <h3>Usage and SDK Samples</h3>
+                        </p>
+                        <ul class="nav nav-tabs nav-tabs-examples">
+                          <li class="active"><a href="#examples-History-v1RunsIdGet-0-curl">Curl</a></li>
+                          <li class=""><a href="#examples-History-v1RunsIdGet-0-java">Java</a></li>
+                          <li class=""><a href="#examples-History-v1RunsIdGet-0-android">Android</a></li>
+                          <!--<li class=""><a href="#examples-History-v1RunsIdGet-0-groovy">Groovy</a></li>-->
+                          <li class=""><a href="#examples-History-v1RunsIdGet-0-objc">Obj-C</a></li>
+                          <li class=""><a href="#examples-History-v1RunsIdGet-0-javascript">JavaScript</a></li>
+                          <!--<li class=""><a href="#examples-History-v1RunsIdGet-0-angular">Angular</a></li>-->
+                          <li class=""><a href="#examples-History-v1RunsIdGet-0-csharp">C#</a></li>
+                          <li class=""><a href="#examples-History-v1RunsIdGet-0-php">PHP</a></li>
+                          <li class=""><a href="#examples-History-v1RunsIdGet-0-perl">Perl</a></li>
+                          <li class=""><a href="#examples-History-v1RunsIdGet-0-python">Python</a></li>
+                        </ul>
+
+                        <div class="tab-content">
+                          <div class="tab-pane active" id="examples-History-v1RunsIdGet-0-curl">
+                           <pre class="prettyprint"><code class="language-bsh">curl -X GET\
+ -H "Authorization: Bearer [[accessToken]]"\
+-H "Accept: application/json"\
+"//v1/runs/{id}"</code></pre>
+                          </div>
+                          <div class="tab-pane" id="examples-History-v1RunsIdGet-0-java">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.*;
+import io.swagger.client.auth.*;
+import io.swagger.client.model.*;
+import io.swagger.client.api.HistoryApi;
+
+import java.io.File;
+import java.util.*;
+
+public class HistoryApiExample {
+
+    public static void main(String[] args) {
+        ApiClient defaultClient = Configuration.getDefaultApiClient();
+
+
+        HistoryApi apiInstance = new HistoryApi();
+        try {
+            Run result = apiInstance.v1RunsIdGet();
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling HistoryApi#v1RunsIdGet");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+
+                          <div class="tab-pane" id="examples-History-v1RunsIdGet-0-android">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.api.HistoryApi;
+
+public class HistoryApiExample {
+
+    public static void main(String[] args) {
+        HistoryApi apiInstance = new HistoryApi();
+        try {
+            Run result = apiInstance.v1RunsIdGet();
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling HistoryApi#v1RunsIdGet");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+  <!--
+  <div class="tab-pane" id="examples-History-v1RunsIdGet-0-groovy">
+  <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+  </div> -->
+                            <div class="tab-pane" id="examples-History-v1RunsIdGet-0-objc">
+                              <pre class="prettyprint"><code class="language-cpp">Configuration *apiConfig = [Configuration sharedConfig];
+
+HistoryApi *apiInstance = [[HistoryApi alloc] init];
+
+[apiInstance v1RunsIdGetWithCompletionHandler: 
+              ^(Run output, NSError* error) {
+                            if (output) {
+                                NSLog(@"%@", output);
+                            }
+                            if (error) {
+                                NSLog(@"Error: %@", error);
+                            }
+                        }];
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsIdGet-0-javascript">
+                              <pre class="prettyprint"><code class="language-js">var VoiceControlApi = require('voice_control_api');
+var defaultClient = VoiceControlApi.ApiClient.instance;
+
+
+var api = new VoiceControlApi.HistoryApi()
+var callback = function(error, data, response) {
+  if (error) {
+    console.error(error);
+  } else {
+    console.log('API called successfully. Returned data: ' + data);
+  }
+};
+api.v1RunsIdGet(callback);
+</code></pre>
+                            </div>
+
+                            <!--<div class="tab-pane" id="examples-History-v1RunsIdGet-0-angular">
+              <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+            </div>-->
+                            <div class="tab-pane" id="examples-History-v1RunsIdGet-0-csharp">
+                              <pre class="prettyprint"><code class="language-cs">using System;
+using System.Diagnostics;
+using IO.Swagger.Api;
+using IO.Swagger.Client;
+using IO.Swagger.Model;
+
+namespace Example
+{
+    public class v1RunsIdGetExample
+    {
+        public void main()
+        {
+
+
+            var apiInstance = new HistoryApi();
+
+            try
+            {
+                Run result = apiInstance.v1RunsIdGet();
+                Debug.WriteLine(result);
+            }
+            catch (Exception e)
+            {
+                Debug.Print("Exception when calling HistoryApi.v1RunsIdGet: " + e.Message );
+            }
+        }
+    }
+}
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsIdGet-0-php">
+                              <pre class="prettyprint"><code class="language-php"><&#63;php
+require_once(__DIR__ . '/vendor/autoload.php');
+
+
+$api_instance = new Swagger\Client\ApiHistoryApi();
+
+try {
+    $result = $api_instance->v1RunsIdGet();
+    print_r($result);
+} catch (Exception $e) {
+    echo 'Exception when calling HistoryApi->v1RunsIdGet: ', $e->getMessage(), PHP_EOL;
+}
+?></code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsIdGet-0-perl">
+                              <pre class="prettyprint"><code class="language-perl">use Data::Dumper;
+use WWW::SwaggerClient::Configuration;
+use WWW::SwaggerClient::HistoryApi;
+
+
+my $api_instance = WWW::SwaggerClient::HistoryApi->new();
+
+eval { 
+    my $result = $api_instance->v1RunsIdGet();
+    print Dumper($result);
+};
+if ($@) {
+    warn "Exception when calling HistoryApi->v1RunsIdGet: $@\n";
+}</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsIdGet-0-python">
+                              <pre class="prettyprint"><code class="language-python">from __future__ import print_statement
+import time
+import swagger_client
+from swagger_client.rest import ApiException
+from pprint import pprint
+
+
+# create an instance of the API class
+api_instance = swagger_client.HistoryApi()
+
+try: 
+    api_response = api_instance.v1_runs_id_get()
+    pprint(api_response)
+except ApiException as e:
+    print("Exception when calling HistoryApi->v1RunsIdGet: %s\n" % e)</code></pre>
+                            </div>
+                          </div>
+
+                          <h2>Parameters</h2>
+
+
+
+
+
+
+                          <h2>Responses</h2>
+                            <h3> Status: 200 - Run </h3>
+
+                            <ul class="nav nav-tabs nav-tabs-examples" >
+                                <li class="active">
+                                  <a data-toggle="tab" href="#responses-v1RunsIdGet-200-schema">Schema</a>
+                                </li>
+
+                            </ul>
+
+                            <div class="tab-content" style='margin-bottom: 10px;'>
+                                <div class="tab-pane active" id="responses-v1RunsIdGet-200-schema">
+                                  <div id='responses-v1RunsIdGet-200-schema-200' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
+                                    <script>
+                                      $(document).ready(function() {
+                                        var schemaWrapper = {
+  "description" : "Run",
+  "content" : {
+    "application/json" : {
+      "schema" : {
+        "$ref" : "#/components/schemas/Run"
+      }
+    }
+  }
+};
+                                        var schema = schemaWrapper.content["application/json"].schema;
+                                        if (schema.$ref != null) {
+                                          schema = defsParser.$refs.get(schema.$ref);
+                                        } else {
+                                          schemaWrapper.components = {};
+                                          schemaWrapper.components.schemas = Object.assign({}, defs);
+                                          $RefParser.dereference(schemaWrapper).catch(function(err) {
+                                            console.log(err);
+                                          });
+                                        }
+
+                                        //console.log(JSON.stringify(schema));
+                                        var view = new JSONSchemaView(schema, 3);
+                                        $('#responses-v1RunsIdGet-200-schema-data').val(stringify(schema));
+                                        var result = $('#responses-v1RunsIdGet-200-schema-200');
+                                        result.empty();
+                                        result.append(view.render());
+                                      });
+                                    </script>
+                                  </div>
+                                  <input id='responses-v1RunsIdGet-200-schema-data' type='hidden' value=''></input>
+                                </div>
+                            </div>
+
+                        </article>
+                      </div>
+                      <hr>
+                    <div id="api-History-v1RunsPost">
+                      <article id="api-History-v1RunsPost-0" data-group="User" data-name="v1RunsPost" data-version="0">
+                        <div class="pull-left">
+                          <h1>v1RunsPost</h1>
+                          <p></p>
+                        </div>
+                        <div class="pull-right"></div>
+                        <div class="clearfix"></div>
+                        <p></p>
+                        <p class="marked">Upload finished sessions from the phone. Idempotent by sessionId.</p>
+                        <p></p>
+                        <br />
+                        <pre class="prettyprint language-html prettyprinted" data-type="post"><code><span class="pln">/v1/runs</span></code></pre>
+                        <p>
+                          <h3>Usage and SDK Samples</h3>
+                        </p>
+                        <ul class="nav nav-tabs nav-tabs-examples">
+                          <li class="active"><a href="#examples-History-v1RunsPost-0-curl">Curl</a></li>
+                          <li class=""><a href="#examples-History-v1RunsPost-0-java">Java</a></li>
+                          <li class=""><a href="#examples-History-v1RunsPost-0-android">Android</a></li>
+                          <!--<li class=""><a href="#examples-History-v1RunsPost-0-groovy">Groovy</a></li>-->
+                          <li class=""><a href="#examples-History-v1RunsPost-0-objc">Obj-C</a></li>
+                          <li class=""><a href="#examples-History-v1RunsPost-0-javascript">JavaScript</a></li>
+                          <!--<li class=""><a href="#examples-History-v1RunsPost-0-angular">Angular</a></li>-->
+                          <li class=""><a href="#examples-History-v1RunsPost-0-csharp">C#</a></li>
+                          <li class=""><a href="#examples-History-v1RunsPost-0-php">PHP</a></li>
+                          <li class=""><a href="#examples-History-v1RunsPost-0-perl">Perl</a></li>
+                          <li class=""><a href="#examples-History-v1RunsPost-0-python">Python</a></li>
+                        </ul>
+
+                        <div class="tab-content">
+                          <div class="tab-pane active" id="examples-History-v1RunsPost-0-curl">
+                           <pre class="prettyprint"><code class="language-bsh">curl -X POST\
+ -H "Authorization: Bearer [[accessToken]]"\
+-H "Accept: application/json"\
+-H "Content-Type: application/json"\
+"//v1/runs"</code></pre>
+                          </div>
+                          <div class="tab-pane" id="examples-History-v1RunsPost-0-java">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.*;
+import io.swagger.client.auth.*;
+import io.swagger.client.model.*;
+import io.swagger.client.api.HistoryApi;
+
+import java.io.File;
+import java.util.*;
+
+public class HistoryApiExample {
+
+    public static void main(String[] args) {
+        ApiClient defaultClient = Configuration.getDefaultApiClient();
+
+
+        HistoryApi apiInstance = new HistoryApi();
+        Object body = ; // Object | 
+        try {
+            Object result = apiInstance.v1RunsPost(body);
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling HistoryApi#v1RunsPost");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+
+                          <div class="tab-pane" id="examples-History-v1RunsPost-0-android">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.api.HistoryApi;
+
+public class HistoryApiExample {
+
+    public static void main(String[] args) {
+        HistoryApi apiInstance = new HistoryApi();
+        Object body = ; // Object | 
+        try {
+            Object result = apiInstance.v1RunsPost(body);
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling HistoryApi#v1RunsPost");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+  <!--
+  <div class="tab-pane" id="examples-History-v1RunsPost-0-groovy">
+  <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+  </div> -->
+                            <div class="tab-pane" id="examples-History-v1RunsPost-0-objc">
+                              <pre class="prettyprint"><code class="language-cpp">Configuration *apiConfig = [Configuration sharedConfig];
+Object *body = ; // 
+
+HistoryApi *apiInstance = [[HistoryApi alloc] init];
+
+[apiInstance v1RunsPostWith:body
+              completionHandler: ^(Object output, NSError* error) {
+                            if (output) {
+                                NSLog(@"%@", output);
+                            }
+                            if (error) {
+                                NSLog(@"Error: %@", error);
+                            }
+                        }];
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsPost-0-javascript">
+                              <pre class="prettyprint"><code class="language-js">var VoiceControlApi = require('voice_control_api');
+var defaultClient = VoiceControlApi.ApiClient.instance;
+
+
+var api = new VoiceControlApi.HistoryApi()
+var body = ; // {{Object}} 
+
+var callback = function(error, data, response) {
+  if (error) {
+    console.error(error);
+  } else {
+    console.log('API called successfully. Returned data: ' + data);
+  }
+};
+api.v1RunsPost(body, callback);
+</code></pre>
+                            </div>
+
+                            <!--<div class="tab-pane" id="examples-History-v1RunsPost-0-angular">
+              <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+            </div>-->
+                            <div class="tab-pane" id="examples-History-v1RunsPost-0-csharp">
+                              <pre class="prettyprint"><code class="language-cs">using System;
+using System.Diagnostics;
+using IO.Swagger.Api;
+using IO.Swagger.Client;
+using IO.Swagger.Model;
+
+namespace Example
+{
+    public class v1RunsPostExample
+    {
+        public void main()
+        {
+
+
+            var apiInstance = new HistoryApi();
+            var body = new Object(); // Object | 
+
+            try
+            {
+                Object result = apiInstance.v1RunsPost(body);
+                Debug.WriteLine(result);
+            }
+            catch (Exception e)
+            {
+                Debug.Print("Exception when calling HistoryApi.v1RunsPost: " + e.Message );
+            }
+        }
+    }
+}
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsPost-0-php">
+                              <pre class="prettyprint"><code class="language-php"><&#63;php
+require_once(__DIR__ . '/vendor/autoload.php');
+
+
+$api_instance = new Swagger\Client\ApiHistoryApi();
+$body = ; // Object | 
+
+try {
+    $result = $api_instance->v1RunsPost($body);
+    print_r($result);
+} catch (Exception $e) {
+    echo 'Exception when calling HistoryApi->v1RunsPost: ', $e->getMessage(), PHP_EOL;
+}
+?></code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsPost-0-perl">
+                              <pre class="prettyprint"><code class="language-perl">use Data::Dumper;
+use WWW::SwaggerClient::Configuration;
+use WWW::SwaggerClient::HistoryApi;
+
+
+my $api_instance = WWW::SwaggerClient::HistoryApi->new();
+my $body = WWW::SwaggerClient::Object::Object->new(); # Object | 
+
+eval { 
+    my $result = $api_instance->v1RunsPost(body => $body);
+    print Dumper($result);
+};
+if ($@) {
+    warn "Exception when calling HistoryApi->v1RunsPost: $@\n";
+}</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsPost-0-python">
+                              <pre class="prettyprint"><code class="language-python">from __future__ import print_statement
+import time
+import swagger_client
+from swagger_client.rest import ApiException
+from pprint import pprint
+
+
+# create an instance of the API class
+api_instance = swagger_client.HistoryApi()
+body =  # Object | 
+
+try: 
+    api_response = api_instance.v1_runs_post(body)
+    pprint(api_response)
+except ApiException as e:
+    print("Exception when calling HistoryApi->v1RunsPost: %s\n" % e)</code></pre>
+                            </div>
+                          </div>
+
+                          <h2>Parameters</h2>
+
+
+
+                            <div class="methodsubtabletitle">Body parameters</div>
+                            <table id="methodsubtable">
+                              <tr>
+                                <th width="150px">Name</th>
+                                <th>Description</th>
+                              </tr>
+                                <tr><td style="width:150px;">body <span style="color:red;">*</span></td>
+                                <td>
+                                
+                                
+                                <script>
+                                $(document).ready(function() {
+                                  var schemaWrapper = {
+  "content" : {
+    "application/json" : {
+      "schema" : {
+        "required" : [ "runs" ],
+        "type" : "object",
+        "properties" : {
+          "runs" : {
+            "maxItems" : 100,
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Run"
+            }
+          }
+        }
+      }
+    }
+  },
+  "required" : true
+};
+                                  var schema = schemaWrapper.content["application/json"].schema;
+                                  if (schema.$ref != null) {
+                                    schema = defsParser.$refs.get(schema.$ref);
+                                  } else {
+                                    schemaWrapper.components = {};
+                                    schemaWrapper.components.schemas = Object.assign({}, defs);
+                                    $RefParser.dereference(schemaWrapper).catch(function(err) {
+                                      console.log(err);
+                                    });
+                                  }
+                                
+                                  var view = new JSONSchemaView(schema,2,{isBodyParam: true});
+                                  var result = $('#d2e199_v1RunsPost_body');
+                                  result.empty();
+                                  result.append(view.render());
+                                });
+                                </script>
+                                <div id="d2e199_v1RunsPost_body"></div>
+                                </td>
+                                </tr>
+                            </table>
+
+
+
+                          <h2>Responses</h2>
+                            <h3> Status: 200 - Number of new runs stored </h3>
+
+                            <ul class="nav nav-tabs nav-tabs-examples" >
+                                <li class="active">
+                                  <a data-toggle="tab" href="#responses-v1RunsPost-200-schema">Schema</a>
+                                </li>
+
+                            </ul>
+
+                            <div class="tab-content" style='margin-bottom: 10px;'>
+                                <div class="tab-pane active" id="responses-v1RunsPost-200-schema">
+                                  <div id='responses-v1RunsPost-200-schema-200' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
+                                    <script>
+                                      $(document).ready(function() {
+                                        var schemaWrapper = {
+  "description" : "Number of new runs stored",
+  "content" : {
+    "application/json" : {
+      "schema" : {
+        "type" : "object",
+        "properties" : {
+          "inserted" : {
+            "type" : "integer"
+          }
+        },
+        "x-content-type" : "application/json"
+      }
+    }
+  }
+};
+                                        var schema = schemaWrapper.content["application/json"].schema;
+                                        if (schema.$ref != null) {
+                                          schema = defsParser.$refs.get(schema.$ref);
+                                        } else {
+                                          schemaWrapper.components = {};
+                                          schemaWrapper.components.schemas = Object.assign({}, defs);
+                                          $RefParser.dereference(schemaWrapper).catch(function(err) {
+                                            console.log(err);
+                                          });
+                                        }
+
+                                        //console.log(JSON.stringify(schema));
+                                        var view = new JSONSchemaView(schema, 3);
+                                        $('#responses-v1RunsPost-200-schema-data').val(stringify(schema));
+                                        var result = $('#responses-v1RunsPost-200-schema-200');
+                                        result.empty();
+                                        result.append(view.render());
+                                      });
+                                    </script>
+                                  </div>
+                                  <input id='responses-v1RunsPost-200-schema-data' type='hidden' value=''></input>
+                                </div>
+                            </div>
+
+                        </article>
+                      </div>
+                      <hr>
+                    <div id="api-History-v1RunsStatsGet">
+                      <article id="api-History-v1RunsStatsGet-0" data-group="User" data-name="v1RunsStatsGet" data-version="0">
+                        <div class="pull-left">
+                          <h1>v1RunsStatsGet</h1>
+                          <p></p>
+                        </div>
+                        <div class="pull-right"></div>
+                        <div class="clearfix"></div>
+                        <p></p>
+                        <p class="marked"></p>
+                        <p></p>
+                        <br />
+                        <pre class="prettyprint language-html prettyprinted" data-type="get"><code><span class="pln">/v1/runs/stats</span></code></pre>
+                        <p>
+                          <h3>Usage and SDK Samples</h3>
+                        </p>
+                        <ul class="nav nav-tabs nav-tabs-examples">
+                          <li class="active"><a href="#examples-History-v1RunsStatsGet-0-curl">Curl</a></li>
+                          <li class=""><a href="#examples-History-v1RunsStatsGet-0-java">Java</a></li>
+                          <li class=""><a href="#examples-History-v1RunsStatsGet-0-android">Android</a></li>
+                          <!--<li class=""><a href="#examples-History-v1RunsStatsGet-0-groovy">Groovy</a></li>-->
+                          <li class=""><a href="#examples-History-v1RunsStatsGet-0-objc">Obj-C</a></li>
+                          <li class=""><a href="#examples-History-v1RunsStatsGet-0-javascript">JavaScript</a></li>
+                          <!--<li class=""><a href="#examples-History-v1RunsStatsGet-0-angular">Angular</a></li>-->
+                          <li class=""><a href="#examples-History-v1RunsStatsGet-0-csharp">C#</a></li>
+                          <li class=""><a href="#examples-History-v1RunsStatsGet-0-php">PHP</a></li>
+                          <li class=""><a href="#examples-History-v1RunsStatsGet-0-perl">Perl</a></li>
+                          <li class=""><a href="#examples-History-v1RunsStatsGet-0-python">Python</a></li>
+                        </ul>
+
+                        <div class="tab-content">
+                          <div class="tab-pane active" id="examples-History-v1RunsStatsGet-0-curl">
+                           <pre class="prettyprint"><code class="language-bsh">curl -X GET\
+ -H "Authorization: Bearer [[accessToken]]"\
+-H "Accept: application/json"\
+"//v1/runs/stats"</code></pre>
+                          </div>
+                          <div class="tab-pane" id="examples-History-v1RunsStatsGet-0-java">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.*;
+import io.swagger.client.auth.*;
+import io.swagger.client.model.*;
+import io.swagger.client.api.HistoryApi;
+
+import java.io.File;
+import java.util.*;
+
+public class HistoryApiExample {
+
+    public static void main(String[] args) {
+        ApiClient defaultClient = Configuration.getDefaultApiClient();
+
+
+        HistoryApi apiInstance = new HistoryApi();
+        try {
+            Object result = apiInstance.v1RunsStatsGet();
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling HistoryApi#v1RunsStatsGet");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+
+                          <div class="tab-pane" id="examples-History-v1RunsStatsGet-0-android">
+                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.api.HistoryApi;
+
+public class HistoryApiExample {
+
+    public static void main(String[] args) {
+        HistoryApi apiInstance = new HistoryApi();
+        try {
+            Object result = apiInstance.v1RunsStatsGet();
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling HistoryApi#v1RunsStatsGet");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+  <!--
+  <div class="tab-pane" id="examples-History-v1RunsStatsGet-0-groovy">
+  <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+  </div> -->
+                            <div class="tab-pane" id="examples-History-v1RunsStatsGet-0-objc">
+                              <pre class="prettyprint"><code class="language-cpp">Configuration *apiConfig = [Configuration sharedConfig];
+
+HistoryApi *apiInstance = [[HistoryApi alloc] init];
+
+[apiInstance v1RunsStatsGetWithCompletionHandler: 
+              ^(Object output, NSError* error) {
+                            if (output) {
+                                NSLog(@"%@", output);
+                            }
+                            if (error) {
+                                NSLog(@"Error: %@", error);
+                            }
+                        }];
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsStatsGet-0-javascript">
+                              <pre class="prettyprint"><code class="language-js">var VoiceControlApi = require('voice_control_api');
+var defaultClient = VoiceControlApi.ApiClient.instance;
+
+
+var api = new VoiceControlApi.HistoryApi()
+var callback = function(error, data, response) {
+  if (error) {
+    console.error(error);
+  } else {
+    console.log('API called successfully. Returned data: ' + data);
+  }
+};
+api.v1RunsStatsGet(callback);
+</code></pre>
+                            </div>
+
+                            <!--<div class="tab-pane" id="examples-History-v1RunsStatsGet-0-angular">
+              <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+            </div>-->
+                            <div class="tab-pane" id="examples-History-v1RunsStatsGet-0-csharp">
+                              <pre class="prettyprint"><code class="language-cs">using System;
+using System.Diagnostics;
+using IO.Swagger.Api;
+using IO.Swagger.Client;
+using IO.Swagger.Model;
+
+namespace Example
+{
+    public class v1RunsStatsGetExample
+    {
+        public void main()
+        {
+
+
+            var apiInstance = new HistoryApi();
+
+            try
+            {
+                Object result = apiInstance.v1RunsStatsGet();
+                Debug.WriteLine(result);
+            }
+            catch (Exception e)
+            {
+                Debug.Print("Exception when calling HistoryApi.v1RunsStatsGet: " + e.Message );
+            }
+        }
+    }
+}
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsStatsGet-0-php">
+                              <pre class="prettyprint"><code class="language-php"><&#63;php
+require_once(__DIR__ . '/vendor/autoload.php');
+
+
+$api_instance = new Swagger\Client\ApiHistoryApi();
+
+try {
+    $result = $api_instance->v1RunsStatsGet();
+    print_r($result);
+} catch (Exception $e) {
+    echo 'Exception when calling HistoryApi->v1RunsStatsGet: ', $e->getMessage(), PHP_EOL;
+}
+?></code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsStatsGet-0-perl">
+                              <pre class="prettyprint"><code class="language-perl">use Data::Dumper;
+use WWW::SwaggerClient::Configuration;
+use WWW::SwaggerClient::HistoryApi;
+
+
+my $api_instance = WWW::SwaggerClient::HistoryApi->new();
+
+eval { 
+    my $result = $api_instance->v1RunsStatsGet();
+    print Dumper($result);
+};
+if ($@) {
+    warn "Exception when calling HistoryApi->v1RunsStatsGet: $@\n";
+}</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-History-v1RunsStatsGet-0-python">
+                              <pre class="prettyprint"><code class="language-python">from __future__ import print_statement
+import time
+import swagger_client
+from swagger_client.rest import ApiException
+from pprint import pprint
+
+
+# create an instance of the API class
+api_instance = swagger_client.HistoryApi()
+
+try: 
+    api_response = api_instance.v1_runs_stats_get()
+    pprint(api_response)
+except ApiException as e:
+    print("Exception when calling HistoryApi->v1RunsStatsGet: %s\n" % e)</code></pre>
+                            </div>
+                          </div>
+
+                          <h2>Parameters</h2>
+
+
+
+
+
+
+                          <h2>Responses</h2>
+                            <h3> Status: 200 - Totals and top apps </h3>
+
+                            <ul class="nav nav-tabs nav-tabs-examples" >
+                                <li class="active">
+                                  <a data-toggle="tab" href="#responses-v1RunsStatsGet-200-schema">Schema</a>
+                                </li>
+
+                            </ul>
+
+                            <div class="tab-content" style='margin-bottom: 10px;'>
+                                <div class="tab-pane active" id="responses-v1RunsStatsGet-200-schema">
+                                  <div id='responses-v1RunsStatsGet-200-schema-200' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
+                                    <script>
+                                      $(document).ready(function() {
+                                        var schemaWrapper = {
+  "description" : "Totals and top apps",
+  "content" : {
+    "application/json" : {
+      "schema" : {
+        "type" : "object",
+        "properties" : {
+          "totalRuns" : {
+            "type" : "integer"
+          },
+          "completedRuns" : {
+            "type" : "integer"
+          },
+          "fieldsFilled" : {
+            "type" : "integer"
+          },
+          "topApps" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "properties" : {
+                "appPackage" : {
+                  "type" : "string"
+                },
+                "runs" : {
+                  "type" : "integer"
+                }
+              }
+            }
+          }
+        },
+        "x-content-type" : "application/json"
+      }
+    }
+  }
+};
+                                        var schema = schemaWrapper.content["application/json"].schema;
+                                        if (schema.$ref != null) {
+                                          schema = defsParser.$refs.get(schema.$ref);
+                                        } else {
+                                          schemaWrapper.components = {};
+                                          schemaWrapper.components.schemas = Object.assign({}, defs);
+                                          $RefParser.dereference(schemaWrapper).catch(function(err) {
+                                            console.log(err);
+                                          });
+                                        }
+
+                                        //console.log(JSON.stringify(schema));
+                                        var view = new JSONSchemaView(schema, 3);
+                                        $('#responses-v1RunsStatsGet-200-schema-data').val(stringify(schema));
+                                        var result = $('#responses-v1RunsStatsGet-200-schema-200');
+                                        result.empty();
+                                        result.append(view.render());
+                                      });
+                                    </script>
+                                  </div>
+                                  <input id='responses-v1RunsStatsGet-200-schema-data' type='hidden' value=''></input>
+                                </div>
                             </div>
 
                         </article>

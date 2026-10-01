@@ -54,9 +54,9 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Tests, commit + push
 
 ## Phase 8 — Settings, history, vision, compliance, k8s, observability
-- [ ] Android settings + run history screens; backend run history API + dashboard history
-- [ ] Screenshot + vision fallback for apps without readable fields
-- [ ] Privacy policy + Play Store notes
-- [ ] Kubernetes manifests in `/infra/k8s`
-- [ ] OpenTelemetry tracing/logging (backend + collector in compose)
-- [ ] Tests, commit + push
+- [x] Android settings + run history screens; backend run history API + dashboard history
+- [x] Screenshot + vision fallback for apps without readable fields
+- [x] Privacy policy + Play Store notes
+- [x] Kubernetes manifests in `/infra/k8s`
+- [x] OpenTelemetry tracing/logging (backend + collector in compose)
+- [x] Tests, commit + push

@@ -19,3 +19,5 @@ import kotlinx.serialization.Serializable
     val matchedBy: String? = null,
     val similarity: Double? = null,
 )
+@Serializable data class UploadRunsDto(val runs: List<com.voicecontrol.core.model.SessionSummary>)
+@Serializable data class UploadRunsResponseDto(val inserted: Int)

@@ -63,3 +63,21 @@ data class InterpretRequestDto(
 
 @Serializable
 data class ApiErrorDto(val error: String = "error", val message: String = "Request failed")
+
+@Serializable
+data class VisionRequestDto(val packageName: String, val imageBase64: String, val width: Int, val height: Int, val language: Language)
+
+@Serializable
+data class VisionElementDto(
+    val id: String,
+    val kind: ElementKind,
+    val label: String,
+    val fieldType: FieldType? = null,
+    val x: Int,
+    val y: Int,
+    val width: Int,
+    val height: Int,
+)
+
+@Serializable
+data class VisionResponseDto(val elements: List<VisionElementDto>, val source: String = "")

@@ -85,3 +85,46 @@ export const profileSchema = z.object({
 export type Profile = z.infer<typeof profileSchema>;
 
 export const apiErrorSchema = z.object({ error: z.string(), message: z.string() });
+
+export const stepOutcomes = ["FILLED", "DEFAULT_FILLED", "KEPT", "SKIPPED", "MANUAL", "CLICKED", "TOGGLED", "FAILED"] as const;
+
+export const runSchema = z.object({
+  sessionId: z.string(),
+  appPackage: z.string(),
+  startedAtMillis: z.number(),
+  endedAtMillis: z.number(),
+  status: z.enum(["COMPLETED", "STOPPED", "FAILED"]),
+  language: z.enum(["ENGLISH", "HINDI", "HINGLISH"]),
+  filledCount: z.number().default(0),
+  stepCount: z.number().default(0),
+  screens: z.array(
+    z.object({
+      appPackage: z.string(),
+      activityName: z.string().nullish(),
+      screenTitle: z.string().nullish(),
+      screenSignature: z.string(),
+      flowId: z.string().nullish(),
+      flowVersion: z.number().nullish(),
+      steps: z.array(
+        z.object({
+          elementId: z.string(),
+          label: z.string(),
+          kind: z.enum(elementKinds),
+          fieldType: z.enum(fieldTypes).nullish(),
+          question: z.string().nullish(),
+          outcome: z.enum(stepOutcomes),
+          interpretedBy: z.string().nullish(),
+        }),
+      ),
+    }),
+  ),
+});
+export type Run = z.infer<typeof runSchema>;
+export const runPageSchema = z.object({ items: z.array(runSchema), limit: z.number(), offset: z.number() });
+export const runStatsSchema = z.object({
+  totalRuns: z.number(),
+  completedRuns: z.number(),
+  fieldsFilled: z.number(),
+  topApps: z.array(z.object({ appPackage: z.string(), runs: z.number() })),
+});
+export type RunStats = z.infer<typeof runStatsSchema>;

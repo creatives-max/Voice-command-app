@@ -23,7 +23,8 @@ class FakeScreen(var snapshot: ScreenSnapshot?) : ScreenGateway {
     override val isAvailable: StateFlow<Boolean> = MutableStateFlow(true)
     override val screenChanges: Flow<ScreenSnapshot> = emptyFlow()
     override suspend fun capture(): ScreenSnapshot? = snapshot
-    override suspend fun screenshot(): Screenshot? = null
+    var shot: Screenshot? = null
+    override suspend fun screenshot(): Screenshot? = shot
 
     override suspend fun perform(action: ScreenAction): ActionResult {
         actions += action

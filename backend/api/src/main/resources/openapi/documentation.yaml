@@ -15,6 +15,7 @@ tags:
   - name: Profile
   - name: Flows
   - name: AI
+  - name: History
   - name: Ops
 paths:
   /health:
@@ -222,6 +223,140 @@ paths:
         "200": { description: Interpretation, content: { application/json: { schema: { $ref: "#/components/schemas/Interpretation" } } } }
         "400": { $ref: "#/components/responses/Error" }
         "429": { $ref: "#/components/responses/Error" }
+  /v1/flows/match:
+    post:
+      tags: [Flows]
+      description: |
+        Finds the user's flow for a live screen: exact screen signature first, then the nearest
+        pgvector embedding above the similarity threshold. Always returns the current version.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appPackage, signature]
+              properties:
+                appPackage: { type: string }
+                signature: { type: string, example: "com.shop|SignupActivity|button:create account|text_field/email:email" }
+      responses:
+        "200":
+          description: Match result (flow is absent when nothing matched)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  flow: { $ref: "#/components/schemas/Flow" }
+                  matchedBy: { type: string, enum: [exact, vector] }
+                  similarity: { type: number }
+  /v1/runs:
+    get:
+      tags: [History]
+      parameters:
+        - { name: appPackage, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        "200":
+          description: Voice sessions, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Run" } }
+                  limit: { type: integer }
+                  offset: { type: integer }
+    post:
+      tags: [History]
+      description: Upload finished sessions from the phone. Idempotent by sessionId.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [runs]
+              properties:
+                runs: { type: array, maxItems: 100, items: { $ref: "#/components/schemas/Run" } }
+      responses:
+        "200": { description: Number of new runs stored, content: { application/json: { schema: { type: object, properties: { inserted: { type: integer } } } } } }
+    delete:
+      tags: [History]
+      summary: Delete all history
+      responses:
+        "204": { description: Deleted }
+  /v1/runs/stats:
+    get:
+      tags: [History]
+      responses:
+        "200":
+          description: Totals and top apps
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalRuns: { type: integer }
+                  completedRuns: { type: integer }
+                  fieldsFilled: { type: integer }
+                  topApps: { type: array, items: { type: object, properties: { appPackage: { type: string }, runs: { type: integer } } } }
+  /v1/runs/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [History]
+      responses:
+        "200": { description: Run, content: { application/json: { schema: { $ref: "#/components/schemas/Run" } } } }
+    delete:
+      tags: [History]
+      responses:
+        "204": { description: Deleted }
+  /v1/ai/vision:
+    post:
+      tags: [AI]
+      description: |
+        Vision fallback for apps that expose no readable accessibility nodes: detects input fields and
+        buttons on a screenshot (JPEG, base64) and returns their boxes in image pixels.
+        Requires a vision-capable provider (anthropic or openai).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [packageName, imageBase64, width, height]
+              properties:
+                packageName: { type: string }
+                imageBase64: { type: string }
+                width: { type: integer }
+                height: { type: integer }
+                language: { type: string, enum: [ENGLISH, HINDI, HINGLISH] }
+      responses:
+        "200":
+          description: Detected elements
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  source: { type: string }
+                  elements:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string, example: "vision:e1" }
+                        kind: { $ref: "#/components/schemas/ElementKind" }
+                        label: { type: string }
+                        fieldType: { $ref: "#/components/schemas/FieldType" }
+                        x: { type: integer }
+                        y: { type: integer }
+                        width: { type: integer }
+                        height: { type: integer }
+        "400": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
@@ -373,6 +508,41 @@ components:
         language: { type: string, enum: [ENGLISH, HINDI, HINGLISH] }
         question: { type: string }
         transliterate: { type: boolean }
+    Run:
+      type: object
+      required: [sessionId, appPackage, startedAtMillis, endedAtMillis, status, language, screens]
+      properties:
+        sessionId: { type: string, format: uuid }
+        appPackage: { type: string }
+        startedAtMillis: { type: integer, format: int64 }
+        endedAtMillis: { type: integer, format: int64 }
+        status: { type: string, enum: [COMPLETED, STOPPED, FAILED] }
+        language: { type: string, enum: [ENGLISH, HINDI, HINGLISH] }
+        filledCount: { type: integer, readOnly: true }
+        stepCount: { type: integer, readOnly: true }
+        screens:
+          type: array
+          items:
+            type: object
+            properties:
+              appPackage: { type: string }
+              activityName: { type: string }
+              screenTitle: { type: string }
+              screenSignature: { type: string }
+              flowId: { type: string }
+              flowVersion: { type: integer }
+              steps:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    elementId: { type: string }
+                    label: { type: string }
+                    kind: { $ref: "#/components/schemas/ElementKind" }
+                    fieldType: { $ref: "#/components/schemas/FieldType" }
+                    question: { type: string }
+                    outcome: { type: string, enum: [FILLED, DEFAULT_FILLED, KEPT, SKIPPED, MANUAL, CLICKED, TOGGLED, FAILED] }
+                    interpretedBy: { type: string }
     Interpretation:
       type: object
       properties:

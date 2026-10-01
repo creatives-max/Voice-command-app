@@ -9,6 +9,8 @@ export const keys = {
   flow: (id: string) => ["flow", id] as const,
   versions: (id: string) => ["flow", id, "versions"] as const,
   profile: ["profile"] as const,
+  runs: (appPackage?: string) => ["runs", appPackage ?? "all"] as const,
+  runStats: ["runs", "stats"] as const,
 };
 
 export const sessionQuery = queryOptions({ queryKey: keys.session, queryFn: api.session, retry: false, staleTime: 60_000 });
@@ -16,6 +18,19 @@ export const appsQuery = queryOptions({ queryKey: keys.apps, queryFn: api.apps }
 export const flowsQuery = (appPackage?: string) => queryOptions({ queryKey: keys.flows(appPackage), queryFn: () => api.flows(appPackage) });
 export const flowQuery = (id: string) => queryOptions({ queryKey: keys.flow(id), queryFn: () => api.flow(id) });
 export const versionsQuery = (id: string) => queryOptions({ queryKey: keys.versions(id), queryFn: () => api.versions(id) });
+export const runsQuery = (appPackage?: string) => queryOptions({ queryKey: keys.runs(appPackage), queryFn: () => api.runs(appPackage) });
+export const runStatsQuery = queryOptions({ queryKey: keys.runStats, queryFn: api.runStats });
+
+export function useDeleteRun() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => api.deleteRun(id), onSuccess: () => qc.invalidateQueries({ queryKey: ["runs"] }) });
+}
+
+export function useClearRuns() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: () => api.clearRuns(), onSuccess: () => qc.invalidateQueries({ queryKey: ["runs"] }) });
+}
+
 export const profileQuery = queryOptions({ queryKey: keys.profile, queryFn: api.profile });
 
 export function useUpdateFlow(id: string) {

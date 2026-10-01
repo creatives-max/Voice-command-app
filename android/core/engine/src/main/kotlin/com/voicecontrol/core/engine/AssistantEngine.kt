@@ -12,6 +12,7 @@ import com.voicecontrol.core.engine.port.SessionConfigProvider
 import com.voicecontrol.core.engine.port.SessionRecorder
 import com.voicecontrol.core.engine.port.SpeechToText
 import com.voicecontrol.core.engine.port.TextToSpeech
+import com.voicecontrol.core.engine.port.VisionDetector
 import com.voicecontrol.core.model.ActionResult
 import com.voicecontrol.core.model.ElementKind
 import com.voicecontrol.core.model.IntentKind
@@ -76,6 +77,7 @@ class AssistantEngine(
     private val clock: () -> Long = System::currentTimeMillis,
     private val newId: () -> String = { UUID.randomUUID().toString() },
     private val screenSettleMillis: Long = 1_200L,
+    private val vision: VisionDetector? = null,
 ) {
     private val _state = MutableStateFlow(EngineState())
     val state: StateFlow<EngineState> = _state.asStateFlow()
@@ -159,7 +161,7 @@ class AssistantEngine(
             var visited = 0
             while (visited < MAX_SCREENS) {
                 visited++
-                val snapshot = screen.capture()
+                val snapshot = readScreen(session)
                 if (snapshot == null || !snapshot.hasReadableElements) {
                     say(session, session.phrases.cannotRead())
                     session.status = RunStatus.FAILED
@@ -186,7 +188,7 @@ class AssistantEngine(
                 if (outcome == ScreenOutcome.COMPLETED) break
                 // A button was pressed: wait for the app to react and continue on a new form.
                 delay(screenSettleMillis)
-                val next = screen.capture()
+                val next = readScreen(session)
                 val hasNewForm = next != null && next.signature != snapshot.signature &&
                     next.elements.any { it.kind.isInput || it.kind.isToggle }
                 if (!hasNewForm) break
@@ -205,6 +207,54 @@ class AssistantEngine(
             withContext(NonCancellable) {
                 finish(session)
             }
+        }
+    }
+
+    /**
+     * Reads the screen through accessibility; if nothing readable is exposed and vision fallback is on,
+     * detects elements on a screenshot instead (those elements are then operated with taps).
+     */
+    private suspend fun readScreen(session: Session): ScreenSnapshot? {
+        val snapshot = screen.capture()
+        visionElements = emptyMap()
+        if (snapshot != null && snapshot.hasReadableElements) return snapshot
+        val detector = vision ?: return snapshot
+        if (!session.cfg.visionFallback || session.cfg.localOnly) return snapshot
+        setStatus(EngineStatus.THINKING, caption = session.phrases.lookingAtScreen())
+        val shot = screen.screenshot() ?: return snapshot
+        val pkg = snapshot?.packageName ?: _state.value.appPackage ?: ""
+        val elements = runCatching { detector.detect(shot, pkg, session.cfg.language) }.getOrNull()
+            ?.filter { it.id.startsWith(VisionDetector.VISION_ID_PREFIX) && !it.bounds.isEmpty }
+            .orEmpty()
+        if (elements.isEmpty()) return snapshot
+        visionElements = elements.associateBy { it.id }
+        val base = ScreenSnapshot(packageName = pkg, activityName = snapshot?.activityName, title = snapshot?.title, elements = elements, capturedAtMillis = clock())
+        return base.copy(signature = com.voicecontrol.core.screen.ScreenSignature.of(base))
+    }
+
+    /** Elements detected by vision on the current screen, operated by coordinates. */
+    @Volatile
+    private var visionElements: Map<String, ScreenElement> = emptyMap()
+
+    /** Routes actions on vision-detected elements to taps/typing; everything else goes to the gateway. */
+    private suspend fun perform(action: ScreenAction): ActionResult {
+        val elementId = when (action) {
+            is ScreenAction.SetText -> action.elementId
+            is ScreenAction.Click -> action.elementId
+            is ScreenAction.SetChecked -> action.elementId
+            is ScreenAction.Focus -> action.elementId
+            else -> null
+        }
+        val target = elementId?.let { visionElements[it] } ?: return screen.perform(action)
+        val tap = ScreenAction.TapAt(target.bounds.centerX, target.bounds.centerY)
+        return when (action) {
+            is ScreenAction.SetText -> {
+                val tapped = screen.perform(tap)
+                if (!tapped.isSuccess) return tapped
+                delay(VISION_FOCUS_DELAY_MS)
+                screen.perform(ScreenAction.TypeIntoFocused(action.text))
+            }
+            else -> screen.perform(tap)
         }
     }
 
@@ -335,7 +385,7 @@ class AssistantEngine(
         if (step.skip) {
             val default = step.defaultValue
             if (default != null && step.action == StepAction.FILL && !step.isSensitive) {
-                val ok = screen.perform(ScreenAction.SetText(step.elementId, default)).isSuccess
+                val ok = perform(ScreenAction.SetText(step.elementId, default)).isSuccess
                 log.put(step, if (ok) StepOutcome.DEFAULT_FILLED else StepOutcome.FAILED, null)
             } else {
                 log.put(step, StepOutcome.SKIPPED, null)
@@ -416,7 +466,7 @@ class AssistantEngine(
                     val value = interp.value ?: SpeechNormalizer.normalize(heard, target.fieldType, session.cfg.transliterate)
                     if (target.id != step.elementId) {
                         // The user answered a different field ("my phone is …"); fill it and keep asking this one.
-                        if (screen.perform(ScreenAction.SetText(target.id, value)).isSuccess) filledByExtras += target.id
+                        if (perform(ScreenAction.SetText(target.id, value)).isSuccess) filledByExtras += target.id
                         continue
                     }
                     val validation = FieldValidator.validate(value, step.fieldType, step.rules)
@@ -452,7 +502,7 @@ class AssistantEngine(
         snapshot: ScreenSnapshot? = null,
     ): StepResult? {
         setStatus(EngineStatus.ACTING)
-        val result = screen.perform(ScreenAction.SetText(step.elementId, value))
+        val result = perform(ScreenAction.SetText(step.elementId, value))
         if (result is ActionResult.Failure) {
             say(session, session.phrases.actionFailed())
             return null
@@ -460,7 +510,7 @@ class AssistantEngine(
         for ((id, extraValue) in extras) {
             val target = snapshot?.element(id) ?: continue
             if (target.isSensitive || id == step.elementId) continue
-            if (screen.perform(ScreenAction.SetText(id, extraValue)).isSuccess) filledByExtras += id
+            if (perform(ScreenAction.SetText(id, extraValue)).isSuccess) filledByExtras += id
         }
         log.put(step, StepOutcome.FILLED, question, source)
         say(session, if (session.cfg.confirmValues && value.length <= MAX_READBACK) session.phrases.filled(value) else session.phrases.filledShort())
@@ -474,7 +524,7 @@ class AssistantEngine(
     }
 
     private suspend fun handleSensitive(session: Session, snapshot: ScreenSnapshot, step: PlanStep, log: ScreenLog): StepResult {
-        screen.perform(ScreenAction.Focus(step.elementId))
+        perform(ScreenAction.Focus(step.elementId))
         val prompt = session.phrases.sensitiveManual(step.label)
         repeat(MAX_ATTEMPTS) {
             val heard = askAndListen(session, prompt) ?: return@repeat
@@ -614,7 +664,7 @@ class AssistantEngine(
 
     private suspend fun act(session: Session, action: ScreenAction, successPhrase: String?): Boolean {
         setStatus(EngineStatus.ACTING)
-        val result = screen.perform(action)
+        val result = perform(action)
         if (result.isSuccess) {
             successPhrase?.let { say(session, it) }
         } else {
@@ -645,5 +695,6 @@ class AssistantEngine(
         const val MAX_BUTTONS_SPOKEN = 6
         const val MAX_READBACK = 40
         const val DROPDOWN_OPEN_MS = 600L
+        const val VISION_FOCUS_DELAY_MS = 400L
     }
 }

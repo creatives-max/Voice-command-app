@@ -1,6 +1,6 @@
 import { Link, Outlet, useNavigate } from "@tanstack/react-router";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { LogOut, Mic, UserRound, Workflow } from "lucide-react";
+import { History, LogOut, Mic, UserRound, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { sessionQuery } from "@/lib/queries";
@@ -28,6 +28,9 @@ export function AppShell() {
         </div>
         <Link to="/" className={nav} activeProps={{ className: "bg-secondary !text-foreground" }} activeOptions={{ exact: true }}>
           <Workflow className="size-4" /> Flows
+        </Link>
+        <Link to="/history" className={nav} activeProps={{ className: "bg-secondary !text-foreground" }}>
+          <History className="size-4" /> History
         </Link>
         <Link to="/profile" className={nav} activeProps={{ className: "bg-secondary !text-foreground" }}>
           <UserRound className="size-4" /> Profile

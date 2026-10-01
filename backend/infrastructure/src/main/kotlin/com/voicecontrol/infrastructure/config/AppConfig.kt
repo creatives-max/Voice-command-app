@@ -11,6 +11,8 @@ data class AppConfig(
     val corsOrigins: List<String>,
     val otlpEndpoint: String?,
     val serviceName: String,
+    /** Max register/login attempts per client IP per minute. */
+    val authRateLimitPerMinute: Int = 10,
 ) {
     data class DatabaseConfig(val url: String, val user: String, val password: String, val maxPoolSize: Int)
     data class JwtConfig(val secret: String, val issuer: String, val audience: String, val accessTtlSeconds: Long, val refreshTtlSeconds: Long)
@@ -58,6 +60,7 @@ data class AppConfig(
                 corsOrigins = get("CORS_ORIGINS", "http://localhost:3000").split(',').map { it.trim() }.filter { it.isNotEmpty() },
                 otlpEndpoint = env["OTEL_EXPORTER_OTLP_ENDPOINT"]?.takeIf { it.isNotBlank() },
                 serviceName = get("OTEL_SERVICE_NAME", "voicecontrol-backend"),
+                authRateLimitPerMinute = get("AUTH_RATE_LIMIT_PER_MINUTE", "10").toInt(),
             )
         }
     }

@@ -1,0 +1,49 @@
+# OpenTelemetry Collector: receives OTLP from the backend, batches, and exports.
+# Used by docker-compose (profile "observability") and the Kubernetes deployment.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 2s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+  batch:
+    send_batch_size: 512
+    timeout: 5s
+  attributes/drop-pii:
+    # Defense in depth: never let request bodies or auth headers reach the trace backend.
+    actions:
+      - key: http.request.header.authorization
+        action: delete
+      - key: http.request.body
+        action: delete
+
+exporters:
+  otlp/jaeger:
+    endpoint: ${env:TRACES_BACKEND_ENDPOINT}
+    tls:
+      insecure: true
+  debug:
+    verbosity: basic
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes/drop-pii, batch]
+      exporters: [otlp/jaeger]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]

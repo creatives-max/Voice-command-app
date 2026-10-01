@@ -42,6 +42,7 @@ class AssistantEngineTest {
         flow: FlowDefinition? = null,
         profile: UserProfile? = null,
         cfg: SessionConfig = SessionConfig(confirmValues = false),
+        vision: com.voicecontrol.core.engine.port.VisionDetector? = null,
     ) = AssistantEngine(
         screen = screen,
         stt = stt,
@@ -55,6 +56,7 @@ class AssistantEngineTest {
         clock = { 1_000L },
         newId = { "session-1" },
         screenSettleMillis = 10,
+        vision = vision,
     )
 
     @Test
@@ -213,5 +215,40 @@ class AssistantEngineTest {
         engine.start()
         advanceUntilIdle()
         assertEquals(ScreenAction.Click("vid:cart"), screen.actions.single())
+    }
+
+    @Test
+    fun `apps without readable nodes are operated through vision taps`() = runTest {
+        val screen = FakeScreen(ScreenSnapshot("com.game", elements = emptyList())).apply {
+            shot = com.voicecontrol.core.model.Screenshot(ByteArray(4), 540, 1200, 1080, 2400)
+        }
+        val detected = listOf(
+            ScreenElement("vision:e1", ElementKind.TEXT_FIELD, "Player name", FieldType.NAME, bounds = com.voicecontrol.core.model.Bounds(100, 200, 500, 300)),
+            ScreenElement("vision:e2", ElementKind.BUTTON, "Start", bounds = com.voicecontrol.core.model.Bounds(400, 2000, 700, 2100)),
+        )
+        val engine = engine(
+            screen,
+            ScriptedStt("Rahul", "haan"),
+            cfg = SessionConfig(confirmValues = false, visionFallback = true),
+            vision = { _, pkg, _ -> if (pkg == "com.game") detected else null },
+        )
+        engine.start()
+        advanceUntilIdle()
+        assertEquals(
+            listOf(ScreenAction.TapAt(300, 250), ScreenAction.TypeIntoFocused("Rahul"), ScreenAction.TapAt(550, 2050)),
+            screen.actions,
+        )
+    }
+
+    @Test
+    fun `vision is not used unless enabled`() = runTest {
+        val screen = FakeScreen(ScreenSnapshot("com.game", elements = emptyList())).apply {
+            shot = com.voicecontrol.core.model.Screenshot(ByteArray(4), 540, 1200, 1080, 2400)
+        }
+        val tts = RecordingTts()
+        val engine = engine(screen, ScriptedStt(), tts, vision = { _, _, _ -> error("must not be called") })
+        engine.start()
+        advanceUntilIdle()
+        assertTrue(tts.spoken.any { it.contains("can't read") })
     }
 }

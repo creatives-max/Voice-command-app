@@ -11,7 +11,11 @@ import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedButton
@@ -34,6 +38,8 @@ fun HomeRoute(
     onOpenInspector: () -> Unit,
     onOpenAccount: (signedIn: Boolean) -> Unit,
     onOpenFlows: () -> Unit = {},
+    onOpenHistory: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -43,7 +49,7 @@ fun HomeRoute(
             HomeEffect.LaunchAccessibilitySettings -> context.startActivity(AccessibilityStatus.settingsIntent())
         }
     }
-    HomeScreen(state, viewModel::dispatch, onOpenInspector, onOpenAccount, onOpenFlows)
+    HomeScreen(state, viewModel::dispatch, onOpenInspector, onOpenAccount, onOpenFlows, onOpenHistory, onOpenSettings)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,8 +60,20 @@ fun HomeScreen(
     onOpenInspector: () -> Unit,
     onOpenAccount: (signedIn: Boolean) -> Unit = {},
     onOpenFlows: () -> Unit = {},
+    onOpenHistory: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
 ) {
-    Scaffold(topBar = { TopAppBar(title = { Text("VoiceControl") }) }) { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("VoiceControl") },
+                actions = {
+                    IconButton(onClick = onOpenHistory) { Icon(Icons.Filled.History, "History") }
+                    IconButton(onClick = onOpenSettings) { Icon(Icons.Filled.Settings, "Settings") }
+                },
+            )
+        },
+    ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

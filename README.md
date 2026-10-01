@@ -24,8 +24,9 @@ cp .env.example .env            # optional: choose LLM provider + keys
 docker compose up --build       # Postgres(pgvector) + Redis + backend + dashboard
 ```
 
-- Backend: http://localhost:8080 (`/health`, OpenAPI UI at `/docs`)
-- Dashboard: http://localhost:3000
+- Backend: http://localhost:8080 (`/health`, `/ready`, OpenAPI UI at `/docs`, spec at `/openapi`)
+- Dashboard: http://localhost:3000 (sign up, then sign in with the same account on the phone)
+- Tracing (optional): `docker compose --profile observability up` → Jaeger at http://localhost:16686
 
 ### Android
 
@@ -69,6 +70,9 @@ npm run dev                      # BACKEND_URL defaults to http://localhost:8080
 | `OPENAI_API_KEY` / `OPENAI_MODEL` / `OPENAI_BASE_URL` | – | OpenAI-compatible provider |
 | `EMBEDDING_PROVIDER` | `hashing` | `hashing` (offline n-gram embedding) or `openai` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | unset | Enables OTLP trace export |
+| `LOG_FORMAT` | `TEXT` | `JSON` for structured logs with trace ids |
+| `AUTH_RATE_LIMIT_PER_MINUTE` | `10` | Register attempts per IP per minute (login: 2×) |
+| `CORS_ORIGINS` | `http://localhost:3000` | Allowed browser origins |
 
 The phone **never** calls an LLM directly. Only the backend holds provider keys.
 
@@ -78,5 +82,21 @@ The phone **never** calls an LLM directly. Only the backend holds provider keys.
 tests (Testcontainers), builds the dashboard (lint, typecheck, tests, build), and builds both Docker
 images.
 
-See [`docs/architecture.md`](docs/architecture.md) for the full design and [`PROGRESS.md`](PROGRESS.md)
-for phase-by-phase status.
+## Using it
+
+1. Install the APK, open VoiceControl, allow the microphone and turn on the accessibility service.
+2. (Optional) Sign in: Home → *Sign in*. Set the backend address in Settings if it's not the emulator default.
+3. Open any app with a form and tap the floating mic. VoiceControl asks for each field; answer in Hindi, English or
+   Hinglish. Say *next*, *previous*, *skip*, *repeat*, *submit*, *scroll*, *back*, *stop*, or *press <button>*.
+   Long-press the mic for a touch panel of every field and button.
+4. Each completed screen is saved as a flow. Edit it on the dashboard (questions, rules, defaults, skips, order,
+   help videos). The next time that screen opens, VoiceControl runs the edited flow.
+
+## Kubernetes
+
+```bash
+kubectl apply -k infra/k8s/overlays/production   # after creating the real backend-secrets
+```
+
+See [`docs/architecture.md`](docs/architecture.md) for the design, [`docs/privacy-policy.md`](docs/privacy-policy.md),
+[`docs/play-store.md`](docs/play-store.md) for release steps, and [`PROGRESS.md`](PROGRESS.md) for phase status.

@@ -7,6 +7,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import com.voicecontrol.core.data.ai.CompositeInterpreter
+import com.voicecontrol.core.data.ai.RemoteVisionDetector
+import com.voicecontrol.core.engine.port.VisionDetector
 import com.voicecontrol.core.data.auth.BackendSessionImpl
 import com.voicecontrol.core.data.db.AppDatabase
 import com.voicecontrol.core.data.db.FlowDao
@@ -39,6 +41,7 @@ abstract class DataModule {
     @Binds abstract fun sessionRecorder(impl: SessionRecorderImpl): SessionRecorder
     @Binds abstract fun interpreter(impl: CompositeInterpreter): Interpreter
     @Binds abstract fun backendSession(impl: BackendSessionImpl): BackendSession
+    @Binds abstract fun visionDetector(impl: RemoteVisionDetector): VisionDetector
 
     companion object {
         @Provides

@@ -4,6 +4,8 @@ import com.voicecontrol.application.ai.AiService
 import com.voicecontrol.application.auth.AuthService
 import com.voicecontrol.application.flow.FlowCacheInvalidator
 import com.voicecontrol.application.flow.FlowService
+import com.voicecontrol.application.history.HistoryService
+import com.voicecontrol.infrastructure.persistence.JdbcRunRepository
 import com.voicecontrol.application.match.FlowEmbeddingHandler
 import com.voicecontrol.application.match.FlowMatchService
 import com.voicecontrol.domain.match.EmbeddingProvider
@@ -38,6 +40,7 @@ class Services(
     val profiles: ProfileService,
     val flows: FlowService,
     val matcher: FlowMatchService,
+    val history: HistoryService,
     val rateLimiter: RateLimiter,
     val eventBus: RedisStreamEventBus,
     private val database: Database,
@@ -97,6 +100,7 @@ object Bootstrap {
             profiles = ProfileService(JdbcProfileRepository(database), cache),
             flows = FlowService(flowRepository, bus),
             matcher = FlowMatchService(flowRepository, embeddingRepository, embedder, cache),
+            history = HistoryService(JdbcRunRepository(database)),
             rateLimiter = RedisRateLimiter(redis),
             eventBus = bus,
             database = database,

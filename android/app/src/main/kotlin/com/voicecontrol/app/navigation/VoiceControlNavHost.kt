@@ -7,6 +7,9 @@ import androidx.navigation.compose.rememberNavController
 import com.voicecontrol.feature.auth.AuthRoute
 import com.voicecontrol.feature.auth.ProfileRoute
 import com.voicecontrol.feature.flows.FlowsRoute
+import com.voicecontrol.feature.history.HistoryRoute
+import com.voicecontrol.feature.settings.PrivacyScreen
+import com.voicecontrol.feature.settings.SettingsRoute
 import com.voicecontrol.feature.home.HomeRoute
 import com.voicecontrol.feature.inspector.InspectorRoute
 import kotlinx.serialization.Serializable
@@ -16,6 +19,9 @@ import kotlinx.serialization.Serializable
 @Serializable data object AuthDestination
 @Serializable data object ProfileDestination
 @Serializable data object FlowsDestination
+@Serializable data object HistoryDestination
+@Serializable data object SettingsDestination
+@Serializable data object PrivacyDestination
 
 @Composable
 fun VoiceControlNavHost() {
@@ -26,7 +32,21 @@ fun VoiceControlNavHost() {
                 onOpenInspector = { navController.navigate(InspectorDestination) },
                 onOpenAccount = { signedIn -> navController.navigate(if (signedIn) ProfileDestination else AuthDestination) },
                 onOpenFlows = { navController.navigate(FlowsDestination) },
+                onOpenHistory = { navController.navigate(HistoryDestination) },
+                onOpenSettings = { navController.navigate(SettingsDestination) },
             )
+        }
+        composable<HistoryDestination> {
+            HistoryRoute(onBack = { navController.popBackStack() })
+        }
+        composable<SettingsDestination> {
+            SettingsRoute(
+                onBack = { navController.popBackStack() },
+                onOpenPrivacy = { navController.navigate(PrivacyDestination) },
+            )
+        }
+        composable<PrivacyDestination> {
+            PrivacyScreen(onBack = { navController.popBackStack() })
         }
         composable<FlowsDestination> {
             FlowsRoute(onBack = { navController.popBackStack() })

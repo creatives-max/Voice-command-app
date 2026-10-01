@@ -59,3 +59,14 @@ class FlowApi @Inject constructor(private val api: ApiClient) {
             if (appPackage != null) url.parameters.append("appPackage", appPackage)
         }.items
 }
+
+@Singleton
+class HistoryApi @Inject constructor(private val api: ApiClient) {
+    suspend fun upload(runs: List<com.voicecontrol.core.model.SessionSummary>): Int =
+        api.post<com.voicecontrol.core.network.dto.UploadRunsDto, com.voicecontrol.core.network.dto.UploadRunsResponseDto>(
+            "/v1/runs",
+            com.voicecontrol.core.network.dto.UploadRunsDto(runs),
+        ).inserted
+
+    suspend fun clear() = api.delete("/v1/runs")
+}

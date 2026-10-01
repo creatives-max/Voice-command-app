@@ -94,3 +94,37 @@ Results are cached in Redis by a hash of the signature.
 - Typed values are not sent to the backend in flow definitions unless the user saves them as a
   default. Profile values are stored server-side only with consent.
 - Local-only mode turns off all backend calls. It uses the on-device rule interpreter.
+
+## History, settings and vision fallback
+
+- **History**: every finished session is a `SessionSummary` (per screen: what happened to each element: filled, default,
+  kept, skipped, typed by user, clicked). It never contains values. Stored in Room, uploaded in batches to
+  `POST /v1/runs` (idempotent by session id), shown in the app and on the dashboard.
+- **Settings** (DataStore): language (English/Hindi/Hinglish), speech rate, read-back, confirm-before-submit,
+  skip filled fields, Hindi→Latin transliteration, auto-start on screens with saved flows, history on/off,
+  local-only mode, screenshot fallback, backend and dashboard addresses.
+- **Vision fallback**: when a screen exposes no readable accessibility nodes and the user enabled it, the engine takes a
+  screenshot (`AccessibilityService.takeScreenshot`, API 30+), downscales it, and `POST /v1/ai/vision` returns element
+  boxes. Those elements get `vision:` ids; the engine operates them with taps (`dispatchGesture`) and types into the
+  focused input. Requires a vision-capable provider (`anthropic` or `openai`).
+
+## Observability
+
+- OpenTelemetry SDK (autoconfigured) with Ktor server instrumentation; spans for every request and for each event
+  handled from the Redis stream. `OTEL_EXPORTER_OTLP_ENDPOINT` turns on OTLP export.
+- Logs are JSON (`LOG_FORMAT=JSON`) via logstash-logback-encoder with `trace_id`, `span_id` and `requestId` in every
+  line, so logs and traces correlate.
+- Collector config: `infra/k8s/base/collector.yaml` (drops auth headers/bodies, batches, exports to Jaeger/OTLP).
+  Locally: `docker compose --profile observability up` → Jaeger UI at http://localhost:16686.
+- Health: `/health` (liveness), `/ready` (Postgres + Redis) used by Kubernetes probes.
+
+## Deployment (Kubernetes)
+
+`infra/k8s/base` (Kustomize): namespace, ConfigMap + Secret template, Postgres (pgvector) and Redis StatefulSets,
+backend Deployment (2+ replicas, HPA, PDB, non-root read-only root FS, readiness on `/ready`), dashboard Deployment +
+HPA, OTel collector, Ingress (TLS via cert-manager), NetworkPolicy (datastores reachable only from the backend).
+`infra/k8s/overlays/production` pins image tags and scales the backend. Render with `kubectl kustomize
+infra/k8s/overlays/production`. CI validates the manifests with kubeconform.
+
+Backend replicas are stateless: sessions, rate limits, caches and the event stream live in Redis; each replica joins
+the same consumer group, so event processing is shared and at-least-once.

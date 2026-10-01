@@ -16,15 +16,15 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 
-fun Route.authRoutes(auth: AuthService, limiter: RateLimiter) {
+fun Route.authRoutes(auth: AuthService, limiter: RateLimiter, perMinute: Int = 10) {
     route("/v1/auth") {
         post("/register") {
-            throttle(limiter, call, "register", 10)
+            throttle(limiter, call, "register", perMinute)
             val body = call.receive<RegisterRequest>()
             call.respond(HttpStatusCode.Created, AuthResponse.from(auth.register(body.email, body.password, body.name)))
         }
         post("/login") {
-            throttle(limiter, call, "login", 20)
+            throttle(limiter, call, "login", perMinute * 2)
             val body = call.receive<LoginRequest>()
             call.respond(AuthResponse.from(auth.login(body.email, body.password)))
         }

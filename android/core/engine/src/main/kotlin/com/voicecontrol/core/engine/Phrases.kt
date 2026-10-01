@@ -109,6 +109,8 @@ class Phrases(private val language: Language) {
         "Main yeh screen nahi padh pa raha.",
     )
 
+    fun lookingAtScreen() = t("Let me look at the screen.", "मैं स्क्रीन देख रहा हूँ।", "Main screen dekh raha hoon.")
+
     fun serviceOff() = t(
         "Please turn on the VoiceControl accessibility service.",
         "कृपया VoiceControl की सुलभता सेवा चालू करें।",

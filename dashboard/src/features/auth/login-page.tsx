@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -80,6 +80,11 @@ export function LoginPage() {
               {mode === "login" ? "New here? Create an account" : "Already have an account? Sign in"}
             </Button>
           </form>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            <Link to="/privacy" className="hover:underline">
+              Privacy policy
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </div>

@@ -21,6 +21,6 @@ class SessionRecorderImpl @Inject constructor(
         val prefs = settings.appSettings()
         if (prefs.saveHistory) history.add(summary)
         val created = flows.createFromSession(summary, summary.endedAtMillis)
-        if (created.isNotEmpty() && !prefs.localOnly) sync.syncNow()
+        if ((created.isNotEmpty() || prefs.saveHistory) && !prefs.localOnly) sync.syncNow()
     }
 }

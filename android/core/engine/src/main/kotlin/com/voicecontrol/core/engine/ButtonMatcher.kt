@@ -11,6 +11,7 @@ object ButtonMatcher {
     private val submitWords = listOf(
         "submit", "continue", "next", "proceed", "sign up", "signup", "register", "create account", "login", "log in",
         "sign in", "save", "pay", "place order", "confirm", "verify", "send", "done", "apply", "book", "get otp", "ok",
+        "get started", "start", "go", "search", "शुरू", "खोजें",
         "जमा", "आगे", "सबमिट", "लॉगिन", "सेव", "भेजें", "पुष्टि",
     )
 
@@ -38,7 +39,8 @@ object ButtonMatcher {
             if (index >= 0) b to index else null
         }
         if (known.isNotEmpty()) return known.minWith(compareBy<Pair<ScreenElement, Int>> { it.second }.thenByDescending { it.first.bounds.top }).first
-        return null
+        // A form with a single button: that button submits it.
+        return buttons.singleOrNull()
     }
 
     internal fun normalize(s: String): String = LabelText.normalize(Transliterator.devanagariToLatin(s))

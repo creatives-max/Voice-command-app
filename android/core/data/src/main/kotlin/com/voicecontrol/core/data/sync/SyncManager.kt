@@ -1,6 +1,8 @@
 package com.voicecontrol.core.data.sync
 
 import com.voicecontrol.core.data.flows.FlowRepository
+import com.voicecontrol.core.data.history.HistoryRepository
+import com.voicecontrol.core.network.HistoryApi
 import com.voicecontrol.core.data.profile.ProfileRepository
 import com.voicecontrol.core.network.ApiException
 import com.voicecontrol.core.network.FlowApi
@@ -23,6 +25,8 @@ class SyncManager @Inject constructor(
     private val profileApi: ProfileApi,
     private val flows: FlowRepository,
     private val flowApi: FlowApi,
+    private val history: HistoryRepository,
+    private val historyApi: HistoryApi,
 ) {
     suspend fun syncAll(pullProfile: Boolean): SyncReport {
         var failures = 0
@@ -47,7 +51,21 @@ class SyncManager @Inject constructor(
             }
         }
         failures += refreshServerFlows()
+        try {
+            uploadHistory()
+        } catch (e: ApiException) {
+            if (e.isUnauthorized) return SyncReport(uploaded, failures, unauthorized = true)
+            failures++
+        }
         return SyncReport(uploaded, failures)
+    }
+
+    /** Uploads finished sessions in batches; the server ignores duplicates, so retries are safe. */
+    private suspend fun uploadHistory() {
+        history.unsynced().chunked(HISTORY_BATCH).forEach { batch ->
+            historyApi.upload(batch)
+            history.markSynced(batch.map { it.sessionId })
+        }
     }
 
     private suspend fun syncProfile(pull: Boolean) {
@@ -81,5 +99,9 @@ class SyncManager @Inject constructor(
         // Flows deleted on the server disappear from the phone too.
         cached.keys.filter { it !in remoteIds }.forEach { flows.delete(it) }
         return failures
+    }
+
+    private companion object {
+        const val HISTORY_BATCH = 50
     }
 }

@@ -25,6 +25,7 @@ object TestEnvironment {
                 "JWT_SECRET" to "test-secret-test-secret-test-secret-1234",
                 "LLM_PROVIDER" to "rules",
                 "EMBEDDING_PROVIDER" to "hashing",
+                "AUTH_RATE_LIMIT_PER_MINUTE" to "1000",
             ),
         )
         Bootstrap.create(config, bcryptCost = 4)

@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+data:
+  PORT: "8080"
+  DATABASE_URL: jdbc:postgresql://postgres:5432/voicecontrol
+  DATABASE_USER: voicecontrol
+  DATABASE_POOL_SIZE: "10"
+  REDIS_URL: redis://redis:6379
+  LLM_PROVIDER: anthropic
+  ANTHROPIC_MODEL: claude-opus-5-5
+  EMBEDDING_PROVIDER: hashing
+  LLM_TIMEOUT_MS: "8000"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_SERVICE_NAME: voicecontrol-backend
+  LOG_FORMAT: JSON
+  CORS_ORIGINS: https://dashboard.voicecontrol.example
+---
+# Template only: create the real secret with your secret manager (External Secrets, SOPS, sealed-secrets…).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backend-secrets
+type: Opaque
+stringData:
+  DATABASE_PASSWORD: change-me
+  JWT_SECRET: change-me-to-a-long-random-string-of-at-least-32-chars
+  ANTHROPIC_API_KEY: ""
+  OPENAI_API_KEY: ""

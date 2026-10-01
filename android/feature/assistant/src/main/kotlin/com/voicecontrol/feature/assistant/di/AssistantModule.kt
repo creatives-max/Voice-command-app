@@ -14,6 +14,7 @@ import com.voicecontrol.core.engine.port.SessionConfigProvider
 import com.voicecontrol.core.engine.port.SessionRecorder
 import com.voicecontrol.core.engine.port.SpeechToText
 import com.voicecontrol.core.engine.port.TextToSpeech
+import com.voicecontrol.core.engine.port.VisionDetector
 import com.voicecontrol.feature.assistant.MicPermission
 import com.voicecontrol.feature.assistant.overlay.OverlayManager
 import dagger.Binds
@@ -47,6 +48,7 @@ abstract class AssistantModule {
             profiles: ProfileSource,
             recorder: SessionRecorder,
             config: SessionConfigProvider,
+            vision: VisionDetector,
         ): AssistantEngine = AssistantEngine(
             screen = screen,
             stt = stt,
@@ -57,6 +59,7 @@ abstract class AssistantModule {
             recorder = recorder,
             config = config,
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+            vision = vision,
         )
 
         @Provides

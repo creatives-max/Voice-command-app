@@ -5,6 +5,8 @@ import { LoginPage } from "@/features/auth/login-page";
 import { FlowEditorPage } from "@/features/flows/flow-editor-page";
 import { FlowsPage } from "@/features/flows/flows-page";
 import { VersionsPage } from "@/features/flows/versions-page";
+import { HistoryPage } from "@/features/history/history-page";
+import { PrivacyPage } from "@/features/legal/privacy-page";
 import { ProfilePage } from "@/features/profile/profile-page";
 import { queryClient } from "@/lib/query-client";
 import { sessionQuery } from "@/lib/queries";
@@ -24,6 +26,8 @@ const loginRoute = createRoute({
   component: LoginPage,
 });
 
+const privacyRoute = createRoute({ getParentRoute: () => rootRoute, path: "/privacy", component: PrivacyPage });
+
 /** Authenticated area: redirects to /login when there is no valid session. */
 const appRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -42,8 +46,9 @@ const flowsRoute = createRoute({ getParentRoute: () => appRoute, path: "/", comp
 const flowRoute = createRoute({ getParentRoute: () => appRoute, path: "flows/$flowId", component: FlowEditorPage });
 const versionsRoute = createRoute({ getParentRoute: () => appRoute, path: "flows/$flowId/versions", component: VersionsPage });
 const profileRoute = createRoute({ getParentRoute: () => appRoute, path: "profile", component: ProfilePage });
+const historyRoute = createRoute({ getParentRoute: () => appRoute, path: "history", component: HistoryPage });
 
-export const routeTree = rootRoute.addChildren([loginRoute, appRoute.addChildren([flowsRoute, flowRoute, versionsRoute, profileRoute])]);
+export const routeTree = rootRoute.addChildren([loginRoute, privacyRoute, appRoute.addChildren([flowsRoute, flowRoute, versionsRoute, profileRoute, historyRoute])]);
 
 export const router = createRouter({ routeTree, context: { queryClient }, defaultPreload: "intent" });
 

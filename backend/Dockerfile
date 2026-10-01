@@ -10,10 +10,10 @@ COPY api ./api
 RUN --mount=type=cache,target=/home/gradle/.gradle gradle :api:buildFatJar --no-daemon -x test
 
 FROM eclipse-temurin:21-jre-alpine
-RUN addgroup -S app && adduser -S app -G app
+RUN addgroup -S -g 10001 app && adduser -S -u 10001 -G app app
 WORKDIR /app
 COPY --from=build /workspace/api/build/libs/voicecontrol-backend.jar /app/app.jar
-USER app
+USER 10001
 EXPOSE 8080
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseG1GC"
 HEALTHCHECK --interval=15s --timeout=3s --start-period=30s --retries=5 \

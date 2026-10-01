@@ -40,6 +40,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-dev-only-change-me}
       LLM_PROVIDER: ${LLM_PROVIDER:-rules}
       CORS_ORIGINS: http://localhost:3000
+      LOG_FORMAT: ${LOG_FORMAT:-TEXT}
+      # Set to http://otel-collector:4318 when running with `--profile observability`.
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports: ["8080:8080"]
     depends_on:
       postgres: { condition: service_healthy }
@@ -52,6 +55,25 @@ services:
     ports: ["3000:3000"]
     depends_on:
       backend: { condition: service_healthy }
+
+  # Tracing: docker compose --profile observability up  (Jaeger UI on http://localhost:16686)
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    profiles: [observability]
+    command: ["--config=/etc/otel/collector.yaml"]
+    environment:
+      TRACES_BACKEND_ENDPOINT: jaeger:4317
+    volumes:
+      - ./infra/k8s/base/collector.yaml:/etc/otel/collector.yaml:ro
+    ports: ["4317:4317", "4318:4318"]
+    depends_on: [jaeger]
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    profiles: [observability]
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports: ["16686:16686"]
 
 volumes:
   pgdata:

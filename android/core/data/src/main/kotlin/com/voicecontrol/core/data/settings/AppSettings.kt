@@ -31,5 +31,6 @@ data class AppSettings(
         askBeforeSubmit = askBeforeSubmit,
         localOnly = localOnly,
         skipFilledFields = skipFilledFields,
+        visionFallback = visionFallback,
     )
 }

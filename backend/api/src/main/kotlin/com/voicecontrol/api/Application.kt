@@ -1,7 +1,10 @@
 package com.voicecontrol.api
 
 import com.voicecontrol.api.plugins.configureHttp
+import com.voicecontrol.api.plugins.Telemetry
 import com.voicecontrol.api.plugins.configureSecurity
+import com.voicecontrol.api.plugins.configureTelemetry
+import com.voicecontrol.api.routes.historyRoutes
 import com.voicecontrol.api.routes.aiRoutes
 import com.voicecontrol.api.routes.authRoutes
 import com.voicecontrol.api.routes.flowRoutes
@@ -21,8 +24,10 @@ import kotlinx.serialization.Serializable
 
 fun main() {
     val config = AppConfig.fromEnv()
+    val telemetry = Telemetry.init(config.serviceName, config.otlpEndpoint)
     val services = Bootstrap.create(config)
     embeddedServer(Netty, port = config.port, host = "0.0.0.0") {
+        configureTelemetry(telemetry)
         voiceControl(services)
         monitor.subscribe(ApplicationStopped) { services.close() }
     }.start(wait = true)
@@ -39,10 +44,11 @@ fun Application.voiceControl(services: Services) {
         }
         openAPI(path = "openapi", swaggerFile = "openapi/documentation.yaml")
         swaggerUI(path = "docs", swaggerFile = "openapi/documentation.yaml")
-        authRoutes(services.auth, services.rateLimiter)
+        authRoutes(services.auth, services.rateLimiter, services.config.authRateLimitPerMinute)
         profileRoutes(services.profiles)
         flowRoutes(services.flows, services.matcher)
         aiRoutes(services.ai, services.rateLimiter)
+        historyRoutes(services.history)
     }
 }
 

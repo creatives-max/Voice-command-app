@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
-import { invitationsQuery, membersQuery, sessionQuery, useCreateOrg, useOrgMutation } from "@/lib/queries";
+import { invitationsQuery, membersQuery, orgUsageQuery, sessionQuery, useCreateOrg, useOrgMutation } from "@/lib/queries";
+import { usageLine } from "./audit";
 import { ROLE_LABELS, roles, type Org } from "@/lib/types";
 import type { Role } from "@/lib/org";
 import { OrgHeader, copyText } from "./org-nav";
@@ -109,6 +110,7 @@ function OrgDetails({ org }: { org: Org }) {
   return (
     <>
       <OrgHeader org={org} />
+      <UsageCard org={org} />
       <Card>
         <CardHeader>
           <CardTitle>{t("org.members")}</CardTitle>
@@ -291,6 +293,38 @@ function Settings({ org }: { org: Org }) {
             </Button>
           </div>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** What the organization uses against its limits. */
+function UsageCard({ org }: { org: Org }) {
+  const usage = useQuery(orgUsageQuery(org.id));
+  if (!usage.data) return null;
+  const u = usage.data;
+  const rows = [
+    { label: "Members and open invitations", ...usageLine(u.members + u.pendingInvitations, u.maxMembers) },
+    { label: "Active API keys", ...usageLine(u.activeApiKeys, u.maxApiKeys) },
+    { label: "Webhooks", ...usageLine(u.webhooks, u.maxWebhooks) },
+  ];
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Usage</CardTitle>
+        <CardDescription>
+          {u.flows} flows · {u.runs30d} remote runs in the last 30 days
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <dl className="grid gap-2 text-sm sm:grid-cols-3">
+          {rows.map((r) => (
+            <div key={r.label} className="rounded-md border p-3">
+              <dt className="text-muted-foreground">{r.label}</dt>
+              <dd className={r.nearLimit ? "font-semibold text-destructive" : "font-semibold"}>{r.text}</dd>
+            </div>
+          ))}
+        </dl>
       </CardContent>
     </Card>
   );

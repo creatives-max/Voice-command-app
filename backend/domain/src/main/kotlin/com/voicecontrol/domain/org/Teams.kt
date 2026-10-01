@@ -52,6 +52,7 @@ interface OrgRepository {
     suspend fun revokeInvitation(orgId: UUID, id: UUID, at: Instant): Boolean
     /** Marks the invitation accepted and adds the member (keeping a higher existing role). */
     suspend fun accept(invitation: Invitation, userId: UUID, at: Instant): Boolean
+    suspend fun usage(orgId: UUID): OrgUsage
 }
 
 /** Who performed an action: a signed-in user, or a third party with an API key. */
@@ -72,7 +73,7 @@ data class AuditEntry(
 
 interface AuditRepository {
     suspend fun record(orgId: UUID, actor: Actor, action: String, targetType: String, targetId: String?, details: Map<String, String>, at: Instant)
-    suspend fun list(orgId: UUID, action: String?, beforeId: Long?, limit: Int): List<AuditEntry>
+    suspend fun list(orgId: UUID, action: String?, beforeId: Long?, limit: Int, from: Instant? = null, to: Instant? = null): List<AuditEntry>
 }
 
 /** Recording port used by services; implementations must never fail the caller's action. */
@@ -104,7 +105,13 @@ data class ApiKey(
     val createdAt: Instant,
     val lastUsedAt: Instant?,
     val revokedAt: Instant?,
-)
+    /** After this the key stops working (null = never). */
+    val expiresAt: Instant? = null,
+    /** Last time the secret was replaced. */
+    val rotatedAt: Instant? = null,
+) {
+    fun isExpired(now: Instant): Boolean = expiresAt?.let { !it.isAfter(now) } ?: false
+}
 
 interface ApiKeyRepository {
     suspend fun create(key: ApiKey, secretHash: String): ApiKey
@@ -112,7 +119,20 @@ interface ApiKeyRepository {
     suspend fun list(orgId: UUID): List<ApiKey>
     suspend fun revoke(orgId: UUID, id: UUID, at: Instant): Boolean
     suspend fun touch(id: UUID, at: Instant)
+    /** Replaces the secret of an active key; the old secret stops working at once. */
+    suspend fun rotate(orgId: UUID, id: UUID, prefix: String, secretHash: String, at: Instant): ApiKey?
 }
+
+/** What an organization uses, against its limits. */
+data class OrgUsage(
+    val members: Int,
+    val pendingInvitations: Int,
+    val flows: Int,
+    val activeApiKeys: Int,
+    val webhooks: Int,
+    /** Remote runs of the organization's flows in the last 30 days. */
+    val runs30d: Int,
+)
 
 /** Events a webhook can subscribe to. */
 object WebhookEvents {

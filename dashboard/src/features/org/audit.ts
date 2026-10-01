@@ -47,6 +47,10 @@ export function describeAudit(e: AuditEntry): string {
       return `created API key “${d.name}” (${d.scopes ?? ""})`;
     case "api_key.revoked":
       return "revoked an API key";
+    case "api_key.rotated":
+      return `rotated API key “${d.name}”`;
+    case "audit.exported":
+      return `exported the audit log (${d.entries ?? "0"} entries)`;
     case "webhook.created":
       return `added a webhook to ${d.url}`;
     case "webhook.updated":
@@ -64,4 +68,24 @@ export function describeAudit(e: AuditEntry): string {
 export function auditActor(e: AuditEntry): string {
   if (e.actorApiKeyId) return `API key (${e.actorEmail ?? "removed user"})`;
   return e.actorEmail ?? "Removed user";
+}
+
+/** Expiry choices for new API keys (days; null = never). */
+export const KEY_EXPIRY_OPTIONS = [
+  { days: null, label: "Never expires" },
+  { days: 30, label: "30 days" },
+  { days: 90, label: "90 days" },
+  { days: 365, label: "1 year" },
+] as const;
+
+/** "expires 31 Oct 2026", "expired", or null for keys that never expire. */
+export function keyExpiry(k: { expiresAt?: string | null; expired?: boolean }, now: Date = new Date()): string | null {
+  if (!k.expiresAt) return null;
+  if (k.expired || new Date(k.expiresAt) <= now) return "expired";
+  return `expires ${new Date(k.expiresAt).toLocaleDateString(undefined, { dateStyle: "medium" })}`;
+}
+
+/** "3 / 25"; flags usage at or above 90% of the limit. */
+export function usageLine(used: number, max: number): { text: string; nearLimit: boolean } {
+  return { text: `${used} / ${max}`, nearLimit: max > 0 && used >= Math.ceil(max * 0.9) };
 }

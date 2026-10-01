@@ -20,6 +20,7 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Clock
 import java.time.Duration
+import java.time.Instant
 import java.util.Base64
 import java.util.UUID
 
@@ -54,11 +55,67 @@ class AuditService(private val repo: AuditRepository, private val access: OrgAcc
             .onFailure { log.warn("Could not write audit entry {} for {}", action, orgId, it) }
     }
 
-    suspend fun list(userId: UUID, orgId: UUID, action: String?, beforeId: Long?, limit: Int): List<AuditEntry> {
+    suspend fun list(userId: UUID, orgId: UUID, action: String?, beforeId: Long?, limit: Int, from: Instant? = null, to: Instant? = null): List<AuditEntry> {
         access.require(orgId, userId, Role.ADMIN)
-        return repo.list(orgId, action?.takeIf { it.isNotBlank() }, beforeId, limit.coerceIn(1, 200))
+        checkRange(from, to)
+        return repo.list(orgId, action?.takeIf { it.isNotBlank() }, beforeId, limit.coerceIn(1, 200), from, to)
+    }
+
+    /** The audit log (newest first, at most [MAX_EXPORT] entries) as CSV for spreadsheets and compliance reviews. */
+    suspend fun exportCsv(userId: UUID, orgId: UUID, action: String?, from: Instant?, to: Instant?): String {
+        access.require(orgId, userId, Role.ADMIN)
+        checkRange(from, to)
+        val rows = mutableListOf<AuditEntry>()
+        var before: Long? = null
+        while (rows.size < MAX_EXPORT) {
+            val page = repo.list(orgId, action?.takeIf { it.isNotBlank() }, before, PAGE, from, to)
+            rows += page
+            if (page.size < PAGE) break
+            before = page.last().id
+        }
+        audit(orgId, userId, rows.size)
+        return AuditCsv.write(rows.take(MAX_EXPORT))
+    }
+
+    private suspend fun audit(orgId: UUID, userId: UUID, count: Int) =
+        record(orgId, Actor(userId), "audit.exported", "audit", null, mapOf("entries" to count.toString()))
+
+    private fun checkRange(from: Instant?, to: Instant?) {
+        if (from != null && to != null && from.isAfter(to)) throw DomainException.Validation("The start date must be before the end date")
+    }
+
+    companion object {
+        const val MAX_EXPORT = 10_000
+        private const val PAGE = 200
     }
 }
+
+/** CSV of audit entries (RFC 4180 quoting; formulas neutralized for spreadsheet safety). */
+object AuditCsv {
+    private val header = listOf("id", "at", "action", "actor_email", "actor_user_id", "actor_api_key_id", "target_type", "target_id", "details")
+
+    fun write(entries: List<AuditEntry>): String = buildString {
+        appendLine(header.joinToString(","))
+        entries.forEach { e ->
+            val details = e.details.entries.sortedBy { it.key }.joinToString("; ") { "${it.key}=${it.value}" }
+            appendLine(
+                listOf(
+                    e.id.toString(), e.at.toString(), e.action, e.actorEmail.orEmpty(), e.actorUserId?.toString().orEmpty(),
+                    e.actorApiKeyId?.toString().orEmpty(), e.targetType, e.targetId.orEmpty(), details,
+                ).joinToString(",") { cell(it) },
+            )
+        }
+    }
+
+    fun cell(value: String): String {
+        // A leading =, +, - or @ would run as a formula in spreadsheet apps.
+        val safe = if (value.firstOrNull() in setOf('=', '+', '-', '@')) "'$value" else value
+        return if (safe.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) "\"" + safe.replace("\"", "\"\"") + "\"" else safe
+    }
+}
+
+/** How much one organization may use (configurable per deployment). */
+data class TenantLimits(val maxMembers: Int = 200, val maxApiKeys: Int = 25, val maxWebhooks: Int = WebhookService.MAX_PER_ORG)
 
 /** Organizations, members and invitations. */
 class OrgService(
@@ -70,7 +127,21 @@ class OrgService(
     private val invitationTtl: Duration = Duration.ofDays(7),
     /** Called when a user joins or leaves an organization (their cached flow matches change). */
     private val membershipChanged: suspend (UUID) -> Unit = {},
+    private val limits: TenantLimits = TenantLimits(),
 ) {
+    /** What the organization uses and its limits (any member may look). */
+    suspend fun usage(userId: UUID, orgId: UUID): Pair<com.voicecontrol.domain.org.OrgUsage, TenantLimits> {
+        access.require(orgId, userId, Role.VIEWER)
+        return orgs.usage(orgId) to limits
+    }
+
+    private suspend fun checkSeats(orgId: UUID, adding: Int) {
+        val usage = orgs.usage(orgId)
+        if (usage.members + usage.pendingInvitations + adding > limits.maxMembers) {
+            throw DomainException.Validation("This organization can have at most ${limits.maxMembers} members (including open invitations)")
+        }
+    }
+
     suspend fun create(userId: UUID, name: String): Organization {
         val org = orgs.create(Organization(UUID.randomUUID(), validName(name), userId, clock.instant()), userId)
         audit.record(org.id, Actor(userId), "org.created", "organization", org.id.toString(), mapOf("name" to org.name))
@@ -122,6 +193,7 @@ class OrgService(
         access.require(orgId, userId, Role.ADMIN)
         val address = email.trim().lowercase()
         if (!Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$").matches(address) || address.length > 254) throw DomainException.Validation("Enter a valid email address")
+        checkSeats(orgId, adding = 1)
         val token = Secrets.token()
         val now = clock.instant()
         val invitation = orgs.createInvitation(
@@ -179,21 +251,59 @@ class ApiKeyService(
     private val access: OrgAccess,
     private val audit: AuditLog,
     private val clock: Clock = Clock.systemUTC(),
+    private val limits: TenantLimits = TenantLimits(),
 ) {
-    /** Creates a key and returns it with its secret, which is shown once and never stored. */
-    suspend fun create(userId: UUID, orgId: UUID, name: String, scopes: Set<ApiScope>, rateLimitPerMinute: Int): Pair<ApiKey, String> {
+    /**
+     * Creates a key and returns it with its secret, which is shown once and never stored. With
+     * [expiresInDays] the key stops working after that many days.
+     */
+    suspend fun create(
+        userId: UUID,
+        orgId: UUID,
+        name: String,
+        scopes: Set<ApiScope>,
+        rateLimitPerMinute: Int,
+        expiresInDays: Int? = null,
+    ): Pair<ApiKey, String> {
         access.require(orgId, userId, Role.ADMIN)
         val n = name.trim().takeIf { it.length in 1..60 } ?: throw DomainException.Validation("Name must be 1-60 characters")
         if (scopes.isEmpty()) throw DomainException.Validation("Choose at least one scope")
         if (rateLimitPerMinute !in 1..10_000) throw DomainException.Validation("Rate limit must be 1-10000 requests per minute")
-        val prefix = PREFIX + Secrets.token(6).filter { it.isLetterOrDigit() }.take(8).lowercase()
-        val secret = prefix + "_" + Secrets.token(32)
+        if (expiresInDays != null && expiresInDays !in 1..MAX_EXPIRY_DAYS) throw DomainException.Validation("Keys can expire after 1 to $MAX_EXPIRY_DAYS days")
+        val now = clock.instant()
+        if (keys.list(orgId).count { it.revokedAt == null && !it.isExpired(now) } >= limits.maxApiKeys) {
+            throw DomainException.Validation("This organization can have at most ${limits.maxApiKeys} active API keys; revoke one first")
+        }
+        val (prefix, secret) = newSecret()
         val key = keys.create(
-            ApiKey(UUID.randomUUID(), orgId, n, prefix, scopes, rateLimitPerMinute, userId, clock.instant(), null, null),
+            ApiKey(
+                UUID.randomUUID(), orgId, n, prefix, scopes, rateLimitPerMinute, userId, now, null, null,
+                expiresAt = expiresInDays?.let { now.plus(Duration.ofDays(it.toLong())) },
+            ),
             Secrets.sha256(secret),
         )
-        audit.record(orgId, Actor(userId), "api_key.created", "api_key", key.id.toString(), mapOf("name" to n, "scopes" to scopes.joinToString(",") { it.id }))
+        audit.record(
+            orgId, Actor(userId), "api_key.created", "api_key", key.id.toString(),
+            mapOf("name" to n, "scopes" to scopes.joinToString(",") { it.id }) + (key.expiresAt?.let { mapOf("expires_at" to it.toString()) } ?: emptyMap()),
+        )
         return key to secret
+    }
+
+    /** Replaces a key's secret (same name, scopes and limits); the old secret stops working at once. */
+    suspend fun rotate(userId: UUID, orgId: UUID, id: UUID): Pair<ApiKey, String> {
+        access.require(orgId, userId, Role.ADMIN)
+        val now = clock.instant()
+        val current = keys.list(orgId).firstOrNull { it.id == id && it.revokedAt == null } ?: throw DomainException.NotFound("API key not found")
+        if (current.isExpired(now)) throw DomainException.Validation("This key has expired; create a new one")
+        val (prefix, secret) = newSecret()
+        val rotated = keys.rotate(orgId, id, prefix, Secrets.sha256(secret), now) ?: throw DomainException.NotFound("API key not found")
+        audit.record(orgId, Actor(userId), "api_key.rotated", "api_key", id.toString(), mapOf("name" to rotated.name, "old_prefix" to current.prefix))
+        return rotated to secret
+    }
+
+    private fun newSecret(): Pair<String, String> {
+        val prefix = PREFIX + Secrets.token(6).filter { it.isLetterOrDigit() }.take(8).lowercase()
+        return prefix to prefix + "_" + Secrets.token(32)
     }
 
     suspend fun list(userId: UUID, orgId: UUID): List<ApiKey> {
@@ -212,12 +322,14 @@ class ApiKeyService(
         if (!secret.startsWith(PREFIX)) return null
         val key = keys.findActiveByHash(Secrets.sha256(secret)) ?: return null
         val now = clock.instant()
+        if (key.isExpired(now)) return null
         if (key.lastUsedAt == null || key.lastUsedAt!!.isBefore(now.minusSeconds(TOUCH_INTERVAL_SECONDS))) keys.touch(key.id, now)
         return key
     }
 
     companion object {
         const val PREFIX = "vck_"
+        const val MAX_EXPIRY_DAYS = 365
         private const val TOUCH_INTERVAL_SECONDS = 60L
     }
 }

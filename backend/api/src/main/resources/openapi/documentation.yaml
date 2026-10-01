@@ -785,6 +785,7 @@ paths:
                 name: { type: string }
                 scopes: { type: array, items: { type: string, enum: ["flows:read", "flows:write", "runs:write"] } }
                 rateLimitPerMinute: { type: integer, default: 60, minimum: 1, maximum: 10000 }
+                expiresInDays: { type: integer, minimum: 1, maximum: 365, description: The key stops working after this many days (default never) }
       responses:
         "201": { description: Key with secret, content: { application/json: { schema: { $ref: "#/components/schemas/ApiKey" } } } }
   /v1/orgs/{orgId}/api-keys/{id}:
@@ -855,11 +856,58 @@ paths:
       - { name: action, in: query, description: "Exact action or prefix (\"member\" matches member.*)", schema: { type: string } }
       - { name: before, in: query, description: Entries older than this id (paging), schema: { type: integer } }
       - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+      - { name: from, in: query, description: "From this day (2026-10-01) or instant", schema: { type: string } }
+      - { name: to, in: query, description: "Up to and including this day, or before this instant", schema: { type: string } }
     get:
       tags: [Teams]
       summary: Audit log, newest first (admin)
       responses:
         "200": { description: Entries, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/AuditEntry" } } } } }
+  /v1/orgs/{orgId}/audit/export:
+    parameters:
+      - $ref: "#/components/parameters/OrgPath"
+      - { name: action, in: query, schema: { type: string } }
+      - { name: from, in: query, schema: { type: string } }
+      - { name: to, in: query, schema: { type: string } }
+    get:
+      tags: [Teams]
+      summary: Audit log as CSV (admin; newest first, up to 10000 entries; the export itself is audited)
+      responses:
+        "200": { description: CSV file, content: { text/csv: { schema: { type: string } } } }
+  /v1/orgs/{orgId}/usage:
+    parameters:
+      - $ref: "#/components/parameters/OrgPath"
+    get:
+      tags: [Teams]
+      summary: What the organization uses against its limits (any member)
+      description: Limits are set per deployment (ORG_MAX_MEMBERS counts open invitations too, ORG_MAX_API_KEYS counts active keys; webhooks are limited to 20).
+      responses:
+        "200":
+          description: Usage
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  members: { type: integer }
+                  pendingInvitations: { type: integer }
+                  flows: { type: integer }
+                  activeApiKeys: { type: integer }
+                  webhooks: { type: integer }
+                  runs30d: { type: integer, description: Remote runs of organization flows in the last 30 days }
+                  maxMembers: { type: integer }
+                  maxApiKeys: { type: integer }
+                  maxWebhooks: { type: integer }
+  /v1/orgs/{orgId}/api-keys/{id}/rotate:
+    parameters:
+      - $ref: "#/components/parameters/OrgPath"
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Teams]
+      summary: Replace a key's secret (same name, scopes and limits); the old secret stops working at once (admin)
+      responses:
+        "200": { description: The key with its new secret (shown once), content: { application/json: { schema: { $ref: "#/components/schemas/ApiKey" } } } }
+        "400": { description: The key has expired }
   /v1/flows/{id}/analytics:
     parameters:
       - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
@@ -1171,7 +1219,10 @@ components:
         createdAt: { type: string, format: date-time }
         lastUsedAt: { type: string, format: date-time, nullable: true }
         revokedAt: { type: string, format: date-time, nullable: true }
-        secret: { type: string, description: Only when created }
+        secret: { type: string, description: Only when created or rotated }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        expired: { type: boolean }
+        rotatedAt: { type: string, format: date-time, nullable: true }
     WebhookRequest:
       type: object
       properties:

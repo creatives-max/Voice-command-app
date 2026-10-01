@@ -227,6 +227,7 @@ object Bootstrap {
         val marketplaceRepository = JdbcMarketplaceRepository(database)
         kotlinx.coroutines.runBlocking { StarterTemplates.seed(marketplaceRepository) }
         val flowService = FlowService(flowRepository, publisher, orgs = orgRepository, audit = audit)
+        val tenantLimits = com.voicecontrol.application.org.TenantLimits(maxMembers = config.orgMaxMembers, maxApiKeys = config.orgMaxApiKeys)
         return Services(
             config = config,
             ai = AiService(LlmProviderFactory.create(config.llm, http), timeoutMillis = config.llm.timeoutMillis),
@@ -249,8 +250,9 @@ object Bootstrap {
             orgs = OrgService(
                 orgRepository, JdbcUserRepository(database), access, audit,
                 membershipChanged = { userId -> cache.deleteByPrefix(FlowCacheInvalidator.userCachePattern(userId.toString())) },
+                limits = tenantLimits,
             ),
-            apiKeys = ApiKeyService(JdbcApiKeyRepository(database), access, audit),
+            apiKeys = ApiKeyService(JdbcApiKeyRepository(database), access, audit, limits = tenantLimits),
             webhooks = WebhookService(webhookRepository, access, audit, urlPolicy),
             webhookWorker = WebhookWorker(webhookRepository, webhookSender, urlPolicy),
             audit = audit,

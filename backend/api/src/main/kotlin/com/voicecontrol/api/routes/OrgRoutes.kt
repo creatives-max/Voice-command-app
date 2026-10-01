@@ -29,6 +29,14 @@ import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import kotlinx.serialization.Serializable
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.withCharset
+import io.ktor.server.response.header
+import io.ktor.server.response.respondText
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Serializable data class CreateOrgRequest(val name: String)
@@ -60,7 +68,7 @@ import java.util.UUID
 }
 @Serializable data class InvitationPreviewDto(val orgName: String, val email: String, val role: Role, val expiresAt: String)
 
-@Serializable data class CreateApiKeyRequest(val name: String, val scopes: List<String>, val rateLimitPerMinute: Int = 60)
+@Serializable data class CreateApiKeyRequest(val name: String, val scopes: List<String>, val rateLimitPerMinute: Int = 60, val expiresInDays: Int? = null)
 @Serializable data class ApiKeyDto(
     val id: String,
     val name: String,
@@ -70,16 +78,31 @@ import java.util.UUID
     val createdAt: String,
     val lastUsedAt: String? = null,
     val revokedAt: String? = null,
-    /** Only returned when the key is created; never stored. */
+    /** Only returned when the key is created or rotated; never stored. */
     val secret: String? = null,
+    val expiresAt: String? = null,
+    val expired: Boolean = false,
+    val rotatedAt: String? = null,
 ) {
     companion object {
         fun from(k: ApiKey, secret: String? = null) = ApiKeyDto(
             k.id.toString(), k.name, k.prefix, k.scopes.map { it.id }.sorted(), k.rateLimitPerMinute, k.createdAt.toString(),
-            k.lastUsedAt?.toString(), k.revokedAt?.toString(), secret,
+            k.lastUsedAt?.toString(), k.revokedAt?.toString(), secret, k.expiresAt?.toString(), k.isExpired(java.time.Instant.now()), k.rotatedAt?.toString(),
         )
     }
 }
+
+@Serializable data class OrgUsageDto(
+    val members: Int,
+    val pendingInvitations: Int,
+    val flows: Int,
+    val activeApiKeys: Int,
+    val webhooks: Int,
+    val runs30d: Int,
+    val maxMembers: Int,
+    val maxApiKeys: Int,
+    val maxWebhooks: Int,
+)
 
 @Serializable data class WebhookRequest(val url: String? = null, val events: List<String>? = null, val active: Boolean? = null)
 @Serializable data class WebhookDto(
@@ -135,6 +158,14 @@ import java.util.UUID
     }
 }
 
+/** "2026-10-01" (start of that day, or its end with [endOfDay]) or a full ISO instant. */
+private fun instantParam(value: String?, name: String, endOfDay: Boolean = false): Instant? {
+    val v = value?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    return runCatching { Instant.parse(v) }.getOrNull()
+        ?: runCatching { LocalDate.parse(v).let { if (endOfDay) it.plusDays(1) else it }.atStartOfDay(ZoneOffset.UTC).toInstant() }.getOrNull()
+        ?: throw DomainException.Validation("$name must be a date like 2026-10-01")
+}
+
 private fun ApplicationCall.uuid(name: String): UUID =
     runCatching { UUID.fromString(parameters[name]) }.getOrElse { throw DomainException.NotFound("Not found") }
 
@@ -186,8 +217,12 @@ fun Route.orgRoutes(orgs: OrgService, keys: ApiKeyService, webhooks: WebhookServ
                     post {
                         val body = call.receive<CreateApiKeyRequest>()
                         val scopes = body.scopes.map { ApiScope.of(it) ?: throw DomainException.Validation("Unknown scope '$it'") }.toSet()
-                        val (key, secret) = keys.create(call.userId, call.uuid("orgId"), body.name, scopes, body.rateLimitPerMinute)
+                        val (key, secret) = keys.create(call.userId, call.uuid("orgId"), body.name, scopes, body.rateLimitPerMinute, body.expiresInDays)
                         call.respond(HttpStatusCode.Created, ApiKeyDto.from(key, secret))
+                    }
+                    post("/{id}/rotate") {
+                        val (key, secret) = keys.rotate(call.userId, call.uuid("orgId"), call.uuid("id"))
+                        call.respond(ApiKeyDto.from(key, secret))
                     }
                     delete("/{id}") {
                         keys.revoke(call.userId, call.uuid("orgId"), call.uuid("id"))
@@ -231,8 +266,23 @@ fun Route.orgRoutes(orgs: OrgService, keys: ApiKeyService, webhooks: WebhookServ
 
                 get("/audit") {
                     val q = call.request.queryParameters
-                    val entries = audit.list(call.userId, call.uuid("orgId"), q["action"], q["before"]?.toLongOrNull(), q["limit"]?.toIntOrNull() ?: 50)
+                    val entries = audit.list(
+                        call.userId, call.uuid("orgId"), q["action"], q["before"]?.toLongOrNull(), q["limit"]?.toIntOrNull() ?: 50,
+                        instantParam(q["from"], "from"), instantParam(q["to"], "to", endOfDay = true),
+                    )
                     call.respond(entries.map(AuditEntryDto::from))
+                }
+                get("/audit/export") {
+                    val q = call.request.queryParameters
+                    val csv = audit.exportCsv(call.userId, call.uuid("orgId"), q["action"], instantParam(q["from"], "from"), instantParam(q["to"], "to", endOfDay = true))
+                    call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"audit-log.csv\"")
+                    call.respondText(csv, ContentType.Text.CSV.withCharset(Charsets.UTF_8))
+                }
+                get("/usage") {
+                    val (u, limits) = orgs.usage(call.userId, call.uuid("orgId"))
+                    call.respond(
+                        OrgUsageDto(u.members, u.pendingInvitations, u.flows, u.activeApiKeys, u.webhooks, u.runs30d, limits.maxMembers, limits.maxApiKeys, limits.maxWebhooks),
+                    )
                 }
             }
         }

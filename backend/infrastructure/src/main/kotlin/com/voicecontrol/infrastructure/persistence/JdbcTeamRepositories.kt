@@ -12,6 +12,7 @@ import com.voicecontrol.domain.org.DueDelivery
 import com.voicecontrol.domain.org.Invitation
 import com.voicecontrol.domain.org.Member
 import com.voicecontrol.domain.org.OrgRepository
+import com.voicecontrol.domain.org.OrgUsage
 import com.voicecontrol.domain.org.OrgWithRole
 import com.voicecontrol.domain.org.Organization
 import com.voicecontrol.domain.org.Role
@@ -31,6 +32,21 @@ private fun ResultSet.textList(column: String): List<String> = (getArray(column)
 private fun ResultSet.instantOrNull(column: String): Instant? = getTimestamp(column)?.toInstant()
 
 class JdbcOrgRepository(private val db: Database) : OrgRepository {
+
+    override suspend fun usage(orgId: UUID): OrgUsage = db.tx {
+        query(
+            """
+            SELECT (SELECT count(*) FROM memberships WHERE org_id = ?) AS members,
+                   (SELECT count(*) FROM invitations WHERE org_id = ? AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > now()) AS pending,
+                   (SELECT count(*) FROM flows WHERE org_id = ? AND deleted_at IS NULL) AS flows,
+                   (SELECT count(*) FROM api_keys WHERE org_id = ? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())) AS keys,
+                   (SELECT count(*) FROM webhooks WHERE org_id = ?) AS webhooks,
+                   (SELECT count(*) FROM run_requests r JOIN flows f ON f.id = r.flow_id
+                     WHERE f.org_id = ? AND r.created_at > now() - interval '30 days') AS runs
+            """.trimIndent(),
+            orgId, orgId, orgId, orgId, orgId, orgId,
+        ) { OrgUsage(it.getInt("members"), it.getInt("pending"), it.getInt("flows"), it.getInt("keys"), it.getInt("webhooks"), it.getInt("runs")) }.first()
+    }
 
     override suspend fun create(org: Organization, adminUserId: UUID): Organization = db.tx {
         update("INSERT INTO organizations (id, name, created_by, created_at) VALUES (?, ?, ?, ?)", org.id, org.name, org.createdBy, org.createdAt)
@@ -153,14 +169,15 @@ class JdbcAuditRepository(private val db: Database) : AuditRepository {
         }
     }
 
-    override suspend fun list(orgId: UUID, action: String?, beforeId: Long?, limit: Int): List<AuditEntry> = db.tx {
+    override suspend fun list(orgId: UUID, action: String?, beforeId: Long?, limit: Int, from: Instant?, to: Instant?): List<AuditEntry> = db.tx {
         query(
             """
             SELECT a.*, u.email FROM audit_logs a LEFT JOIN users u ON u.id = a.actor_user_id
             WHERE a.org_id = ? AND (?::text IS NULL OR a.action = ? OR a.action LIKE ? || '.%') AND (?::bigint IS NULL OR a.id < ?)
+              AND (?::timestamptz IS NULL OR a.at >= ?) AND (?::timestamptz IS NULL OR a.at < ?)
             ORDER BY a.id DESC LIMIT ?
             """.trimIndent(),
-            orgId, action, action, action, beforeId, beforeId, limit,
+            orgId, action, action, action, beforeId, beforeId, from, from, to, to, limit,
         ) {
             AuditEntry(
                 id = it.getLong("id"),
@@ -183,10 +200,11 @@ class JdbcApiKeyRepository(private val db: Database) : ApiKeyRepository {
     override suspend fun create(key: ApiKey, secretHash: String): ApiKey = db.tx {
         update(
             """
-            INSERT INTO api_keys (id, org_id, name, prefix, key_hash, scopes, rate_limit_per_minute, created_by, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO api_keys (id, org_id, name, prefix, key_hash, scopes, rate_limit_per_minute, created_by, created_at, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent(),
             key.id, key.orgId, key.name, key.prefix, secretHash, textArray(key.scopes.map { it.id }), key.rateLimitPerMinute, key.createdBy, key.createdAt,
+            key.expiresAt,
         )
         key
     }
@@ -207,6 +225,13 @@ class JdbcApiKeyRepository(private val db: Database) : ApiKeyRepository {
         db.tx { update("UPDATE api_keys SET last_used_at = ? WHERE id = ?", at, id) }
     }
 
+    override suspend fun rotate(orgId: UUID, id: UUID, prefix: String, secretHash: String, at: Instant): ApiKey? = db.tx {
+        query(
+            "UPDATE api_keys SET prefix = ?, key_hash = ?, rotated_at = ? WHERE org_id = ? AND id = ? AND revoked_at IS NULL RETURNING *",
+            prefix, secretHash, at, orgId, id, map = ::toKey,
+        ).firstOrNull()
+    }
+
     private fun toKey(rs: ResultSet) = ApiKey(
         id = rs.uuid("id"),
         orgId = rs.uuid("org_id"),
@@ -218,6 +243,8 @@ class JdbcApiKeyRepository(private val db: Database) : ApiKeyRepository {
         createdAt = rs.instant("created_at"),
         lastUsedAt = rs.instantOrNull("last_used_at"),
         revokedAt = rs.instantOrNull("revoked_at"),
+        expiresAt = rs.instantOrNull("expires_at"),
+        rotatedAt = rs.instantOrNull("rotated_at"),
     )
 }
 

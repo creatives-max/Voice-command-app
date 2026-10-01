@@ -193,8 +193,12 @@ phase notes say which earlier phase covered the rest.
 - [x] Dashboard Report dialog and "hidden after reports" notice; OpenAPI
 - [x] Tests, commit + push
 
-## Phase 26 — Teams & multi-tenant backend (gaps; Phase 14)
-- [ ] Gap-fill, tests, commit + push
+## Phase 26 — Teams & multi-tenant backend (gaps; organizations, roles, invitations, scoped API keys, webhooks, audit log and Kafka events were done in Phase 14)
+- [x] API key expiry (1–365 days; expired keys rejected) and rotation (new secret, old one stops at once; migration V12)
+- [x] Audit log date range filter and CSV export (formula-safe, capped at 10 000 rows, the export itself is audited)
+- [x] Organization usage (members, invitations, keys, webhooks, flows) and per-tenant limits for seats and API keys
+- [x] Dashboard: key expiry picker, expiry badges and Rotate; audit From/To and Download CSV; usage card; OpenAPI
+- [x] Tests, commit + push
 
 ## Phase 27 — Analytics & visual builder (gaps; Phase 15)
 - [ ] Gap-fill, tests, commit + push

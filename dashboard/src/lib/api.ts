@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getCareLinkId } from "./care";
 import { getOrgId } from "./org";
 import {
+  orgUsageSchema,
   careEventSchema,
   careInviteSchema,
   careLinkSchema,
@@ -194,8 +195,10 @@ export function createApi(
     acceptInvitation: (token: string) => request(orgSchema, `/invitations/${encodeURIComponent(token)}/accept`, { method: "POST", body: json({}) }),
 
     apiKeys: (orgId: string) => request(apiKeySchema.array(), `/orgs/${orgId}/api-keys`),
-    createApiKey: (orgId: string, input: { name: string; scopes: string[]; rateLimitPerMinute: number }) =>
+    createApiKey: (orgId: string, input: { name: string; scopes: string[]; rateLimitPerMinute: number; expiresInDays?: number }) =>
       request(apiKeySchema, `/orgs/${orgId}/api-keys`, { method: "POST", body: json(input) }),
+    rotateApiKey: (orgId: string, id: string) => request(apiKeySchema, `/orgs/${orgId}/api-keys/${id}/rotate`, { method: "POST", body: json({}) }),
+    orgUsage: (orgId: string) => request(orgUsageSchema, `/orgs/${orgId}/usage`),
     revokeApiKey: (orgId: string, id: string) => request(null, `/orgs/${orgId}/api-keys/${id}`, { method: "DELETE" }),
 
     webhooks: (orgId: string) => request(webhookSchema.array(), `/orgs/${orgId}/webhooks`),
@@ -210,11 +213,23 @@ export function createApi(
     redeliver: (orgId: string, deliveryId: string) =>
       request(deliverySchema, `/orgs/${orgId}/webhooks/deliveries/${deliveryId}/redeliver`, { method: "POST", body: json({}) }),
 
-    audit: (orgId: string, params: { action?: string; before?: number }) => {
+    audit: (orgId: string, params: { action?: string; before?: number; from?: string; to?: string }) => {
       const qs = new URLSearchParams({ limit: "50" });
       if (params.action) qs.set("action", params.action);
       if (params.before) qs.set("before", String(params.before));
+      if (params.from) qs.set("from", params.from);
+      if (params.to) qs.set("to", params.to);
       return request(auditEntrySchema.array(), `/orgs/${orgId}/audit?${qs.toString()}`);
+    },
+    /** The audit log as CSV text (same filters as [audit]). */
+    auditCsv: async (orgId: string, params: { action?: string; from?: string; to?: string }) => {
+      const qs = new URLSearchParams();
+      if (params.action) qs.set("action", params.action);
+      if (params.from) qs.set("from", params.from);
+      if (params.to) qs.set("to", params.to);
+      const res = await fetcher(`/api/orgs/${orgId}/audit/export?${qs.toString()}`, { credentials: "same-origin" });
+      if (!res.ok) throw new ApiError(res.status, "export_failed", "Could not export the audit log");
+      return res.text();
     },
 
     analyticsOverview: (days: number, tz: string) =>

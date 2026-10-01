@@ -290,8 +290,24 @@ export const apiKeySchema = z.object({
   lastUsedAt: z.string().nullish(),
   revokedAt: z.string().nullish(),
   secret: z.string().nullish(),
+  expiresAt: z.string().nullish(),
+  expired: z.boolean().default(false),
+  rotatedAt: z.string().nullish(),
 });
 export type ApiKey = z.infer<typeof apiKeySchema>;
+
+export const orgUsageSchema = z.object({
+  members: z.number(),
+  pendingInvitations: z.number(),
+  flows: z.number(),
+  activeApiKeys: z.number(),
+  webhooks: z.number(),
+  runs30d: z.number(),
+  maxMembers: z.number(),
+  maxApiKeys: z.number(),
+  maxWebhooks: z.number(),
+});
+export type OrgUsage = z.infer<typeof orgUsageSchema>;
 
 export const webhookEvents = ["flow.version_saved", "flow.deleted", "run.finished"] as const;
 export const WEBHOOK_EVENT_LABELS: Record<(typeof webhookEvents)[number], string> = {

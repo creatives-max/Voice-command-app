@@ -104,10 +104,14 @@ images.
   phones match the organization's flows too.
 - **API keys** (`X-Api-Key: vck_…`): scoped (`flows:read`, `flows:write`, `runs:write`), limited to their
   organization, rate limited per key, revocable. A key acts as its creator and stops working if they leave.
+  Keys can expire (30/90/180/365 days) and be *rotated*: a new secret is issued and the old one stops at once.
 - **Webhooks**: `flow.version_saved`, `flow.deleted`, `run.finished` POSTed as JSON, signed with
   `X-VoiceControl-Signature: t=<unix>,v1=<HMAC-SHA256(secret, "t.body")>`, retried with backoff; the dashboard shows
   each delivery and can redeliver. Details in the OpenAPI docs at `/docs`.
-- **Audit log** of member, flow, key and webhook changes for admins.
+- **Audit log** of member, flow, key and webhook changes for admins, filterable by date range and downloadable as
+  CSV (`GET /v1/orgs/{id}/audit/export`, up to 10 000 rows; cells are quoted so spreadsheets never run formulas).
+- **Usage and limits**: the Organization page shows members, pending invitations, API keys, webhooks and flows
+  against the per-tenant limits (`ORG_MAX_MEMBERS`, default 200; `ORG_MAX_API_KEYS`, default 25).
 
 ## Analytics, visual builder and collaboration
 

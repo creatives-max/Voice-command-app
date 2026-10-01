@@ -191,9 +191,11 @@ export const orgKeys = {
   apiKeys: (orgId: string) => ["orgs", orgId, "api-keys"] as const,
   webhooks: (orgId: string) => ["orgs", orgId, "webhooks"] as const,
   deliveries: (orgId: string, webhookId: string) => ["orgs", orgId, "webhooks", webhookId, "deliveries"] as const,
-  audit: (orgId: string, action: string) => ["orgs", orgId, "audit", action] as const,
+  audit: (orgId: string, action: string, from = "", to = "") => ["orgs", orgId, "audit", action, from, to] as const,
+  usage: (orgId: string) => ["orgs", orgId, "usage"] as const,
 };
 
+export const orgUsageQuery = (orgId: string) => queryOptions({ queryKey: orgKeys.usage(orgId), queryFn: () => api.orgUsage(orgId) });
 export const orgsQuery = queryOptions({ queryKey: orgKeys.orgs, queryFn: api.orgs, staleTime: 30_000 });
 export const membersQuery = (orgId: string) => queryOptions({ queryKey: orgKeys.members(orgId), queryFn: () => api.members(orgId) });
 export const invitationsQuery = (orgId: string) => queryOptions({ queryKey: orgKeys.invitations(orgId), queryFn: () => api.invitations(orgId) });

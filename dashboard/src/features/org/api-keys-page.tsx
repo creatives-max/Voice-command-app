@@ -1,16 +1,18 @@
 import { useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Copy, KeyRound } from "lucide-react";
+import { Copy, KeyRound, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { apiKeysQuery, useOrgMutation } from "@/lib/queries";
 import { SCOPE_LABELS, apiScopes, type Org } from "@/lib/types";
+import { KEY_EXPIRY_OPTIONS, keyExpiry } from "./audit";
 import { NeedsOrg, OrgHeader, copyText } from "./org-nav";
 import { useCurrentOrg } from "./use-org";
 
@@ -32,15 +34,19 @@ function ApiKeys({ org }: { org: Org }) {
   const [name, setName] = useState("");
   const [scopes, setScopes] = useState<string[]>(["flows:read"]);
   const [rate, setRate] = useState(60);
-  const [secret, setSecret] = useState<string | null>(null);
-  const create = useOrgMutation(org.id, () => api.createApiKey(org.id, { name, scopes, rateLimitPerMinute: rate }));
+  const [expiry, setExpiry] = useState("");
+  const [secret, setSecret] = useState<{ name: string; value: string } | null>(null);
+  const create = useOrgMutation(org.id, () =>
+    api.createApiKey(org.id, { name, scopes, rateLimitPerMinute: rate, expiresInDays: expiry ? Number(expiry) : undefined }),
+  );
   const revoke = useOrgMutation(org.id, (id: string) => api.revokeApiKey(org.id, id));
+  const rotate = useOrgMutation(org.id, (id: string) => api.rotateApiKey(org.id, id));
 
   function submit(e: FormEvent) {
     e.preventDefault();
     create.mutate(undefined, {
       onSuccess: (key) => {
-        setSecret(key.secret ?? null);
+        setSecret(key.secret ? { name: key.name, value: key.secret } : null);
         setName("");
       },
       onError: (err) => toast.error(err.message),
@@ -59,7 +65,7 @@ function ApiKeys({ org }: { org: Org }) {
         </CardHeader>
         <CardContent>
           <form className="grid gap-4" onSubmit={submit}>
-            <div className="grid gap-2 sm:grid-cols-[1fr_10rem]">
+            <div className="grid gap-2 sm:grid-cols-[1fr_10rem_10rem]">
               <div className="grid gap-2">
                 <Label htmlFor="key-name">Name</Label>
                 <Input id="key-name" required maxLength={60} placeholder="CRM sync" value={name} onChange={(e) => setName(e.target.value)} />
@@ -67,6 +73,16 @@ function ApiKeys({ org }: { org: Org }) {
               <div className="grid gap-2">
                 <Label htmlFor="key-rate">Requests / minute</Label>
                 <Input id="key-rate" type="number" min={1} max={10000} value={rate} onChange={(e) => setRate(Number(e.target.value))} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="key-expiry">Expires</Label>
+                <NativeSelect id="key-expiry" value={expiry} onChange={(e) => setExpiry(e.target.value)}>
+                  {KEY_EXPIRY_OPTIONS.map((o) => (
+                    <option key={o.label} value={o.days ?? ""}>
+                      {o.label}
+                    </option>
+                  ))}
+                </NativeSelect>
               </div>
             </div>
             <fieldset className="grid gap-2">
@@ -88,12 +104,12 @@ function ApiKeys({ org }: { org: Org }) {
           </form>
           {secret && (
             <div className="mt-4 grid gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
-              <span className="font-medium">Copy this key now — it won&apos;t be shown again.</span>
+              <span className="font-medium">Copy the key for “{secret.name}” now — it won&apos;t be shown again.</span>
               <div className="flex items-center gap-2">
                 <code className="min-w-0 flex-1 truncate" data-testid="api-key-secret">
-                  {secret}
+                  {secret.value}
                 </code>
-                <Button size="sm" variant="outline" onClick={() => void copyText(secret).then((ok) => ok && toast.success("Copied"))}>
+                <Button size="sm" variant="outline" onClick={() => void copyText(secret.value).then((ok) => ok && toast.success("Copied"))}>
                   <Copy /> Copy
                 </Button>
               </div>
@@ -122,14 +138,37 @@ function ApiKeys({ org }: { org: Org }) {
                   ))}
                   <span className="text-xs text-muted-foreground">
                     {k.rateLimitPerMinute}/min · {k.lastUsedAt ? `used ${new Date(k.lastUsedAt).toLocaleString()}` : "never used"}
+                    {k.rotatedAt && ` · rotated ${new Date(k.rotatedAt).toLocaleDateString()}`}
                   </span>
-                  <span className="ml-auto">
+                  {!k.revokedAt && keyExpiry(k) && <Badge variant={k.expired ? "destructive" : "outline"}>{keyExpiry(k)}</Badge>}
+                  <span className="ml-auto flex gap-1">
                     {k.revokedAt ? (
                       <Badge variant="secondary">revoked</Badge>
                     ) : (
-                      <Button variant="ghost" size="sm" onClick={() => revoke.mutate(k.id, { onSuccess: () => toast.success("Key revoked") })}>
-                        Revoke
-                      </Button>
+                      <>
+                        {!k.expired && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Rotate ${k.name}`}
+                            disabled={rotate.isPending}
+                            onClick={() =>
+                              rotate.mutate(k.id, {
+                                onSuccess: (key) => {
+                                  setSecret(key.secret ? { name: key.name, value: key.secret } : null);
+                                  toast.success("New secret created; the old one stopped working");
+                                },
+                                onError: (e) => toast.error(e.message),
+                              })
+                            }
+                          >
+                            <RefreshCw /> Rotate
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="sm" onClick={() => revoke.mutate(k.id, { onSuccess: () => toast.success("Key revoked") })}>
+                          Revoke
+                        </Button>
+                      </>
                     )}
                   </span>
                 </li>

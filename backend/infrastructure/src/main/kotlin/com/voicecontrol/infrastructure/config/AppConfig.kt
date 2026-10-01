@@ -23,6 +23,9 @@ data class AppConfig(
     /** Development only: allow http:// webhook URLs and private/loopback addresses. */
     val webhookAllowHttp: Boolean = false,
     val webhookAllowPrivate: Boolean = false,
+    /** Per-organization limits (members incl. open invitations, active API keys). */
+    val orgMaxMembers: Int = 200,
+    val orgMaxApiKeys: Int = 25,
 ) {
     data class DatabaseConfig(val url: String, val user: String, val password: String, val maxPoolSize: Int)
     data class JwtConfig(val secret: String, val issuer: String, val audience: String, val accessTtlSeconds: Long, val refreshTtlSeconds: Long)
@@ -77,6 +80,8 @@ data class AppConfig(
                 webhookIntervalSeconds = get("WEBHOOK_INTERVAL_SECONDS", "5").toInt(),
                 webhookAllowHttp = get("WEBHOOK_ALLOW_HTTP", "false").toBoolean(),
                 webhookAllowPrivate = get("WEBHOOK_ALLOW_PRIVATE", "false").toBoolean(),
+                orgMaxMembers = get("ORG_MAX_MEMBERS", "200").toInt(),
+                orgMaxApiKeys = get("ORG_MAX_API_KEYS", "25").toInt(),
             )
         }
     }

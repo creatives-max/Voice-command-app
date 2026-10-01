@@ -27,3 +27,15 @@ describe("audit descriptions", () => {
     expect(auditActor(entry("flow.updated", {}, { actorEmail: null }))).toBe("Removed user");
   });
 });
+
+describe("api key expiry and usage lines", () => {
+  it("describes expiry and flags usage near the limit", async () => {
+    const { keyExpiry, usageLine } = await import("./audit");
+    expect(keyExpiry({ expiresAt: null })).toBeNull();
+    expect(keyExpiry({ expiresAt: "2020-01-01T00:00:00Z" }, new Date("2026-10-01"))).toBe("expired");
+    expect(keyExpiry({ expiresAt: "2030-01-01T00:00:00Z", expired: true })).toBe("expired");
+    expect(keyExpiry({ expiresAt: "2030-01-01T00:00:00Z" }, new Date("2026-10-01"))).toMatch(/^expires /);
+    expect(usageLine(3, 25)).toEqual({ text: "3 / 25", nearLimit: false });
+    expect(usageLine(23, 25).nearLimit).toBe(true);
+  });
+});

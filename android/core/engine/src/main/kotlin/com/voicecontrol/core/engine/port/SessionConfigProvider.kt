@@ -24,6 +24,8 @@ data class SessionConfig(
     val confirmLowConfidence: Boolean = true,
     /** Ask before pressing buttons that can't be undone (pay, delete, sign out…). */
     val confirmDestructive: Boolean = true,
+    /** Recognize speech on the phone when the language pack is installed (works without internet). */
+    val preferOffline: Boolean = false,
 )
 
 fun interface SessionConfigProvider {

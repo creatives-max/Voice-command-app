@@ -45,6 +45,7 @@ class SettingsRepository @Inject constructor(
         val templates = stringPreferencesKey("starter_templates")
         val useTemplates = booleanPreferencesKey("use_templates")
         val bargeIn = booleanPreferencesKey("barge_in")
+        val offlineSpeech = booleanPreferencesKey("offline_speech")
         val confirmLowConfidence = booleanPreferencesKey("confirm_low_confidence")
         val wakeWordEnabled = booleanPreferencesKey("wake_word_enabled")
         val wakeWord = stringPreferencesKey("wake_word")
@@ -132,6 +133,7 @@ class SettingsRepository @Inject constructor(
             p[Keys.deviceName] = next.deviceName.trim().take(60)
             p[Keys.useTemplates] = next.useTemplates
             p[Keys.bargeIn] = next.bargeIn
+            p[Keys.offlineSpeech] = next.offlineSpeech
             p[Keys.confirmLowConfidence] = next.confirmLowConfidence
             p[Keys.wakeWordEnabled] = next.wakeWordEnabled
             p[Keys.wakeWord] = next.wakeWord.trim().take(60)
@@ -163,6 +165,7 @@ class SettingsRepository @Inject constructor(
             deviceName = p[Keys.deviceName] ?: d.deviceName,
             useTemplates = p[Keys.useTemplates] ?: d.useTemplates,
             bargeIn = p[Keys.bargeIn] ?: d.bargeIn,
+            offlineSpeech = p[Keys.offlineSpeech] ?: d.offlineSpeech,
             confirmLowConfidence = p[Keys.confirmLowConfidence] ?: d.confirmLowConfidence,
             wakeWordEnabled = p[Keys.wakeWordEnabled] ?: d.wakeWordEnabled,
             wakeWord = p[Keys.wakeWord]?.takeIf { it.isNotBlank() } ?: d.wakeWord,

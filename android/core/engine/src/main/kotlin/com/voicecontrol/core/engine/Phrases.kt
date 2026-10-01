@@ -572,6 +572,17 @@ class Phrases(private val language: Language) {
         "બરાબર, $label દબાવ્યું નહીં.",
     )
 
+    fun offlinePackMissing(language: String) = t(
+        "Speech for $language isn't downloaded for offline use. Connect to the internet, or download it in Settings, Offline languages.",
+        "$language की आवाज़ ऑफ़लाइन के लिए डाउनलोड नहीं है। इंटरनेट चालू करें, या सेटिंग्स में ऑफ़लाइन भाषाएँ से डाउनलोड करें।",
+        "$language ki awaaz offline ke liye download nahi hai. Internet chalu karein, ya Settings mein Offline languages se download karein.",
+        "$language साठी ऑफलाइन आवाज डाउनलोड केलेली नाही. इंटरनेट चालू करा, किंवा सेटिंग्जमधील ऑफलाइन भाषा मधून डाउनलोड करा.",
+        "$language ஆஃப்லைன் குரல் பதிவிறக்கப்படவில்லை. இணையத்தை இயக்குங்கள், அல்லது அமைப்புகளில் ஆஃப்லைன் மொழிகளில் பதிவிறக்குங்கள்.",
+        "$language ఆఫ్‌లైన్ వాయిస్ డౌన్‌లోడ్ కాలేదు. ఇంటర్నెట్ ఆన్ చేయండి, లేదా సెట్టింగ్స్‌లో ఆఫ్‌లైన్ భాషలు నుండి డౌన్‌లోడ్ చేయండి.",
+        "$language অফলাইন ভয়েস ডাউনলোড করা নেই। ইন্টারনেট চালু করুন, বা সেটিংসে অফলাইন ভাষা থেকে ডাউনলোড করুন।",
+        "$language ઑફલાઇન અવાજ ડાઉનલોડ નથી. ઇન્ટરનેટ ચાલુ કરો, અથવા સેટિંગ્સમાં ઑફલાઇન ભાષાઓમાંથી ડાઉનલોડ કરો.",
+    )
+
     fun startingShortcut(flowName: String) = t(
         "Starting $flowName.",
         "$flowName शुरू कर रहा हूँ।",

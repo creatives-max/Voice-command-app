@@ -37,7 +37,15 @@ data class ListenRequest(
 sealed interface ListenResult {
     data class Heard(val text: String, val alternatives: List<String> = emptyList(), val confidence: Float? = null) : ListenResult
     data object NoMatch : ListenResult
-    data class Error(val message: String, val recoverable: Boolean) : ListenResult
+    data class Error(val message: String, val recoverable: Boolean, val cause: ErrorCause = ErrorCause.OTHER) : ListenResult
+
+    enum class ErrorCause {
+        OTHER,
+        /** The recognition service needs the internet and can't reach it. */
+        NETWORK,
+        /** The language isn't available (for example its offline pack isn't downloaded). */
+        LANGUAGE_UNAVAILABLE,
+    }
 }
 
 /** Text-to-speech port. */
@@ -46,4 +54,20 @@ interface TextToSpeech {
     suspend fun speak(text: String, languageTag: String, rate: Float = 1f): Boolean
 
     fun stop()
+}
+
+/** How a language pack download was started. */
+enum class PackDownload {
+    /** The download runs in the background. */
+    STARTED,
+    /** The system settings screen for it was opened (older Android versions). */
+    OPENED_SETTINGS,
+    UNSUPPORTED,
+}
+
+/** Offline speech and voice packs of the phone. */
+interface LanguagePacks {
+    suspend fun status(): List<com.voicecontrol.core.engine.LanguagePack>
+    suspend fun downloadSpeech(language: com.voicecontrol.core.model.Language): PackDownload
+    fun installVoice(language: com.voicecontrol.core.model.Language): PackDownload
 }

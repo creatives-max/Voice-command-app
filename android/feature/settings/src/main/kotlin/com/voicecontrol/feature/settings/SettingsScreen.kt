@@ -32,6 +32,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material3.Button
@@ -64,7 +65,13 @@ import com.voicecontrol.core.ui.components.LoadingBox
 import com.voicecontrol.core.ui.mvi.CollectEffects
 
 @Composable
-fun SettingsRoute(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenCare: () -> Unit = {}, viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsRoute(
+    onBack: () -> Unit,
+    onOpenPrivacy: () -> Unit,
+    onOpenCare: () -> Unit = {},
+    onOpenOfflineLanguages: () -> Unit = {},
+    viewModel: SettingsViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     CollectEffects(viewModel.effects) { effect ->
@@ -76,7 +83,7 @@ fun SettingsRoute(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenCare: () 
             }
         }
     }
-    SettingsScreen(state, snackbar, onBack, onOpenPrivacy, viewModel::dispatch, onOpenCare)
+    SettingsScreen(state, snackbar, onBack, onOpenPrivacy, viewModel::dispatch, onOpenCare, onOpenOfflineLanguages)
 }
 
 private val toggles = listOf(
@@ -87,6 +94,7 @@ private val toggles = listOf(
     Triple(Option.TRANSLITERATE, "Type Hindi names in English letters", "राहुल → Rahul for name, email and address fields."),
     Triple(Option.AUTO_START, "Start automatically on saved screens", "Begin asking when an app with a saved flow opens."),
     Triple(Option.CONFIRM_DESTRUCTIVE, "Confirm risky buttons", "Ask before pressing Pay, Delete, Sign out and other buttons that can't be undone."),
+    Triple(Option.OFFLINE_SPEECH, "Speech on the phone", "Understand speech with downloaded language packs, even without internet. See Offline languages."),
     Triple(Option.BARGE_IN, "Interrupt by speaking", "Start answering while VoiceControl is still talking; it stops and listens."),
     Triple(Option.CONFIRM_LOW_CONFIDENCE, "Check unclear answers", "Ask \"Did you say …?\" when speech recognition is unsure."),
     Triple(Option.WAKE_WORD, "Wake phrase", "Start a session by saying your wake phrase while VoiceControl is on. Uses the microphone in the background."),
@@ -107,6 +115,7 @@ fun SettingsScreen(
     onOpenPrivacy: () -> Unit,
     onIntent: (SettingsIntent) -> Unit,
     onOpenCare: () -> Unit = {},
+    onOpenOfflineLanguages: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -199,6 +208,11 @@ fun SettingsScreen(
             HorizontalDivider()
             SecurityAndData(state, onIntent, snackbar)
             HorizontalDivider()
+            OutlinedButton(onClick = onOpenOfflineLanguages, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Filled.CloudOff, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Offline languages")
+            }
             OutlinedButton(onClick = onOpenCare, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Filled.VolunteerActivism, null)
                 Spacer(Modifier.width(8.dp))

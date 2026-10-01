@@ -221,6 +221,10 @@ class AssistantEngine(
         var currentSignature: String = ""
         /** Flow chosen by a voice shortcut, run next ([ScreenOutcome.SWITCHED]). */
         var switchTo: FlowDefinition? = null
+        /** The internet dropped: keep listening with on-device speech for the rest of the session. */
+        var offline = cfg.preferOffline
+        /** The missing-language-pack hint was already spoken. */
+        var toldPackMissing = false
 
         fun lookup(name: String): Any? = vars[name] ?: profileVar(name) ?: screenVars[name]
 
@@ -1237,11 +1241,11 @@ class AssistantEngine(
         if (session.cfg.bargeIn && speechDetector != null) sayInterruptible(session, question, speechDetector) else say(session, question)
         setStatus(EngineStatus.LISTENING, caption = question)
         var early: String? = null
-        val result = coroutineScope {
+        suspend fun listenOnce(): ListenResult = coroutineScope {
             var latest = ""
             var pending: Job? = null
             val heard = stt.listen(
-                ListenRequest(session.cfg.language.speechTag),
+                ListenRequest(session.cfg.language.speechTag, preferOffline = session.offline),
                 onPartial = { partial ->
                     _state.update { it.copy(heard = partial) }
                     latest = partial
@@ -1260,6 +1264,13 @@ class AssistantEngine(
             )
             pending?.cancel()
             heard
+        }
+        var result = listenOnce()
+        if (result is ListenResult.Error && result.cause == ListenResult.ErrorCause.NETWORK && !session.offline) {
+            // No internet: switch to on-device speech and listen again (the question was already asked).
+            session.offline = true
+            emit(EngineEvent.STATUS, "No internet: listening with on-device speech")
+            result = listenOnce()
         }
         _state.update { it.copy(micLevel = 0f) }
         early?.let { command ->
@@ -1281,6 +1292,13 @@ class AssistantEngine(
             }
             is ListenResult.Error -> {
                 if (!result.recoverable) throw IllegalStateException(result.message)
+                val packMissing = result.cause == ListenResult.ErrorCause.LANGUAGE_UNAVAILABLE ||
+                    (result.cause == ListenResult.ErrorCause.NETWORK && session.offline)
+                if (packMissing && !session.toldPackMissing) {
+                    session.toldPackMissing = true
+                    emit(EngineEvent.ERROR, "Offline speech for ${session.cfg.language.name.lowercase()} is not installed")
+                    say(session, session.phrases.offlinePackMissing(session.cfg.language.nativeName))
+                }
                 noSpeech(session)
                 null
             }

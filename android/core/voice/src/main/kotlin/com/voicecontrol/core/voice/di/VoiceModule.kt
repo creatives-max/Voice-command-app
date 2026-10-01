@@ -26,4 +26,7 @@ abstract class VoiceModule {
 
     @Binds
     abstract fun speechDetector(impl: AndroidSpeechDetector): SpeechDetector
+
+    @Binds
+    abstract fun languagePacks(impl: com.voicecontrol.core.voice.AndroidLanguagePacks): com.voicecontrol.core.engine.port.LanguagePacks
 }

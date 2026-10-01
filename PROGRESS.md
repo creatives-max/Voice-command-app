@@ -168,8 +168,11 @@ phase notes say which earlier phase covered the rest.
 - [x] Phone: Caregivers screen (create and share a code, helpers' permissions, what they did, stop their help)
 - [x] Tests, commit + push
 
-## Phase 22 — Offline + regional languages (gaps; six languages were done in Phase 12)
-- [ ] Offline speech packs, tests, commit + push
+## Phase 22 — Offline + regional languages (gaps; the six languages and offline understanding were done in Phase 12)
+- [x] On-device speech recognition (Android 12+) when "Speech on the phone" is on or in on-device only mode; automatic switch to on-device speech when the internet drops; spoken hint (8 languages) when a pack is missing
+- [x] Offline languages screen: per-language listening/speaking status, download speech packs (Android 13+ in the background), install TTS voices
+- [x] Pack status logic (tag matching, summary) in the engine with tests
+- [x] Tests, commit + push
 
 ## Phase 23 — Accessibility narrator (gaps; Phase 13)
 - [ ] Gap-fill, tests, commit + push

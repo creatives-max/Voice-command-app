@@ -127,6 +127,14 @@ floating panel (or the record icon in *Saved flows*), fill the form by touch acr
 red bubble. Review the steps, choose which typed values to keep as defaults (never passwords, OTPs or PINs) and save.
 Next time VoiceControl asks for each field in that order.
 
+## Offline languages
+
+*Settings → Offline languages* shows, for English, Hindi, Hinglish, Marathi, Tamil, Telugu, Bengali and Gujarati,
+whether listening (on-device recognition pack) and speaking (TTS voice) work without internet, with *Download* and
+*Get voice* buttons (Android 13+ downloads speech packs in the background; older versions open the system voice
+settings). *Speech on the phone* uses the downloaded packs even when online; without internet a session switches to
+on-device speech by itself and says so if the language pack is missing. Understanding answers is always offline.
+
 ## Caregivers (remote help, with consent)
 
 A son, daughter or friend can set up flows for someone else's phone. On the phone, *Settings → Caregivers → Create

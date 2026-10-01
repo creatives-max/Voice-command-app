@@ -39,6 +39,7 @@ import com.voicecontrol.feature.home.HomeRoute
 import com.voicecontrol.feature.inspector.InspectorRoute
 import com.voicecontrol.feature.onboarding.OnboardingRoute
 import com.voicecontrol.feature.settings.PrivacyScreen
+import com.voicecontrol.feature.settings.OfflineLanguagesRoute
 import com.voicecontrol.feature.settings.SettingsRoute
 import kotlinx.serialization.Serializable
 
@@ -53,6 +54,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object OnboardingDestination
 @Serializable data object TeachReviewDestination
 @Serializable data object CareDestination
+@Serializable data object OfflineLanguagesDestination
 
 /** Top-level places shown in the navigation rail on tablets and unfolded phones. */
 private class RailItem(val label: String, val icon: ImageVector, val isCurrent: (NavDestination?) -> Boolean, val go: () -> Any)
@@ -157,7 +159,11 @@ private fun Graph(navController: NavHostController, startWithOnboarding: Boolean
                 onBack = { navController.popBackStack() },
                 onOpenPrivacy = { navController.navigate(PrivacyDestination) },
                 onOpenCare = { navController.navigate(CareDestination) },
+                onOpenOfflineLanguages = { navController.navigate(OfflineLanguagesDestination) },
             )
+        }
+        composable<OfflineLanguagesDestination> {
+            OfflineLanguagesRoute(onBack = { navController.popBackStack() })
         }
         composable<CareDestination> {
             CareRoute(onBack = { navController.popBackStack() }, onSignIn = { navController.navigate(AuthDestination) })

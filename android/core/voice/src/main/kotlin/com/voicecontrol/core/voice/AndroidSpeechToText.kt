@@ -2,6 +2,7 @@ package com.voicecontrol.core.voice
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -19,7 +20,9 @@ import kotlin.coroutines.resume
 
 /**
  * [SpeechToText] backed by the platform [SpeechRecognizer] (Google / OEM recognition service).
- * All recognizer calls happen on the main thread as the API requires.
+ * With [ListenRequest.preferOffline] it uses the on-device recognizer (Android 12+) so speech works
+ * without internet; languages whose offline pack is missing fall back to the regular recognizer
+ * (asked to prefer offline). All recognizer calls happen on the main thread as the API requires.
  */
 @Singleton
 class AndroidSpeechToText @Inject constructor(
@@ -27,6 +30,13 @@ class AndroidSpeechToText @Inject constructor(
 ) : SpeechToText {
 
     private var recognizer: SpeechRecognizer? = null
+    private var onDevice: SpeechRecognizer? = null
+    /** Languages the on-device recognizer said it can't do (pack missing); not retried this run. */
+    private val noOnDevicePack = mutableSetOf<String>()
+
+    private fun useOnDevice(request: ListenRequest): Boolean =
+        request.preferOffline && request.languageTag !in noOnDevicePack &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
 
     override suspend fun listen(
         request: ListenRequest,
@@ -36,7 +46,12 @@ class AndroidSpeechToText @Inject constructor(
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
             return@withContext ListenResult.Error("Speech recognition is not available on this device", recoverable = false)
         }
-        val sr = recognizer ?: SpeechRecognizer.createSpeechRecognizer(context).also { recognizer = it }
+        val local = useOnDevice(request)
+        val sr = if (local && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            onDevice ?: SpeechRecognizer.createOnDeviceSpeechRecognizer(context).also { onDevice = it }
+        } else {
+            recognizer ?: SpeechRecognizer.createSpeechRecognizer(context).also { recognizer = it }
+        }
         suspendCancellableCoroutine<ListenResult> { cont ->
             sr.setRecognitionListener(object : RecognitionListener {
                 override fun onReadyForSpeech(params: Bundle?) = Unit
@@ -63,9 +78,15 @@ class AndroidSpeechToText @Inject constructor(
                 override fun onError(error: Int) {
                     if (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == SpeechRecognizer.ERROR_CLIENT) {
                         // Recreate on next use; a busy/broken recognizer won't recover by itself.
-                        recognizer?.destroy()
-                        recognizer = null
+                        if (local) {
+                            onDevice?.destroy()
+                            onDevice = null
+                        } else {
+                            recognizer?.destroy()
+                            recognizer = null
+                        }
                     }
+                    if (local && (error == ERROR_LANGUAGE_NOT_SUPPORTED || error == ERROR_LANGUAGE_UNAVAILABLE)) noOnDevicePack += request.languageTag
                     if (cont.isActive) cont.resume(mapError(error))
                 }
             })
@@ -77,11 +98,16 @@ class AndroidSpeechToText @Inject constructor(
     }
 
     override fun stopListening() {
-        recognizer?.let { sr -> android.os.Handler(context.mainLooper).post { runCatching { sr.stopListening() } } }
+        listOfNotNull(recognizer, onDevice).forEach { sr -> android.os.Handler(context.mainLooper).post { runCatching { sr.stopListening() } } }
     }
 
     override fun cancel() {
-        recognizer?.let { sr -> android.os.Handler(context.mainLooper).post { runCatching { sr.cancel() } } }
+        listOfNotNull(recognizer, onDevice).forEach { sr -> android.os.Handler(context.mainLooper).post { runCatching { sr.cancel() } } }
+    }
+
+    /** A language pack was downloaded: try the on-device recognizer for every language again. */
+    fun packsChanged() {
+        noOnDevicePack.clear()
     }
 
     private fun intentFor(request: ListenRequest): Intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -97,12 +123,18 @@ class AndroidSpeechToText @Inject constructor(
     }
 
     companion object {
+        /** SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED / ERROR_LANGUAGE_UNAVAILABLE (Android 12+). */
+        const val ERROR_LANGUAGE_NOT_SUPPORTED = 12
+        const val ERROR_LANGUAGE_UNAVAILABLE = 13
+
         fun mapError(error: Int): ListenResult = when (error) {
             SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> ListenResult.NoMatch
             SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
                 ListenResult.Error("Microphone permission is required. Open VoiceControl to allow it.", recoverable = false)
             SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT, SpeechRecognizer.ERROR_SERVER ->
-                ListenResult.Error("Speech service is unreachable", recoverable = true)
+                ListenResult.Error("Speech service is unreachable", recoverable = true, cause = ListenResult.ErrorCause.NETWORK)
+            ERROR_LANGUAGE_NOT_SUPPORTED, ERROR_LANGUAGE_UNAVAILABLE ->
+                ListenResult.Error("This language isn't available for speech on this phone", recoverable = true, cause = ListenResult.ErrorCause.LANGUAGE_UNAVAILABLE)
             else -> ListenResult.Error("Speech recognizer error $error", recoverable = true)
         }
     }

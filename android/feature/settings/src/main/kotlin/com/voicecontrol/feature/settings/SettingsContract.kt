@@ -32,7 +32,7 @@ sealed interface SettingsIntent {
     data object WipePhone : SettingsIntent
 }
 
-enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START, REMOTE_RUNS, USE_TEMPLATES, BARGE_IN, CONFIRM_LOW_CONFIDENCE, WAKE_WORD, CONFIRM_DESTRUCTIVE, CRASH_REPORTS }
+enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START, REMOTE_RUNS, USE_TEMPLATES, BARGE_IN, CONFIRM_LOW_CONFIDENCE, WAKE_WORD, CONFIRM_DESTRUCTIVE, CRASH_REPORTS, OFFLINE_SPEECH }
 
 sealed interface SettingsEffect {
     data class Message(val text: String) : SettingsEffect
@@ -57,6 +57,7 @@ fun AppSettings.with(option: Option, enabled: Boolean): AppSettings = when (opti
     Option.WAKE_WORD -> copy(wakeWordEnabled = enabled)
     Option.CONFIRM_DESTRUCTIVE -> copy(confirmDestructive = enabled)
     Option.CRASH_REPORTS -> copy(crashReports = enabled)
+    Option.OFFLINE_SPEECH -> copy(offlineSpeech = enabled)
 }
 
 fun AppSettings.isOn(option: Option): Boolean = when (option) {
@@ -76,6 +77,7 @@ fun AppSettings.isOn(option: Option): Boolean = when (option) {
     Option.WAKE_WORD -> wakeWordEnabled
     Option.CONFIRM_DESTRUCTIVE -> confirmDestructive
     Option.CRASH_REPORTS -> crashReports
+    Option.OFFLINE_SPEECH -> offlineSpeech
 }
 
 /** Accepts http(s) URLs only; blank means "use the build default". */

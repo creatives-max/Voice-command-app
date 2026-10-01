@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FiberManualRecord
@@ -77,6 +78,8 @@ interface OverlayActions {
     fun onUndo()
     /** Start "teach by doing": record what the user does by touch on this screen and the next ones. */
     fun onTeach() {}
+    /** Fill this screen's fields from a photo of a document (read on the phone). */
+    fun onScanDocument() {}
 }
 
 @Composable
@@ -204,6 +207,7 @@ private fun ElementPanel(state: OverlayUiState, actions: OverlayActions) {
                 IconButton(onClick = actions::onUndo) { Icon(Icons.AutoMirrored.Filled.Undo, "Undo last action") }
                 IconButton(onClick = actions::onReadScreen) { Icon(Icons.Filled.RecordVoiceOver, "Read screen aloud") }
                 IconButton(onClick = actions::onTeach) { Icon(Icons.Filled.FiberManualRecord, "Teach a flow by doing it") }
+                IconButton(onClick = actions::onScanDocument) { Icon(Icons.Filled.DocumentScanner, "Fill from a photo of a document") }
             }
         }
     }

@@ -127,6 +127,14 @@ floating panel (or the record icon in *Saved flows*), fill the form by touch acr
 red bubble. Review the steps, choose which typed values to keep as defaults (never passwords, OTPs or PINs) and save.
 Next time VoiceControl asks for each field in that order.
 
+## Fill from a photo (OCR)
+
+On a form, open the VoiceControl panel and tap the document button: take or choose a photo of a PAN card, Aadhaar
+card, driving licence, voter ID, passport, cheque/passbook, bill or letter. The text is read on the phone (ML Kit,
+Devanagari and Latin scripts), values are matched to the form's fields by type and label (English and Indian
+languages), and you review them — masked numbers, untick or correct anything — before they are filled. Password,
+OTP and PIN fields are never filled; photos are deleted right after reading.
+
 ## Voice shortcuts (voice macros)
 
 Say a phrase to run a flow: "pay electricity bill", "बिजली का बिल". Add phrases in a flow's details on the phone

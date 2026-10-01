@@ -155,7 +155,11 @@ phase notes say which earlier phase covered the rest.
 - [x] Tests, commit + push
 
 ## Phase 20 — Photo/document auto-fill (OCR → fill)
-- [ ] OCR, field mapping, review, fill, tests, commit + push
+- [x] On-device OCR (ML Kit, Devanagari + Latin) with reading-order merge of both recognisers
+- [x] Extractor for PAN, Aadhaar (front/back), driving licence, voter ID, passport, bank papers, bills/letters: name, father's name, DOB, gender, IDs, phone, email, address, PIN, IFSC, account
+- [x] Mapping to screen fields by type and label (first/last name, confirm fields), never to password/OTP/PIN fields
+- [x] "Fill from a photo" in the overlay panel: camera or photo picker, review screen (untick, edit, masked Aadhaar/account numbers), fill when the form is back; photos deleted, screen kept out of screenshots
+- [x] Tests, commit + push
 
 ## Phase 21 — Remote caregiver mode (with consent)
 - [ ] Caregiver links, consent, remote flow setup, tests, commit + push

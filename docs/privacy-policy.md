@@ -22,6 +22,13 @@ While you record a flow by touch, VoiceControl notes which fields you type into 
 you typed stays in the phone's memory until you review the recording; it is saved only for fields you tick as
 defaults, and never for password, OTP, PIN or CVV fields.
 
+## Fill from a photo
+
+When you use *Fill from a photo*, the photo is read on your phone by an on-device text recogniser. It is never
+uploaded, it is deleted as soon as it has been read, and the scan screen is kept out of screenshots. The values found
+(for example your name, date of birth or PAN) stay in the phone's memory only until you review them and they are
+filled; Aadhaar and bank account numbers are shown masked unless you tap *Show*. Nothing is saved.
+
 ## Voice shortcuts
 
 Phrases you add on the phone stay on the phone. Phrases you add on the dashboard are stored with your account

@@ -14,4 +14,7 @@ dependencies {
     implementation(projects.core.network)
     implementation(libs.androidx.lifecycle.service)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.mlkit.text.recognition.devanagari)
 }

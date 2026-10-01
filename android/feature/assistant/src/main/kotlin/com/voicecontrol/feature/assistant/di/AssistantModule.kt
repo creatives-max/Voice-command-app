@@ -53,6 +53,9 @@ abstract class AssistantModule {
     abstract fun flowLauncher(controller: AssistantController): FlowLauncher
 
     @Binds
+    abstract fun documentTextReader(impl: com.voicecontrol.feature.assistant.scan.MlKitDocumentTextReader): com.voicecontrol.feature.assistant.scan.DocumentTextReader
+
+    @Binds
     abstract fun teachLauncher(controller: com.voicecontrol.feature.assistant.teach.TeachController): com.voicecontrol.core.engine.port.TeachLauncher
 
     companion object {

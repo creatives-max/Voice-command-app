@@ -42,6 +42,7 @@ class OverlayManager @Inject constructor(
     private val remoteRuns: RemoteRunRepository,
     private val microphone: MicrophoneForeground,
     private val teach: TeachController,
+    private val scan: com.voicecontrol.feature.assistant.scan.ScanSession,
 ) : ServiceListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -137,6 +138,20 @@ class OverlayManager @Inject constructor(
         override fun onTeach() {
             controller.onClosePanel()
             teach.startTeaching()
+        }
+
+        override fun onScanDocument() {
+            controller.onClosePanel()
+            if (controller.sessionActive) controller.onMicTap()
+            val host = service ?: return
+            scope.launch {
+                // Remember the form now: once the scan screen opens, it is no longer in front.
+                scan.begin(screen.capture()?.takeIf { it.packageName != host.packageName })
+                host.startActivity(
+                    Intent(host, com.voicecontrol.feature.assistant.scan.ScanActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION),
+                )
+            }
         }
     }
 

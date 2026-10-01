@@ -21,6 +21,25 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
+        <!-- "Fill from a photo": read a document on the phone and fill the form the user came from. -->
+        <activity
+            android:name=".scan.ScanActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:label="@string/vc_scan_title"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.scan"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/vc_scan_paths" />
+        </provider>
+
         <receiver
             android:name=".launch.VoiceWidgetProvider"
             android:exported="true"

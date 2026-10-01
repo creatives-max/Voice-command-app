@@ -13,8 +13,7 @@
         android:layout_width="32dp"
         android:layout_height="32dp"
         android:importantForAccessibility="no"
-        android:src="@drawable/vc_ic_mic"
-        android:tint="#FFFFFFFF" />
+        android:src="@drawable/vc_ic_mic_white" />
 
     <TextView
         android:layout_width="wrap_content"

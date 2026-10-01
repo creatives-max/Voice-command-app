@@ -5,7 +5,12 @@ export const fieldTypes = [
   "TEXT", "NAME", "EMAIL", "PHONE", "NUMBER", "PASSWORD", "OTP", "PIN", "DATE", "ADDRESS", "PINCODE", "MULTILINE", "SEARCH", "URL", "AMOUNT",
 ] as const;
 export const sensitiveFieldTypes = new Set<string>(["PASSWORD", "OTP", "PIN"]);
-export const stepActions = ["FILL", "CLICK", "TOGGLE"] as const;
+export const stepActions = ["FILL", "CLICK", "TOGGLE", "READ", "SET_VARIABLE", "REPEAT", "NEXT_SCREEN", "OPEN_APP"] as const;
+export type StepActionName = (typeof stepActions)[number];
+/** Steps that operate an element on screen; the rest are flow logic. */
+export const elementActions = new Set<string>(["FILL", "CLICK", "TOGGLE", "READ"]);
+/** Steps that start a new screen of the flow. */
+export const boundaryActions = new Set<string>(["NEXT_SCREEN", "OPEN_APP"]);
 export const profileKeys = [
   "FULL_NAME", "FIRST_NAME", "LAST_NAME", "EMAIL", "PHONE", "ADDRESS_LINE", "CITY", "STATE", "PINCODE", "DATE_OF_BIRTH",
 ] as const;
@@ -17,6 +22,16 @@ export const userSchema = z.object({
   createdAt: z.string().optional(),
 });
 export type User = z.infer<typeof userSchema>;
+
+export const repeatSpecSchema = z.object({
+  stepIds: z.array(z.string()).default([]),
+  addMoreElementId: z.string().nullish(),
+  addMoreLabel: z.string().nullish(),
+  maxIterations: z.number().default(10),
+  countExpression: z.string().nullish(),
+  itemLabel: z.string().nullish(),
+});
+export type RepeatSpec = z.infer<typeof repeatSpecSchema>;
 
 export const flowStepSchema = z.object({
   id: z.string(),
@@ -32,6 +47,13 @@ export const flowStepSchema = z.object({
   skip: z.boolean().default(false),
   helpVideoUrl: z.string().nullish(),
   profileKey: z.enum(profileKeys).nullish(),
+  condition: z.string().nullish(),
+  elseValue: z.string().nullish(),
+  variable: z.string().nullish(),
+  valueExpression: z.string().nullish(),
+  repeat: repeatSpecSchema.nullish(),
+  appPackage: z.string().nullish(),
+  waitSeconds: z.number().nullish(),
 });
 export type FlowStep = z.infer<typeof flowStepSchema>;
 

@@ -108,6 +108,24 @@ Results are cached in Redis by a hash of the signature.
   boxes. Those elements get `vision:` ids; the engine operates them with taps (`dispatchGesture`) and types into the
   focused input. Requires a vision-capable provider (`anthropic` or `openai`).
 
+## Flow logic (conditions, variables, loops, multi-screen)
+
+Flows are more than an ordered list of questions:
+
+- **Expressions** (`docs/spec/expressions.json`): a small language with `== != < <= > >= + - * / %`, `and/or/not`,
+  and functions (`yes`, `empty`, `contains`, `concat`, `upper`, `digits`, `if`, `today`, …). The phone engine, the
+  backend validator and the dashboard simulator each implement it and run the same test vectors.
+- **Variables**: every answer is stored under the step's `variable` (default: the label in snake_case). Profile values
+  are `profile.name`, `profile.city`, …; values already on screen are available by label. Sensitive fields never
+  become variables.
+- **Conditional steps**: `condition` decides whether a step runs; `elseValue` is filled when it doesn't (if/else).
+  `valueExpression` fills a computed value without asking. Questions can contain `{variable}` templates.
+- **Logic steps**: `READ` stores on-screen text, `SET_VARIABLE` computes a value, `REPEAT` runs a group of steps per list
+  item (count from an expression, or "add another?") and presses the "add more" button between items.
+- **Multi-screen / cross-app**: `NEXT_SCREEN` and `OPEN_APP` split a flow into screens. The engine waits for the screen
+  to change (or launches the app via `ScreenAction.LaunchApp`) and continues; variables carry across screens.
+- **Dry run**: the dashboard's *Test run* panel simulates the edited flow without a phone, from typed answers.
+
 ## Observability
 
 - OpenTelemetry SDK (autoconfigured) with Ktor server instrumentation; spans for every request and for each event

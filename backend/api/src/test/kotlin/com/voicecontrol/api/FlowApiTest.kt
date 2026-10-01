@@ -7,6 +7,7 @@ import com.voicecontrol.api.routes.UpdateFlowRequest
 import com.voicecontrol.domain.ai.ElementKind
 import com.voicecontrol.domain.ai.FieldType
 import com.voicecontrol.domain.flow.FlowStep
+import com.voicecontrol.domain.flow.RepeatSpec
 import com.voicecontrol.domain.flow.StepAction
 import io.ktor.client.call.body
 import io.ktor.client.request.bearerAuth
@@ -111,5 +112,35 @@ class FlowApiTest {
             setBody(UpdateFlowRequest(1, steps = listOf(FlowStep("p", 0, "vid:pwd", "Password", ElementKind.TEXT_FIELD, FieldType.PASSWORD, defaultValue = "x"))))
         }
         assertEquals(HttpStatusCode.BadRequest, pwdDefault.status)
+    }
+
+    @Test
+    fun `logic steps round-trip and broken expressions are rejected`() = testApplication {
+        application { voiceControl(TestEnvironment.services) }
+        val client = jsonClient()
+        val token = client.registerUser().accessToken
+        val flow: FlowDto = client.post("/v1/flows") { bearerAuth(token); contentType(ContentType.Application.Json); setBody(create) }.body()
+
+        val logic = listOf(
+            steps[0].copy(variable = "name", condition = "not empty(profile.name)", elseValue = "'Guest'"),
+            FlowStep("v", 1, "", "", ElementKind.BUTTON, action = StepAction.SET_VARIABLE, variable = "greeting", valueExpression = "concat('Hi ', name)"),
+            FlowStep("r", 2, "", "item", ElementKind.BUTTON, action = StepAction.REPEAT, repeat = RepeatSpec(listOf(steps[0].id), addMoreLabel = "Add", maxIterations = 3)),
+            FlowStep("o", 3, "", "Pay", ElementKind.BUTTON, action = StepAction.OPEN_APP, appPackage = "com.pay.app", waitSeconds = 15),
+        )
+        val saved: FlowDto = client.put("/v1/flows/${flow.id}") {
+            bearerAuth(token); contentType(ContentType.Application.Json)
+            setBody(UpdateFlowRequest(1, steps = logic))
+        }.body()
+        assertEquals(StepAction.REPEAT, saved.steps[2].action)
+        assertEquals(listOf(steps[0].id), saved.steps[2].repeat?.stepIds)
+        assertEquals("not empty(profile.name)", saved.steps[0].condition)
+        assertEquals("com.pay.app", saved.steps[3].appPackage)
+
+        val broken = client.put("/v1/flows/${flow.id}") {
+            bearerAuth(token); contentType(ContentType.Application.Json)
+            setBody(UpdateFlowRequest(2, steps = listOf(steps[0].copy(condition = "age >"))))
+        }
+        assertEquals(HttpStatusCode.BadRequest, broken.status)
+        assertTrue(broken.bodyAsText().contains("condition"))
     }
 }

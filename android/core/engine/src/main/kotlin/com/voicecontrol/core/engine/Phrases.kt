@@ -127,5 +127,27 @@ class Phrases(private val language: Language) {
 
     fun wentBack() = t("Going back.", "वापस जा रहे हैं।", "Wapas ja rahe hain.")
 
+    fun addAnother(item: String) = t(
+        "Add another $item?",
+        "क्या एक और $item जोड़ें?",
+        "Ek aur $item add karein?",
+    )
+
+    fun item(item: String, index: Int) = t("$item $index.", "$item $index।", "$item $index.")
+
+    fun openingApp(app: String) = t("Opening $app.", "$app खोल रहे हैं।", "$app khol rahe hain.")
+
+    fun waitingForScreen() = t(
+        "Waiting for the next screen.",
+        "अगली स्क्रीन का इंतज़ार कर रहे हैं।",
+        "Agli screen ka intezaar kar rahe hain.",
+    )
+
+    fun screenNotReached() = t(
+        "The next screen didn't open, so I stopped the flow.",
+        "अगली स्क्रीन नहीं खुली, इसलिए फ़्लो रोक दिया।",
+        "Agli screen nahi khuli, isliye flow rok diya.",
+    )
+
     fun cleared(label: String) = t("Cleared $label.", "$label मिटा दिया।", "$label mita diya.")
 }

@@ -1,5 +1,6 @@
 package com.voicecontrol.core.engine
 
+import com.voicecontrol.core.engine.expr.Expressions
 import com.voicecontrol.core.engine.port.FlowSource
 import com.voicecontrol.core.engine.port.InterpretRequest
 import com.voicecontrol.core.engine.port.Interpreter
@@ -15,6 +16,9 @@ import com.voicecontrol.core.engine.port.TextToSpeech
 import com.voicecontrol.core.engine.port.VisionDetector
 import com.voicecontrol.core.model.ActionResult
 import com.voicecontrol.core.model.ElementKind
+import com.voicecontrol.core.model.FlowDefinition
+import com.voicecontrol.core.model.FlowStep
+import com.voicecontrol.core.model.FlowVariables
 import com.voicecontrol.core.model.IntentKind
 import com.voicecontrol.core.model.Interpretation
 import com.voicecontrol.core.model.RunStatus
@@ -27,6 +31,7 @@ import com.voicecontrol.core.model.SessionSummary
 import com.voicecontrol.core.model.StepAction
 import com.voicecontrol.core.model.StepOutcome
 import com.voicecontrol.core.model.StepRecord
+import com.voicecontrol.core.model.UserProfile
 import com.voicecontrol.core.nlp.FieldValidator
 import com.voicecontrol.core.nlp.SpeechNormalizer
 import kotlinx.coroutines.CancellationException
@@ -40,6 +45,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
 
 enum class EngineStatus { IDLE, STARTING, SPEAKING, LISTENING, THINKING, ACTING, PAUSED, FINISHED, ERROR }
@@ -63,6 +71,11 @@ data class EngineState(
  * listen, interpret (commands locally, answers locally or via the backend), validate, type the
  * value, and finally offer to press the submit button. When pressing a button opens a new screen
  * with fields, the session continues there. Every finished session is recorded (history + flows).
+ *
+ * Flows can carry logic: steps run only when their condition holds (else an alternative value is
+ * filled), answers are kept in session variables that later conditions, computed values and
+ * `{var}` question templates use, REPEAT steps loop over list items, and NEXT_SCREEN / OPEN_APP
+ * steps split a flow into screens, possibly across apps; variables carry across screens.
  */
 class AssistantEngine(
     private val screen: ScreenGateway,
@@ -89,9 +102,10 @@ class AssistantEngine(
 
     fun toggle() = if (isActive) stop() else start()
 
-    fun start() {
+    /** Starts a session; with [flow], that flow is run instead of matching one to the screen. */
+    fun start(flow: FlowDefinition? = null) {
         if (isActive) return
-        job = scope.launch { runSession() }
+        job = scope.launch { runSession(flow) }
     }
 
     fun stop() {
@@ -125,16 +139,34 @@ class AssistantEngine(
         var appPackage: String = ""
         var status = RunStatus.COMPLETED
         var silentFailures = 0
+        /** Flow variables: answers, READ results, SET_VARIABLE values. Never sensitive values. */
+        val vars = LinkedHashMap<String, String>()
+        /** Values already on the current screen, by label slug (lowest precedence). */
+        var screenVars: Map<String, String> = emptyMap()
+        var profile: UserProfile? = null
+        /** Signature of the screen as last seen (loops can change it by adding rows). */
+        var currentSignature: String = ""
+
+        fun lookup(name: String): Any? = vars[name] ?: profileVar(name) ?: screenVars[name]
+
+        private fun profileVar(name: String): String? {
+            if (!name.startsWith("profile.")) return null
+            val key = FlowVariables.profileNames.entries.firstOrNull { it.value == name }?.key ?: return null
+            return profile?.value(key)
+        }
     }
 
     /** Per-screen recording. */
     private class ScreenLog(val snapshot: ScreenSnapshot, val flowId: String?, val flowVersion: Int?) {
         val steps = LinkedHashMap<String, StepRecord>()
+        /** Set while a REPEAT item runs, so each item's steps are recorded separately. */
+        var keySuffix = ""
         fun put(step: PlanStep, outcome: StepOutcome, question: String?, by: String? = null) {
-            steps[step.elementId] = StepRecord(step.elementId, step.label, step.kind, step.fieldType, question, outcome, by)
+            if (step.virtual) return
+            steps[step.elementId + keySuffix] = StepRecord(step.elementId, step.label, step.kind, step.fieldType, question, outcome, by)
         }
         fun putClick(element: ScreenElement) {
-            steps[element.id] = StepRecord(element.id, element.label, element.kind, null, null, StepOutcome.CLICKED)
+            steps[element.id + keySuffix] = StepRecord(element.id, element.label, element.kind, null, null, StepOutcome.CLICKED)
         }
         fun toRecord() = ScreenRecord(
             appPackage = snapshot.packageName,
@@ -147,7 +179,7 @@ class AssistantEngine(
         )
     }
 
-    private suspend fun runSession() {
+    private suspend fun runSession(preselected: FlowDefinition?) {
         val cfg = config.current()
         val session = Session(cfg)
         _state.value = EngineState(status = EngineStatus.STARTING, active = true)
@@ -159,6 +191,16 @@ class AssistantEngine(
             }
             var first = true
             var visited = 0
+            // A multi-screen (or preselected) flow in progress, and which of its screens is next.
+            var active: FlowDefinition? = preselected
+            var segment = 0
+            preselected?.segments?.firstOrNull()?.firstOrNull()?.takeIf { it.action.isScreenBoundary }?.let { boundary ->
+                if (!enterSegment(session, boundary, previousSignature = null)) {
+                    say(session, session.phrases.screenNotReached())
+                    session.status = RunStatus.FAILED
+                    return
+                }
+            }
             while (visited < MAX_SCREENS) {
                 visited++
                 val snapshot = readScreen(session)
@@ -170,8 +212,23 @@ class AssistantEngine(
                 session.appPackage = snapshot.packageName
                 _state.update { it.copy(appPackage = snapshot.packageName) }
                 setStatus(EngineStatus.THINKING, caption = null)
-                val flow = runCatching { flows.flowFor(snapshot) }.getOrNull()
+                val running = active
+                val flow = if (running != null) {
+                    running.copy(steps = running.segments[segment])
+                } else {
+                    val matched = runCatching { flows.flowFor(snapshot) }.getOrNull()
+                    if (matched != null && matched.segments.size > 1) {
+                        active = matched
+                        segment = 0
+                        matched.copy(steps = matched.segments[0])
+                    } else {
+                        matched
+                    }
+                }
                 val profile = runCatching { profiles.profile() }.getOrNull()
+                session.profile = profile
+                session.screenVars = screenVariables(snapshot)
+                session.currentSignature = snapshot.signature
                 val plan = PlanBuilder(session.phrases).build(snapshot, flow, profile)
                 val log = ScreenLog(snapshot, plan.flowId, plan.flowVersion)
                 val outcome = try {
@@ -185,11 +242,24 @@ class AssistantEngine(
                     session.status = RunStatus.STOPPED
                     return
                 }
+                val multi = active
+                if (multi != null && segment + 1 < multi.segments.size) {
+                    // Continue the same flow on its next screen (possibly in another app).
+                    segment++
+                    if (!enterSegment(session, multi.segments[segment].first(), previousSignature = session.currentSignature)) {
+                        say(session, session.phrases.screenNotReached())
+                        session.status = RunStatus.FAILED
+                        return
+                    }
+                    say(session, session.phrases.newScreen())
+                    continue
+                }
+                active = null
                 if (outcome == ScreenOutcome.COMPLETED) break
                 // A button was pressed: wait for the app to react and continue on a new form.
                 delay(screenSettleMillis)
                 val next = readScreen(session)
-                val hasNewForm = next != null && next.signature != snapshot.signature &&
+                val hasNewForm = next != null && next.signature != session.currentSignature &&
                     next.elements.any { it.kind.isInput || it.kind.isToggle }
                 if (!hasNewForm) break
                 say(session, session.phrases.newScreen())
@@ -230,6 +300,60 @@ class AssistantEngine(
         visionElements = elements.associateBy { it.id }
         val base = ScreenSnapshot(packageName = pkg, activityName = snapshot?.activityName, title = snapshot?.title, elements = elements, capturedAtMillis = clock())
         return base.copy(signature = com.voicecontrol.core.screen.ScreenSignature.of(base))
+    }
+
+    /**
+     * Gets to the screen a flow segment starts on: OPEN_APP launches the app and waits for it,
+     * NEXT_SCREEN waits until the screen differs from [previousSignature]. Returns false on timeout.
+     */
+    private suspend fun enterSegment(session: Session, boundary: FlowStep, previousSignature: String?): Boolean {
+        val timeoutMs = (boundary.waitSeconds ?: DEFAULT_WAIT_SECONDS).coerceIn(1, MAX_WAIT_SECONDS) * 1_000L
+        val pkg = boundary.appPackage?.takeIf { it.isNotBlank() }
+        return when (boundary.action) {
+            StepAction.OPEN_APP -> {
+                if (pkg == null) return false
+                if (screen.capture()?.packageName == pkg) return true
+                say(session, session.phrases.openingApp(boundary.label.ifBlank { pkg }))
+                setStatus(EngineStatus.ACTING)
+                if (!perform(ScreenAction.LaunchApp(pkg)).isSuccess) return false
+                waitForScreen(timeoutMs) { it.packageName == pkg }
+            }
+            StepAction.NEXT_SCREEN -> {
+                if (previousSignature == null) return true
+                setStatus(EngineStatus.THINKING, caption = session.phrases.waitingForScreen())
+                waitForScreen(timeoutMs) { snap ->
+                    (pkg == null || snap.packageName == pkg) && snap.signature != previousSignature
+                }
+            }
+            else -> true
+        }
+    }
+
+    private suspend fun waitForScreen(timeoutMs: Long, accept: (ScreenSnapshot) -> Boolean): Boolean {
+        var waited = 0L
+        while (true) {
+            val snap = screen.capture()
+            if (snap != null && snap.hasReadableElements && accept(snap)) {
+                delay(screenSettleMillis)
+                return true
+            }
+            if (waited >= timeoutMs) return false
+            delay(SCREEN_POLL_MS)
+            waited += SCREEN_POLL_MS
+        }
+    }
+
+    /** Non-sensitive values already on screen, available to expressions by label slug. */
+    private fun screenVariables(snapshot: ScreenSnapshot): Map<String, String> = buildMap {
+        snapshot.elements.forEach { e ->
+            if (e.isSensitive || e.label.none { it.isLetterOrDigit() && it.code < 128 }) return@forEach
+            val value = when {
+                e.kind.isToggle -> e.isChecked?.let { if (it) "yes" else "no" }
+                e.kind.isInput -> e.value?.takeIf { it.isNotBlank() }
+                else -> null
+            } ?: return@forEach
+            putIfAbsent(FlowVariables.slug(e.label, 0), value)
+        }
     }
 
     /** Elements detected by vision on the current screen, operated by coordinates. */
@@ -293,25 +417,12 @@ class AssistantEngine(
     ): ScreenOutcome {
         val phrases = session.phrases
         if (plan.steps.isEmpty()) return commandMode(session, snapshot, log)
-        if (announce) say(session, phrases.start(plan.steps.count { !it.skip }))
+        if (announce) say(session, phrases.start(plan.steps.count { !it.skip && !it.virtual }))
 
-        var index = 0
-        val filledByExtras = mutableSetOf<String>()
-        while (index < plan.steps.size) {
-            val step = plan.steps[index]
-            _state.update { it.copy(progress = "${index + 1} / ${plan.steps.size}", helpVideoUrl = step.helpVideoUrl) }
-            val result = if (step.elementId in filledByExtras) {
-                StepResult.Done
-            } else {
-                handleStep(session, snapshot, step, log, filledByExtras)
-            }
-            when (result) {
-                StepResult.Done -> index++
-                StepResult.Previous -> index = (index - 1).coerceAtLeast(0)
-                StepResult.Submit -> break
-                StepResult.Stop -> return ScreenOutcome.STOPPED
-                StepResult.Navigated -> return ScreenOutcome.NAVIGATED
-            }
+        when (runSteps(session, snapshot, plan.steps, log, progressPrefix = "")) {
+            StepResult.Stop -> return ScreenOutcome.STOPPED
+            StepResult.Navigated -> return ScreenOutcome.NAVIGATED
+            else -> Unit
         }
         _state.update { it.copy(progress = null, helpVideoUrl = null) }
         return submit(session, snapshot, plan, log)
@@ -370,6 +481,184 @@ class AssistantEngine(
     }
 
     // ---------------------------------------------------------------------------------------------
+    // Steps and flow logic
+
+    /**
+     * Runs [steps] in order, honouring conditions and "previous". Returns Done when all ran, or the
+     * result that ended the run early (Submit, Stop, Navigated).
+     */
+    private suspend fun runSteps(
+        session: Session,
+        snapshot: ScreenSnapshot,
+        steps: List<PlanStep>,
+        log: ScreenLog,
+        progressPrefix: String,
+    ): StepResult {
+        val filledByExtras = mutableSetOf<String>()
+        var index = 0
+        var goingBack = false
+        while (index < steps.size) {
+            val step = steps[index]
+            _state.update { it.copy(progress = "$progressPrefix${index + 1} / ${steps.size}", helpVideoUrl = step.helpVideoUrl) }
+            if (!conditionHolds(session, step)) {
+                if (goingBack && index > 0) {
+                    index--
+                    continue
+                }
+                goingBack = false
+                applyElse(session, step, log)
+                index++
+                continue
+            }
+            goingBack = false
+            val result = if (step.elementId in filledByExtras) {
+                StepResult.Done
+            } else {
+                runStep(session, snapshot, step, log, filledByExtras)
+            }
+            when (result) {
+                StepResult.Done -> index++
+                StepResult.Previous -> {
+                    index = (index - 1).coerceAtLeast(0)
+                    goingBack = true
+                }
+                StepResult.Submit, StepResult.Stop, StepResult.Navigated -> return result
+            }
+        }
+        return StepResult.Done
+    }
+
+    private suspend fun runStep(
+        session: Session,
+        snapshot: ScreenSnapshot,
+        step: PlanStep,
+        log: ScreenLog,
+        filledByExtras: MutableSet<String>,
+    ): StepResult {
+        when (step.action) {
+            StepAction.SET_VARIABLE -> {
+                val name = step.variable
+                val expression = step.valueExpression
+                if (name != null && expression != null) evaluateText(session, expression)?.let { session.vars[name] = it }
+                return StepResult.Done
+            }
+            StepAction.REPEAT -> return runRepeat(session, snapshot, step, log)
+            StepAction.READ -> {
+                val fresh = screen.capture()?.element(step.elementId) ?: step.element
+                if (!fresh.isSensitive) remember(session, step, fresh.value?.takeIf { it.isNotBlank() } ?: fresh.label)
+                return StepResult.Done
+            }
+            StepAction.CLICK -> {
+                // A conditional button press inside the screen (e.g. "Add nominee"); the plan continues.
+                if (press(session, step.element, log)) delay(screenSettleMillis)
+                return StepResult.Done
+            }
+            StepAction.NEXT_SCREEN, StepAction.OPEN_APP -> return StepResult.Done
+            StepAction.FILL, StepAction.TOGGLE -> Unit
+        }
+        val expression = step.valueExpression
+        if (expression != null && !step.isSensitive) {
+            val value = evaluateText(session, expression)
+            if (!value.isNullOrBlank()) {
+                setStatus(EngineStatus.ACTING)
+                val ok = if (step.action == StepAction.TOGGLE) {
+                    perform(ScreenAction.SetChecked(step.elementId, Expressions.truthy(value))).isSuccess
+                } else {
+                    perform(ScreenAction.SetText(step.elementId, value)).isSuccess
+                }
+                log.put(step, if (ok) StepOutcome.DEFAULT_FILLED else StepOutcome.FAILED, null)
+                if (ok) remember(session, step, if (step.action == StepAction.TOGGLE) yesNo(Expressions.truthy(value)) else value)
+                return StepResult.Done
+            }
+        }
+        val templated = if ('{' in step.question) step.copy(question = template(session, step.question)) else step
+        return handleStep(session, snapshot, templated, log, filledByExtras)
+    }
+
+    /** The "else" branch of a step whose condition is false: fill the alternative value, or skip. */
+    private suspend fun applyElse(session: Session, step: PlanStep, log: ScreenLog) {
+        if (step.virtual || step.action == StepAction.READ || step.action == StepAction.CLICK) return
+        val expression = step.elseValue
+        val value = expression?.let { evaluateText(session, it) }
+        if (value.isNullOrBlank() || step.isSensitive) {
+            log.put(step, StepOutcome.SKIPPED, null)
+            return
+        }
+        setStatus(EngineStatus.ACTING)
+        val ok = if (step.action == StepAction.TOGGLE) {
+            perform(ScreenAction.SetChecked(step.elementId, Expressions.truthy(value))).isSuccess
+        } else {
+            perform(ScreenAction.SetText(step.elementId, value)).isSuccess
+        }
+        log.put(step, if (ok) StepOutcome.DEFAULT_FILLED else StepOutcome.FAILED, null)
+        if (ok) remember(session, step, if (step.action == StepAction.TOGGLE) yesNo(Expressions.truthy(value)) else value)
+    }
+
+    /** Runs a REPEAT step: its steps once per list item, pressing "add another" between items. */
+    private suspend fun runRepeat(session: Session, snapshot: ScreenSnapshot, step: PlanStep, log: ScreenLog): StepResult {
+        val spec = step.repeat ?: return StepResult.Done
+        val phrases = session.phrases
+        val builder = PlanBuilder(phrases)
+        val itemName = spec.itemLabel?.takeIf { it.isNotBlank() } ?: step.label.takeIf { it.isNotBlank() } ?: "item"
+        val max = spec.maxIterations.coerceIn(1, MAX_REPEAT)
+        var current = snapshot
+        try {
+            for (index in 1..max) {
+                session.vars[FlowVariables.INDEX] = index.toString()
+                val items = builder.resolveRepeatItem(current, step.repeatBody, index, session.profile)
+                if (items.isEmpty()) break
+                say(session, phrases.item(itemName, index))
+                log.keySuffix = "#$index"
+                val result = runSteps(session, current, items, log, progressPrefix = "$itemName $index · ")
+                if (result != StepResult.Done) return result
+                val more = when (val count = spec.countExpression?.takeIf { it.isNotBlank() }) {
+                    null -> askYesNoOr(session, current, phrases.addAnother(itemName), default = false) ?: return StepResult.Stop
+                    else -> index < (Expressions.number(evaluate(session, count)) ?: 1.0).toInt()
+                }
+                if (!more || index == max) break
+                val live = screen.capture() ?: current
+                val addMore = builder.locate(spec.addMoreElementId, spec.addMoreLabel, live.elements)
+                if (addMore != null) {
+                    if (!act(session, ScreenAction.Click(addMore.id), null)) break
+                    delay(screenSettleMillis)
+                }
+                current = readScreen(session) ?: break
+                session.currentSignature = current.signature
+            }
+        } finally {
+            log.keySuffix = ""
+            session.vars.remove(FlowVariables.INDEX)
+        }
+        return StepResult.Done
+    }
+
+    private fun conditionHolds(session: Session, step: PlanStep): Boolean {
+        val condition = step.condition ?: return true
+        // A broken expression should not silently hide a question: ask it.
+        return runCatching { Expressions.evaluateBoolean(condition, session::lookup, today()) }.getOrDefault(true)
+    }
+
+    private fun evaluate(session: Session, expression: String): Any? =
+        runCatching { Expressions.evaluate(expression, session::lookup, today()) }.getOrNull()
+
+    private fun evaluateText(session: Session, expression: String): String? =
+        runCatching { Expressions.evaluateText(expression, session::lookup, today()) }.getOrNull()
+
+    private fun template(session: Session, text: String): String = Expressions.template(text, session::lookup, today())
+
+    private fun today(): () -> LocalDate = { Instant.ofEpochMilli(clock()).atZone(ZoneId.systemDefault()).toLocalDate() }
+
+    /** Stores a step's answer in its variable (and `<name>_<index>` inside a loop). Never sensitive values. */
+    private fun remember(session: Session, step: PlanStep, value: String) {
+        if (step.isSensitive) return
+        val name = step.variable ?: return
+        session.vars[name] = value
+        session.vars[FlowVariables.INDEX]?.let { session.vars["${name}_$it"] = value }
+    }
+
+    private fun yesNo(value: Boolean) = if (value) "yes" else "no"
+
+    // ---------------------------------------------------------------------------------------------
     // Step
 
     private suspend fun handleStep(
@@ -387,6 +676,7 @@ class AssistantEngine(
             if (default != null && step.action == StepAction.FILL && !step.isSensitive) {
                 val ok = perform(ScreenAction.SetText(step.elementId, default)).isSuccess
                 log.put(step, if (ok) StepOutcome.DEFAULT_FILLED else StepOutcome.FAILED, null)
+                if (ok) remember(session, step, default)
             } else {
                 log.put(step, StepOutcome.SKIPPED, null)
             }
@@ -399,12 +689,14 @@ class AssistantEngine(
         if (!element.value.isNullOrBlank() && element.kind == ElementKind.TEXT_FIELD) {
             if (session.cfg.skipFilledFields) {
                 log.put(step, StepOutcome.KEPT, null)
+                remember(session, step, element.value!!)
                 return StepResult.Done
             }
             val keep = askYesNo(session, snapshot, step, phrases.keepExisting(step.label, element.value!!))
             when (keep) {
                 true -> {
                     log.put(step, StepOutcome.KEPT, null)
+                    remember(session, step, element.value!!)
                     return StepResult.Done
                 }
                 null -> return StepResult.Stop
@@ -513,6 +805,7 @@ class AssistantEngine(
             if (perform(ScreenAction.SetText(id, extraValue)).isSuccess) filledByExtras += id
         }
         log.put(step, StepOutcome.FILLED, question, source)
+        remember(session, step, value)
         say(session, if (session.cfg.confirmValues && value.length <= MAX_READBACK) session.phrases.filled(value) else session.phrases.filledShort())
         return StepResult.Done
     }
@@ -520,6 +813,7 @@ class AssistantEngine(
     private suspend fun toggle(session: Session, step: PlanStep, checked: Boolean, log: ScreenLog, question: String): StepResult {
         val ok = act(session, ScreenAction.SetChecked(step.elementId, checked), null)
         log.put(step, if (ok) StepOutcome.TOGGLED else StepOutcome.FAILED, question)
+        if (ok) remember(session, step, yesNo(checked))
         return StepResult.Done
     }
 
@@ -568,6 +862,7 @@ class AssistantEngine(
             val option = ButtonMatcher.find(SpeechNormalizer.stripLeadIns(heard), options.elements)
             if (option != null && act(session, ScreenAction.Click(option.id), session.phrases.filled(option.label))) {
                 log.put(step, StepOutcome.FILLED, question)
+                remember(session, step, option.label)
                 return StepResult.Done
             }
             say(session, session.phrases.didNotCatch())
@@ -627,6 +922,20 @@ class AssistantEngine(
             }
         }
         return true
+    }
+
+    /** Yes/no question not tied to a field; [default] when nothing usable was heard, null on "stop". */
+    private suspend fun askYesNoOr(session: Session, snapshot: ScreenSnapshot, question: String, default: Boolean): Boolean? {
+        repeat(MAX_ATTEMPTS) {
+            val heard = askAndListen(session, question) ?: return@repeat
+            when (interpret(session, snapshot, null, heard, question).intent) {
+                IntentKind.YES, IntentKind.NEXT -> return true
+                IntentKind.NO, IntentKind.SKIP, IntentKind.SUBMIT -> return false
+                IntentKind.STOP -> return null
+                else -> say(session, session.phrases.didNotCatch())
+            }
+        }
+        return default
     }
 
     private suspend fun interpret(
@@ -696,5 +1005,9 @@ class AssistantEngine(
         const val MAX_READBACK = 40
         const val DROPDOWN_OPEN_MS = 600L
         const val VISION_FOCUS_DELAY_MS = 400L
+        const val DEFAULT_WAIT_SECONDS = 20
+        const val MAX_WAIT_SECONDS = 120
+        const val SCREEN_POLL_MS = 500L
+        const val MAX_REPEAT = 50
     }
 }

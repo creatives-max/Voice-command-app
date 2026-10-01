@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowDown, ArrowUp, GripVertical, Lock, Plus, Video, X } from "lucide-react";
+import { ArrowDown, ArrowUp, GitBranch, GripVertical, Lock, Plus, Trash2, Video, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,11 +10,15 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { profileKeys, sensitiveFieldTypes, type FlowStep } from "@/lib/types";
+import { elementActions, profileKeys, sensitiveFieldTypes, type FlowStep } from "@/lib/types";
 import { RULE_PRESETS, type EditorAction } from "./editor";
+import { ACTION_LABELS } from "./logic";
+import { ElementLogicFields, LogicStepFields } from "./logic-fields";
 
 interface StepCardProps {
   step: FlowStep;
+  /** All steps, for loops and variable hints. */
+  steps: FlowStep[];
   index: number;
   count: number;
   errors: string[];
@@ -23,11 +27,70 @@ interface StepCardProps {
 
 const humanize = (s: string) => s.toLowerCase().replace(/_/g, " ");
 
-export function StepCard({ step, index, count, errors, dispatch }: StepCardProps) {
+/** What an element step may do, by element kind. */
+function actionsFor(step: FlowStep): string[] {
+  if (step.kind === "BUTTON" || step.kind === "LINK") return ["CLICK", "READ"];
+  if (step.kind === "CHECKBOX" || step.kind === "SWITCH" || step.kind === "RADIO") return ["TOGGLE", "READ"];
+  return ["FILL", "READ"];
+}
+
+export function StepCard(props: StepCardProps) {
+  return elementActions.has(props.step.action) ? <ElementStepCard {...props} /> : <LogicStepCard {...props} />;
+}
+
+function LogicStepCard({ step, steps, index, count, errors, dispatch }: StepCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
+  const update = (patch: Partial<FlowStep>) => dispatch({ type: "update", id: step.id, patch });
+  const boundary = step.action === "NEXT_SCREEN" || step.action === "OPEN_APP";
+  return (
+    <Card
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`border-dashed p-4 ${boundary ? "bg-muted/60" : "bg-accent/30"} ${isDragging ? "z-10 shadow-lg ring-2 ring-primary" : ""}`}
+      data-testid={`step-${step.id}`}
+    >
+      <div className="flex items-start gap-3">
+        <button type="button" className="mt-1 cursor-grab touch-none text-muted-foreground" aria-label={`Drag to reorder ${step.label}`} {...attributes} {...listeners}>
+          <GripVertical className="size-5" />
+        </button>
+        <div className="grid min-w-0 flex-1 gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted-foreground">{index + 1}.</span>
+            <GitBranch className="size-4 text-primary" />
+            <Badge>{ACTION_LABELS[step.action]}</Badge>
+            <Input aria-label="Step name" className="h-8 max-w-xs" value={step.label} onChange={(e) => update({ label: e.target.value })} />
+            <div className="ml-auto flex gap-1">
+              <Button type="button" variant="ghost" size="icon" aria-label="Move up" disabled={index === 0} onClick={() => dispatch({ type: "move", from: index, to: index - 1 })}>
+                <ArrowUp />
+              </Button>
+              <Button type="button" variant="ghost" size="icon" aria-label="Move down" disabled={index === count - 1} onClick={() => dispatch({ type: "move", from: index, to: index + 1 })}>
+                <ArrowDown />
+              </Button>
+              <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${step.label}`} onClick={() => dispatch({ type: "remove", id: step.id })}>
+                <Trash2 />
+              </Button>
+            </div>
+          </div>
+          <LogicStepFields step={step} steps={steps} index={index} update={update} />
+          {errors.length > 0 && (
+            <ul className="list-inside list-disc text-sm text-destructive" role="alert">
+              {errors.map((e) => (
+                <li key={e}>{e}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function ElementStepCard({ step, steps, index, count, errors, dispatch }: StepCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
   const [customRule, setCustomRule] = useState("");
   const sensitive = !!step.fieldType && sensitiveFieldTypes.has(step.fieldType);
   const isButton = step.action === "CLICK";
+  const isRead = step.action === "READ";
   const update = (patch: Partial<FlowStep>) => dispatch({ type: "update", id: step.id, patch });
   const fieldId = (name: string) => `${step.id}-${name}`;
 
@@ -66,9 +129,29 @@ export function StepCard({ step, index, count, errors, dispatch }: StepCardProps
               <Button type="button" variant="ghost" size="icon" aria-label="Move down" disabled={index === count - 1} onClick={() => dispatch({ type: "move", from: index, to: index + 1 })}>
                 <ArrowDown />
               </Button>
+              <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${step.label}`} onClick={() => dispatch({ type: "remove", id: step.id })}>
+                <Trash2 />
+              </Button>
             </div>
           </div>
 
+          <div className="flex flex-wrap items-center gap-2">
+            <Label htmlFor={fieldId("action")}>Step does</Label>
+            <NativeSelect
+              id={fieldId("action")}
+              className="h-8 w-auto"
+              value={step.action}
+              onChange={(e) => update({ action: e.target.value as FlowStep["action"] })}
+            >
+              {actionsFor(step).map((a) => (
+                <option key={a} value={a}>
+                  {ACTION_LABELS[a]}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+
+          {!isRead && (
           <div className="grid gap-2">
             <Label htmlFor={fieldId("question")}>{isButton ? "Confirmation question" : "Question VoiceControl asks"}</Label>
             <Textarea
@@ -78,16 +161,18 @@ export function StepCard({ step, index, count, errors, dispatch }: StepCardProps
               value={step.question ?? ""}
               onChange={(e) => update({ question: e.target.value })}
             />
+            {!isButton && <p className="text-xs text-muted-foreground">Use {"{variable}"} to include earlier answers, e.g. “{"{first_name}"}, what is your city?”</p>}
           </div>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {!isButton && !sensitive && (
+            {!isButton && !isRead && !sensitive && (
               <div className="grid gap-2">
                 <Label htmlFor={fieldId("default")}>Default value</Label>
                 <Input id={fieldId("default")} value={step.defaultValue ?? ""} placeholder="Offered as “say yes to use …”" onChange={(e) => update({ defaultValue: e.target.value })} />
               </div>
             )}
-            {!isButton && !sensitive && (
+            {!isButton && !isRead && !sensitive && (
               <div className="grid gap-2">
                 <Label htmlFor={fieldId("profile")}>Fill from profile</Label>
                 <NativeSelect
@@ -112,7 +197,9 @@ export function StepCard({ step, index, count, errors, dispatch }: StepCardProps
             </div>
           </div>
 
-          {!isButton && (
+          {!sensitive && <ElementLogicFields step={step} steps={steps} index={index} update={update} />}
+
+          {!isButton && !isRead && (
             <div className="grid gap-2">
               <Label>Validation rules</Label>
               <div className="flex flex-wrap items-center gap-2">

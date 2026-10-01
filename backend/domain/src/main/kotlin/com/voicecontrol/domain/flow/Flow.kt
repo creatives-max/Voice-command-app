@@ -6,8 +6,25 @@ import kotlinx.serialization.Serializable
 import java.time.Instant
 import java.util.UUID
 
+/** Mirrors the Android model: element steps, then logic steps (no element). */
 @Serializable
-enum class StepAction { FILL, CLICK, TOGGLE }
+enum class StepAction {
+    FILL, CLICK, TOGGLE, READ, SET_VARIABLE, REPEAT, NEXT_SCREEN, OPEN_APP;
+
+    val targetsElement: Boolean get() = this == FILL || this == CLICK || this == TOGGLE || this == READ
+    val isScreenBoundary: Boolean get() = this == NEXT_SCREEN || this == OPEN_APP
+}
+
+/** A loop over [stepIds] for lists; see the Android `RepeatSpec`. */
+@Serializable
+data class RepeatSpec(
+    val stepIds: List<String> = emptyList(),
+    val addMoreElementId: String? = null,
+    val addMoreLabel: String? = null,
+    val maxIterations: Int = 10,
+    val countExpression: String? = null,
+    val itemLabel: String? = null,
+)
 
 @Serializable
 enum class ProfileKey { FULL_NAME, FIRST_NAME, LAST_NAME, EMAIL, PHONE, ADDRESS_LINE, CITY, STATE, PINCODE, DATE_OF_BIRTH }
@@ -28,6 +45,18 @@ data class FlowStep(
     val skip: Boolean = false,
     val helpVideoUrl: String? = null,
     val profileKey: ProfileKey? = null,
+    /** Run only when this expression is true. */
+    val condition: String? = null,
+    /** Expression filled when [condition] is false. */
+    val elseValue: String? = null,
+    /** Variable receiving the answer (default: snake-case label). */
+    val variable: String? = null,
+    /** Expression filled/stored without asking. */
+    val valueExpression: String? = null,
+    val repeat: RepeatSpec? = null,
+    /** OPEN_APP target app, or the app NEXT_SCREEN expects. */
+    val appPackage: String? = null,
+    val waitSeconds: Int? = null,
 )
 
 @Serializable

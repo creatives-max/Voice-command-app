@@ -60,3 +60,67 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Kubernetes manifests in `/infra/k8s`
 - [x] OpenTelemetry tracing/logging (backend + collector in compose)
 - [x] Tests, commit + push
+
+## Phase 9 — Smarter flows
+- [x] Expression language (Kotlin engine + backend + TypeScript) with shared test vectors
+- [x] Conditional steps, variables, computed values, `{var}` question templates, read-from-screen
+- [x] Repeat/loop groups for lists
+- [x] Multi-screen and cross-app flows (wait-for-screen, open-app steps)
+- [x] Dashboard: editor support + dry-run/test mode simulator
+- [x] Tests, commit + push
+
+## Phase 10 — Triggers & scheduling
+- [ ] Per-flow triggers: on app open, schedules (cron + timezone), manual
+- [ ] Backend scheduler (multi-replica safe), devices, run requests, device command stream
+- [ ] Phone executes remote run requests and streams a live run log
+- [ ] Dashboard: triggers editor, devices, "Run now" with live log
+- [ ] Tests, commit + push
+
+## Phase 11 — Flow marketplace
+- [ ] Publish / browse / search / import (version-aware, update from source), ratings
+- [ ] Starter template library (signup, login, address, OTP-less, contact, payment details)
+- [ ] Dashboard marketplace pages + publish flow; Android template import
+- [ ] Tests, commit + push
+
+## Phase 12 — Voice & AI upgrades
+- [ ] Streaming partial results with early command detection
+- [ ] Barge-in (interrupt TTS by speaking)
+- [ ] Custom wake word
+- [ ] Confidence-based re-ask
+- [ ] Context memory ("same as above", pronouns)
+- [ ] Marathi, Tamil, Telugu, Bengali, Gujarati
+- [ ] Tests, commit + push
+
+## Phase 13 — Accessibility power
+- [ ] Screen-reader mode (read whole screen, navigate, activate)
+- [ ] Undo last action
+- [ ] Confirm before destructive actions
+- [ ] Hybrid vision (merge screenshot model with partly readable screens)
+- [ ] Tests, commit + push
+
+## Phase 14 — Teams & multi-tenant backend
+- [ ] Organizations, memberships, invitations, RBAC (admin/editor/viewer), per-org flows
+- [ ] Audit logs
+- [ ] API keys + per-key rate limiting
+- [ ] Webhooks on flow events (signed, retried, delivery log)
+- [ ] Kafka event bus with Redis Streams fallback
+- [ ] Dashboard: org switcher, team, API keys, webhooks, audit log
+- [ ] Tests, commit + push
+
+## Phase 15 — Analytics & visual builder
+- [ ] Per-flow usage + success analytics API and dashboard charts
+- [ ] Drag-and-drop visual flow builder (canvas)
+- [ ] Flow comments + presence
+- [ ] Dashboard dark mode + i18n (English, Hindi)
+- [ ] Tests, commit + push
+
+## Phase 16 — Security, platform & polish
+- [ ] Biometric app lock
+- [ ] On-device-only mode completeness (on-phone flow editing)
+- [ ] GDPR export + account deletion (backend, dashboard, app)
+- [ ] Crash reporting (self-hosted)
+- [ ] Onboarding tutorial with practice form
+- [ ] Home-screen widget + quick-settings tile
+- [ ] Tablet layout
+- [ ] Emulator end-to-end test in CI
+- [ ] Tests, commit + push

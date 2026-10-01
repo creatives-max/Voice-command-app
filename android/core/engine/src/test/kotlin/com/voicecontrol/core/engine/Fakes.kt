@@ -19,6 +19,8 @@ class FakeScreen(var snapshot: ScreenSnapshot?) : ScreenGateway {
     val actions = mutableListOf<ScreenAction>()
     /** Screen to show after clicking the given element id. */
     val onClick = mutableMapOf<String, ScreenSnapshot>()
+    /** Screen to show after launching the given package. */
+    val onLaunch = mutableMapOf<String, ScreenSnapshot>()
 
     override val isAvailable: StateFlow<Boolean> = MutableStateFlow(true)
     override val screenChanges: Flow<ScreenSnapshot> = emptyFlow()
@@ -32,6 +34,8 @@ class FakeScreen(var snapshot: ScreenSnapshot?) : ScreenGateway {
         when (action) {
             is ScreenAction.SetText -> snapshot = snap.copy(elements = snap.elements.map { if (it.id == action.elementId) it.copy(value = action.text) else it })
             is ScreenAction.Click -> onClick[action.elementId]?.let { snapshot = it }
+            is ScreenAction.SetChecked -> snapshot = snap.copy(elements = snap.elements.map { if (it.id == action.elementId) it.copy(isChecked = action.checked) else it })
+            is ScreenAction.LaunchApp -> snapshot = onLaunch[action.packageName] ?: return ActionResult.Failure("not installed")
             else -> Unit
         }
         return ActionResult.Success

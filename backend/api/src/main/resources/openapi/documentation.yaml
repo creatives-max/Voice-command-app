@@ -421,7 +421,12 @@ components:
         label: { type: string }
         kind: { $ref: "#/components/schemas/ElementKind" }
         fieldType: { $ref: "#/components/schemas/FieldType" }
-        action: { type: string, enum: [FILL, CLICK, TOGGLE] }
+        action:
+          type: string
+          enum: [FILL, CLICK, TOGGLE, READ, SET_VARIABLE, REPEAT, NEXT_SCREEN, OPEN_APP]
+          description: >-
+            Element steps (FILL, CLICK, TOGGLE, READ) need elementId. Logic steps: SET_VARIABLE stores valueExpression
+            in variable; REPEAT loops over repeat.stepIds; NEXT_SCREEN waits for the next screen; OPEN_APP opens appPackage.
         question: { type: string, nullable: true, description: Custom spoken question }
         rules:
           type: array
@@ -431,6 +436,23 @@ components:
         skip: { type: boolean }
         helpVideoUrl: { type: string, nullable: true, description: https link shown during this step }
         profileKey: { type: string, nullable: true, enum: [FULL_NAME, FIRST_NAME, LAST_NAME, EMAIL, PHONE, ADDRESS_LINE, CITY, STATE, PINCODE, DATE_OF_BIRTH] }
+        condition: { type: string, nullable: true, description: "Expression (docs/spec/expressions.json); the step runs only when true" }
+        elseValue: { type: string, nullable: true, description: Expression filled when the condition is false }
+        variable: { type: string, nullable: true, pattern: "^[A-Za-z_][A-Za-z0-9_]*$", description: "Receives the answer; default is the label in snake_case" }
+        valueExpression: { type: string, nullable: true, description: Expression filled (or stored) without asking }
+        repeat: { $ref: "#/components/schemas/RepeatSpec" }
+        appPackage: { type: string, nullable: true, description: OPEN_APP target or the app NEXT_SCREEN expects }
+        waitSeconds: { type: integer, nullable: true, minimum: 1, maximum: 120 }
+    RepeatSpec:
+      type: object
+      nullable: true
+      properties:
+        stepIds: { type: array, items: { type: string }, description: Steps run once per item (same screen) }
+        addMoreElementId: { type: string, nullable: true }
+        addMoreLabel: { type: string, nullable: true, description: Button pressed between items }
+        maxIterations: { type: integer, minimum: 1, maximum: 50 }
+        countExpression: { type: string, nullable: true, description: "Number of items; when absent the user is asked 'add another?'" }
+        itemLabel: { type: string, nullable: true }
     FlowSummary:
       type: object
       properties:

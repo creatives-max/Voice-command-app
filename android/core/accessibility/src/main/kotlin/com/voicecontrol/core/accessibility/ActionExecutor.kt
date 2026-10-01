@@ -5,6 +5,7 @@ import android.accessibilityservice.GestureDescription
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Rect
@@ -57,6 +58,16 @@ class ActionExecutor(
         }
         is ScreenAction.TapAt -> if (tap(action.x.toFloat(), action.y.toFloat())) ActionResult.Success else ActionResult.Failure("Tap gesture cancelled")
         is ScreenAction.TypeIntoFocused -> typeIntoFocused(action.text)
+        is ScreenAction.LaunchApp -> launchApp(action.packageName)
+    }
+
+    /** Accessibility services may start activities from the background (system-bound service exemption). */
+    private fun launchApp(packageName: String): ActionResult {
+        val intent = service.packageManager.getLaunchIntentForPackage(packageName)
+            ?: return ActionResult.Failure("App $packageName is not installed")
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+        return runCatching { service.startActivity(intent) }
+            .fold({ ActionResult.Success }, { ActionResult.Failure(it.message ?: "Could not open $packageName") })
     }
 
     private suspend fun withNode(elementId: String, block: suspend (AccessibilityNodeInfo) -> ActionResult): ActionResult {

@@ -49,6 +49,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.voicecontrol.core.model.FlowDefinition
 import com.voicecontrol.core.model.FlowStep
+import com.voicecontrol.core.model.FlowVariables
 import com.voicecontrol.core.model.StepAction
 import com.voicecontrol.core.ui.components.EmptyState
 import com.voicecontrol.core.ui.components.LoadingBox
@@ -186,10 +187,20 @@ private fun StepCard(step: FlowStep) {
                     StepAction.CLICK -> "Press button"
                     StepAction.TOGGLE -> "Toggle"
                     StepAction.FILL -> step.fieldType?.name?.lowercase()?.replace('_', ' ') ?: "text"
+                    StepAction.READ -> "Read into {${FlowVariables.nameOf(step)}}"
+                    StepAction.SET_VARIABLE -> "Set {${FlowVariables.nameOf(step)}} = ${step.valueExpression.orEmpty()}"
+                    StepAction.REPEAT -> "Repeat ${step.repeat?.stepIds?.size ?: 0} steps for each ${step.repeat?.itemLabel ?: "item"}"
+                    StepAction.NEXT_SCREEN -> "Wait for the next screen"
+                    StepAction.OPEN_APP -> "Open ${step.appPackage.orEmpty()}"
                 },
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
+            step.condition?.takeIf { it.isNotBlank() }?.let { Text("Only if: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary) }
+            step.elseValue?.takeIf { it.isNotBlank() }?.let { Text("Otherwise: $it", style = MaterialTheme.typography.bodySmall) }
+            step.valueExpression?.takeIf { it.isNotBlank() && step.action != StepAction.SET_VARIABLE }?.let {
+                Text("Computed: $it", style = MaterialTheme.typography.bodySmall)
+            }
             step.question?.let { Text("“$it”", style = MaterialTheme.typography.bodyMedium) }
             step.defaultValue?.let { Text("Default: $it", style = MaterialTheme.typography.bodySmall) }
             if (step.rules.isNotEmpty()) Text("Rules: ${step.rules.joinToString(", ")}", style = MaterialTheme.typography.bodySmall)

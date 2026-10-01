@@ -34,6 +34,10 @@ sealed interface ScreenAction {
     /** Type into whichever input currently has focus (vision fallback after [TapAt]). */
     @Serializable @SerialName("type_focused")
     data class TypeIntoFocused(val text: String) : ScreenAction
+
+    /** Bring another installed app to the foreground (cross-app flows). */
+    @Serializable @SerialName("launch_app")
+    data class LaunchApp(val packageName: String) : ScreenAction
 }
 
 sealed interface ActionResult {

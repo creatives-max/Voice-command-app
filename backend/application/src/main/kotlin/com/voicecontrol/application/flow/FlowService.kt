@@ -129,29 +129,112 @@ class FlowService(
         fun normalizeSteps(steps: List<FlowStep>): List<FlowStep> {
             if (steps.size > MAX_STEPS) throw DomainException.Validation("A flow can have at most $MAX_STEPS steps")
             val ids = mutableSetOf<String>()
-            return steps.sortedBy { it.order }.mapIndexed { index, s ->
+            val normalized = steps.sortedBy { it.order }.mapIndexed { index, s ->
+                val n = index + 1
                 if (s.id.isBlank() || !ids.add(s.id)) throw DomainException.Validation("Step ids must be unique and non-empty")
-                if (s.elementId.isBlank()) throw DomainException.Validation("Step ${index + 1}: elementId is required")
-                if (s.label.length > 200) throw DomainException.Validation("Step ${index + 1}: label is too long")
-                if ((s.question?.length ?: 0) > 500) throw DomainException.Validation("Step ${index + 1}: question is too long")
-                if ((s.defaultValue?.length ?: 0) > 500) throw DomainException.Validation("Step ${index + 1}: default value is too long")
-                if (s.fieldType?.isSensitive == true && !s.defaultValue.isNullOrBlank()) {
-                    throw DomainException.Validation("Step ${index + 1}: password/OTP/PIN fields cannot have a default value")
+                if (s.action.targetsElement && s.elementId.isBlank()) throw DomainException.Validation("Step $n: elementId is required")
+                if (s.label.length > 200) throw DomainException.Validation("Step $n: label is too long")
+                if ((s.question?.length ?: 0) > 500) throw DomainException.Validation("Step $n: question is too long")
+                if ((s.defaultValue?.length ?: 0) > 500) throw DomainException.Validation("Step $n: default value is too long")
+                val sensitive = s.fieldType?.isSensitive == true
+                if (sensitive && !s.defaultValue.isNullOrBlank()) {
+                    throw DomainException.Validation("Step $n: password/OTP/PIN fields cannot have a default value")
                 }
                 if (s.action == StepAction.CLICK && !s.defaultValue.isNullOrBlank()) {
-                    throw DomainException.Validation("Step ${index + 1}: button steps cannot have a default value")
+                    throw DomainException.Validation("Step $n: button steps cannot have a default value")
                 }
-                s.rules.forEach { validateRule(it, index + 1) }
-                s.helpVideoUrl?.takeIf { it.isNotBlank() }?.let { validateUrl(it, index + 1) }
+                s.rules.forEach { validateRule(it, n) }
+                s.helpVideoUrl?.takeIf { it.isNotBlank() }?.let { validateUrl(it, n) }
+                validateLogic(s, n, sensitive)
                 s.copy(
                     order = index,
                     question = s.question?.trim()?.takeIf { it.isNotEmpty() },
                     defaultValue = s.defaultValue?.trim()?.takeIf { it.isNotEmpty() },
                     helpVideoUrl = s.helpVideoUrl?.trim()?.takeIf { it.isNotEmpty() },
                     rules = s.rules.map { it.trim() }.filter { it.isNotEmpty() }.distinct(),
+                    condition = s.condition?.trim()?.takeIf { it.isNotEmpty() },
+                    elseValue = s.elseValue?.trim()?.takeIf { it.isNotEmpty() },
+                    variable = s.variable?.trim()?.takeIf { it.isNotEmpty() },
+                    valueExpression = s.valueExpression?.trim()?.takeIf { it.isNotEmpty() },
+                    appPackage = s.appPackage?.trim()?.takeIf { it.isNotEmpty() },
+                    repeat = if (s.action == StepAction.REPEAT) s.repeat else null,
                 )
             }
+            validateRepeats(normalized)
+            return normalized
         }
+
+        private val variableRegex = Regex("^[A-Za-z_][A-Za-z0-9_]*$")
+
+        /** Expression syntax, variable names and the requirements of each logic step. */
+        private fun validateLogic(s: FlowStep, n: Int, sensitive: Boolean) {
+            fun expr(value: String?, what: String) {
+                val v = value?.trim()?.takeIf { it.isNotEmpty() } ?: return
+                if (v.length > MAX_EXPRESSION) throw DomainException.Validation("Step $n: $what is too long")
+                Expressions.validate(v)?.let { throw DomainException.Validation("Step $n: $what: $it") }
+            }
+            expr(s.condition, "condition")
+            expr(s.elseValue, "else value")
+            expr(s.valueExpression, "computed value")
+            expr(s.repeat?.countExpression, "repeat count")
+            s.question?.let { q ->
+                Regex("\\{([^{}]+)}").findAll(q).forEach { m ->
+                    Expressions.validate(m.groupValues[1])?.let { throw DomainException.Validation("Step $n: question placeholder {${m.groupValues[1]}}: $it") }
+                }
+            }
+            s.variable?.trim()?.takeIf { it.isNotEmpty() }?.let { v ->
+                if (!variableRegex.matches(v) || v.length > 60) throw DomainException.Validation("Step $n: variable names use letters, digits and _")
+                if (v == "index") throw DomainException.Validation("Step $n: 'index' is reserved for loops")
+            }
+            if (!s.elseValue.isNullOrBlank() && s.condition.isNullOrBlank()) {
+                throw DomainException.Validation("Step $n: an else value needs a condition")
+            }
+            if (sensitive && (!s.valueExpression.isNullOrBlank() || !s.elseValue.isNullOrBlank())) {
+                throw DomainException.Validation("Step $n: password/OTP/PIN fields cannot be filled automatically")
+            }
+            s.waitSeconds?.let { if (it !in 1..120) throw DomainException.Validation("Step $n: wait must be 1-120 seconds") }
+            s.appPackage?.trim()?.takeIf { it.isNotEmpty() }?.let { validatePackage(it) }
+            when (s.action) {
+                StepAction.SET_VARIABLE -> if (s.variable.isNullOrBlank() || s.valueExpression.isNullOrBlank()) {
+                    throw DomainException.Validation("Step $n: set-variable steps need a variable name and a value")
+                }
+                StepAction.OPEN_APP -> if (s.appPackage.isNullOrBlank()) throw DomainException.Validation("Step $n: open-app steps need an app package")
+                StepAction.REPEAT -> {
+                    val r = s.repeat ?: throw DomainException.Validation("Step $n: repeat steps need the steps to repeat")
+                    if (r.stepIds.isEmpty()) throw DomainException.Validation("Step $n: choose at least one step to repeat")
+                    if (r.maxIterations !in 1..50) throw DomainException.Validation("Step $n: repeat at most 1-50 times")
+                    if ((r.addMoreLabel?.length ?: 0) > 200 || (r.itemLabel?.length ?: 0) > 60) {
+                        throw DomainException.Validation("Step $n: repeat labels are too long")
+                    }
+                }
+                else -> Unit
+            }
+        }
+
+        /** Repeated steps must exist, sit on the same screen, not be logic boundaries, and belong to one loop. */
+        private fun validateRepeats(steps: List<FlowStep>) {
+            val byId = steps.associateBy { it.id }
+            val screenOf = HashMap<String, Int>()
+            var screen = 0
+            steps.forEachIndexed { i, s ->
+                if (s.action.isScreenBoundary && i > 0) screen++
+                screenOf[s.id] = screen
+            }
+            val owner = HashMap<String, String>()
+            steps.filter { it.action == StepAction.REPEAT }.forEach { loop ->
+                val n = loop.order + 1
+                loop.repeat!!.stepIds.forEach { id ->
+                    val target = byId[id] ?: throw DomainException.Validation("Step $n: repeats a step that does not exist")
+                    if (target.action == StepAction.REPEAT || target.action.isScreenBoundary) {
+                        throw DomainException.Validation("Step $n: loops can't contain other loops or screen changes")
+                    }
+                    if (screenOf[id] != screenOf[loop.id]) throw DomainException.Validation("Step $n: repeated steps must be on the same screen")
+                    owner.put(id, loop.id)?.let { throw DomainException.Validation("Step $n: a step can belong to only one loop") }
+                }
+            }
+        }
+
+        const val MAX_EXPRESSION = 500
 
         private val knownRules = setOf("required", "email", "phone", "pincode", "digits", "min", "max", "regex", "oneof")
 

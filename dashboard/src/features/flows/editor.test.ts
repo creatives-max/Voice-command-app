@@ -1,5 +1,5 @@
 import type { Flow, FlowStep, FlowVersion } from "@/lib/types";
-import { describeChanges, editorReducer, initialEditor, toUpdatePayload, validateSteps } from "./editor";
+import { describeChanges, editorReducer, initialEditor, newLogicStep, toUpdatePayload, validateSteps } from "./editor";
 
 const step = (id: string, order: number, patch: Partial<FlowStep> = {}): FlowStep => ({
   id,
@@ -85,5 +85,48 @@ describe("describeChanges", () => {
     const v2: FlowVersion = { version: 2, steps: [step("b", 0), step("a", 1, { question: "Q", skip: true })], source: "DASHBOARD", createdAt: "" };
     expect(describeChanges(undefined, v1)).toEqual(["Initial version"]);
     expect(describeChanges(v1, v2)).toEqual(["Step order changed", 'Question for "A" changed', '"A" is now skipped']);
+  });
+});
+
+describe("flow logic editing", () => {
+  const base: Flow = {
+    id: "f1", version: 2, appPackage: "com.shop", name: "Signup", screenSignature: "sig", updatedAtMillis: 0, createdAt: "", updatedAt: "",
+    steps: [
+      { id: "a", order: 0, elementId: "vid:a", label: "Kids", kind: "TEXT_FIELD", fieldType: "NUMBER", action: "FILL", rules: [], skip: false },
+      { id: "b", order: 1, elementId: "vid:b", label: "Child name", kind: "TEXT_FIELD", fieldType: "NAME", action: "FILL", rules: [], skip: false },
+    ],
+  };
+
+  it("adds, configures and removes logic steps", () => {
+    let s = initialEditor(base);
+    s = editorReducer(s, { type: "addLogic", action: "REPEAT", id: "loop", afterIndex: 1 });
+    expect(s.steps.map((x) => x.id)).toEqual(["a", "b", "loop"]);
+    expect(validateSteps(s.steps).loop).toContain("Choose at least one step to repeat");
+    s = editorReducer(s, { type: "update", id: "loop", patch: { repeat: { stepIds: ["b"], maxIterations: 5, countExpression: "kids" } } });
+    expect(validateSteps(s.steps).loop).toBeUndefined();
+    s = editorReducer(s, { type: "remove", id: "b" });
+    expect(s.steps.find((x) => x.id === "loop")?.repeat?.stepIds).toEqual([]);
+  });
+
+  it("validates expressions, variables and screen changes like the backend", () => {
+    const steps = [
+      { ...base.steps[0]!, condition: "kids >", variable: "my var" },
+      { ...base.steps[1]!, elseValue: "'x'", question: "Hi {upper(}" },
+      { ...newLogicStep("OPEN_APP", "o"), order: 2 },
+    ];
+    const errors = validateSteps(steps);
+    expect(errors.a).toEqual(expect.arrayContaining([expect.stringMatching(/^Condition:/), "Variable names use letters, digits and _"]));
+    expect(errors.b).toEqual(expect.arrayContaining(["An else value needs a condition", expect.stringMatching(/^Question placeholder/)]));
+    expect(errors.o).toContain("Open-app steps need an app package");
+  });
+
+  it("appends another flow as the next screen with unique ids", () => {
+    let s = initialEditor(base);
+    s = editorReducer(s, { type: "appendFlow", flow: { ...base, id: "f2", name: "Address", appPackage: "com.maps" }, boundary: "OPEN_APP", idPrefix: "x-", sameApp: false });
+    expect(s.steps.map((x) => x.id)).toEqual(["a", "b", "x-boundary", "x-a", "x-b"]);
+    expect(s.steps[2]).toMatchObject({ action: "OPEN_APP", appPackage: "com.maps" });
+    const payload = toUpdatePayload(s);
+    expect(payload.steps.map((x) => x.order)).toEqual([0, 1, 2, 3, 4]);
+    expect(payload.steps[0]!.condition).toBeNull();
   });
 });

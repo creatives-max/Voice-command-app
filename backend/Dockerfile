@@ -13,6 +13,8 @@ FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S -g 10001 app && adduser -S -u 10001 -G app app
 WORKDIR /app
 COPY --from=build /workspace/api/build/libs/voicecontrol-backend.jar /app/app.jar
+# The OpenAPI page is generated into ./docs at startup, so the app user must be able to write there.
+RUN mkdir -p /app/docs && chown -R app:app /app/docs
 USER 10001
 EXPOSE 8080
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseG1GC"

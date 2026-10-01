@@ -4,7 +4,11 @@ import { handleProxy } from "@/server/proxy";
 
 export const dynamic = "force-dynamic";
 
-const backendUrl = () => process.env.BACKEND_URL ?? "http://localhost:8080";
+/** `BACKEND_URL` may be a full URL or a bare `host:port` (Render's private network), which means http. */
+const backendUrl = () => {
+  const url = process.env.BACKEND_URL?.trim() || "http://localhost:8080";
+  return /^https?:\/\//.test(url) ? url : `http://${url}`;
+};
 
 async function handle(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;

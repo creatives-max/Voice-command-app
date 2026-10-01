@@ -216,6 +216,15 @@ transcript plus the next pending question.
 - **Launcher shortcuts**: long-press the app icon for Insights, My flows, Get flows and Settings.
 - CI runs the app on an **Android emulator** (`android-e2e` job, `./gradlew :app:connectedDebugAndroidTest`).
 
+## Render
+
+`render.yaml` is a Render Blueprint: **New → Blueprint**, pick this repository. It creates a `voicecontrol` project
+with Postgres (`voicecontrol-db`), Key Value (`voicecontrol-redis`), the backend (`voicecontrol-backend`, health check
+`/health`) and the dashboard (`voicecontrol-dashboard`, which reaches the backend over Render's private network).
+`DATABASE_URL` may be Render's `postgres://` connection string (the backend converts it to JDBC) and `BACKEND_URL`
+may be a bare `host:port`. In the phone app set the server address to the backend's `https://….onrender.com` URL.
+Free plans sleep when idle and free Postgres expires after 30 days.
+
 ## Kubernetes
 
 ```bash

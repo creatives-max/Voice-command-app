@@ -1,0 +1,61 @@
+# Render Blueprint: New → Blueprint → pick this repository. Creates the "voicecontrol" project with a
+# Postgres database (pgvector is enabled by the first migration), a Key Value (Redis) instance, the
+# backend API and the web dashboard. Kafka is optional and not used here.
+# Free plans sleep when idle and free Postgres expires after 30 days: use paid plans for real use.
+projects:
+  - name: voicecontrol
+    environments:
+      - name: production
+        databases:
+          - name: voicecontrol-db
+            plan: free
+            databaseName: voicecontrol
+            user: voicecontrol
+            postgresMajorVersion: "16"
+        services:
+          - type: keyvalue
+            name: voicecontrol-redis
+            plan: free
+            maxmemoryPolicy: noeviction
+            ipAllowList: [] # only reachable from services in this account
+
+          - type: web
+            name: voicecontrol-backend
+            runtime: docker
+            plan: free
+            rootDir: backend
+            dockerfilePath: ./Dockerfile
+            dockerContext: .
+            healthCheckPath: /health
+            envVars:
+              - key: DATABASE_URL # postgres:// URLs are converted to JDBC by the backend
+                fromDatabase:
+                  name: voicecontrol-db
+                  property: connectionString
+              - key: REDIS_URL
+                fromService:
+                  type: keyvalue
+                  name: voicecontrol-redis
+                  property: connectionString
+              - key: JWT_SECRET
+                generateValue: true
+              - key: LLM_PROVIDER
+                value: rules # set to "anthropic" and add ANTHROPIC_API_KEY for AI understanding
+              - key: LOG_FORMAT
+                value: JSON
+              - key: JAVA_OPTS
+                value: -XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k
+
+          - type: web
+            name: voicecontrol-dashboard
+            runtime: docker
+            plan: free
+            rootDir: dashboard
+            dockerfilePath: ./Dockerfile
+            dockerContext: .
+            envVars:
+              - key: BACKEND_URL # private host:port of the backend
+                fromService:
+                  type: web
+                  name: voicecontrol-backend
+                  property: hostport

@@ -40,16 +40,35 @@ data class AppConfig(
     )
 
     companion object {
+        /**
+         * Accepts a JDBC URL, or a `postgres://user:password@host:port/db` URL as hosting providers (Render,
+         * Heroku…) give it; then the user and password come from the URL unless DATABASE_USER/PASSWORD are set.
+         */
+        private const val DEFAULT_DB_USER = "voicecontrol"
+
+        fun databaseConfig(url: String, user: String?, password: String?, maxPoolSize: Int): DatabaseConfig {
+            val match = Regex("^postgres(?:ql)?://(?:([^:@/]*)(?::([^@/]*))?@)?([^/?#]+)(/[^?#]*)?(\\?.*)?$").find(url.trim())
+                ?: return DatabaseConfig(url, user ?: DEFAULT_DB_USER, password ?: DEFAULT_DB_USER, maxPoolSize)
+            val (urlUser, urlPassword, hostPort, path, query) = match.destructured
+            val decode = { v: String -> java.net.URLDecoder.decode(v, Charsets.UTF_8) }
+            return DatabaseConfig(
+                url = "jdbc:postgresql://$hostPort${path.ifEmpty { "/" }}$query",
+                user = user ?: decode(urlUser),
+                password = password ?: decode(urlPassword),
+                maxPoolSize = maxPoolSize,
+            )
+        }
+
         fun fromEnv(env: Map<String, String> = System.getenv()): AppConfig {
             fun get(key: String, default: String) = env[key]?.takeIf { it.isNotBlank() } ?: default
             val jwtSecret = get("JWT_SECRET", "dev-only-change-me-dev-only-change-me")
             require(jwtSecret.length >= 32) { "JWT_SECRET must be at least 32 characters" }
             return AppConfig(
                 port = get("PORT", "8080").toInt(),
-                database = DatabaseConfig(
+                database = databaseConfig(
                     url = get("DATABASE_URL", "jdbc:postgresql://localhost:5432/voicecontrol"),
-                    user = get("DATABASE_USER", "voicecontrol"),
-                    password = get("DATABASE_PASSWORD", "voicecontrol"),
+                    user = env["DATABASE_USER"]?.takeIf { it.isNotBlank() },
+                    password = env["DATABASE_PASSWORD"]?.takeIf { it.isNotBlank() },
                     maxPoolSize = get("DATABASE_POOL_SIZE", "10").toInt(),
                 ),
                 redisUrl = get("REDIS_URL", "redis://localhost:6379"),

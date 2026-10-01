@@ -9,6 +9,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ActivityScenario
+import android.os.SystemClock
+import androidx.test.espresso.Espresso
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.action.ViewActions.closeSoftKeyboard
@@ -67,8 +69,26 @@ class EndToEndTest {
         ActivityScenario.launch(PracticeFormActivity::class.java).use {
             onView(withId(OnboardingR.id.practice_name)).perform(scrollTo(), typeText("Asha Rao"), closeSoftKeyboard())
             onView(withId(OnboardingR.id.practice_city)).perform(scrollTo(), typeText("Pune"), closeSoftKeyboard())
-            onView(withId(OnboardingR.id.practice_submit)).perform(scrollTo(), click())
-            onView(withText("You filled 2 of 4 fields. VoiceControl works the same way in every app.")).inRoot(isDialog()).check(matches(isDisplayed()))
+            // The keyboard must be fully gone, or the tap can land on it while it animates away.
+            Espresso.closeSoftKeyboard()
+            onView(withId(OnboardingR.id.practice_submit)).perform(scrollTo()).check(matches(isDisplayed())).perform(click())
+            eventually {
+                onView(withText("You filled 2 of 4 fields. VoiceControl works the same way in every app.")).inRoot(isDialog()).check(matches(isDisplayed()))
+            }
+        }
+    }
+
+    /** Retries [check] for a few seconds: windows such as dialogs appear asynchronously on slow emulators. */
+    private fun eventually(timeoutMillis: Long = 5_000, check: () -> Unit) {
+        val end = SystemClock.uptimeMillis() + timeoutMillis
+        while (true) {
+            try {
+                check()
+                return
+            } catch (e: Throwable) {
+                if (SystemClock.uptimeMillis() > end) throw e
+                Thread.sleep(250)
+            }
         }
     }
 }

@@ -30,6 +30,7 @@ import com.voicecontrol.core.model.ScreenSnapshot
 import com.voicecontrol.core.model.ScrollDirection
 import com.voicecontrol.core.model.SessionSummary
 import com.voicecontrol.core.model.StepAction
+import com.voicecontrol.core.nlp.AppRequest
 import com.voicecontrol.core.model.StepOutcome
 import com.voicecontrol.core.model.StepRecord
 import com.voicecontrol.core.model.UserProfile
@@ -123,6 +124,8 @@ class AssistantEngine(
     /** AI-written questions for screens without saved ones (not in on-device only mode). */
     private val questionWriter: com.voicecontrol.core.engine.port.QuestionWriter? = null,
     private val questionTimeoutMillis: Long = 30_000L,
+    /** Installed apps, for "open WhatsApp". */
+    private val appDirectory: com.voicecontrol.core.engine.port.AppDirectory? = null,
 ) {
     private val _state = MutableStateFlow(EngineState())
     val state: StateFlow<EngineState> = _state.asStateFlow()
@@ -225,6 +228,8 @@ class AssistantEngine(
         val hybrid = HashMap<String, HybridVision.Result>()
         /** Signature of the screen as last seen (loops can change it by adding rows). */
         var currentSignature: String = ""
+        /** The assistant already said "What can I do for you?" in this session. */
+        var greeted = false
         /** AI-written questions for the current screen, arriving while the first questions are asked. */
         var written: kotlinx.coroutines.Deferred<Map<String, com.voicecontrol.core.engine.port.WrittenQuestion>>? = null
         var writtenIds: Set<String> = emptySet()
@@ -390,13 +395,15 @@ class AssistantEngine(
                 }
                 active = null
                 if (outcome == ScreenOutcome.COMPLETED) break
-                // A button was pressed: wait for the app to react and continue on a new form.
+                // Something was pressed or opened: wait for the app to react and carry on, on a new form or as
+                // the assistant ("What next?"), until the user says stop or stays silent.
                 delay(screenSettleMillis)
-                val next = readScreen(session)
-                val hasNewForm = next != null && next.signature != session.currentSignature &&
-                    next.elements.any { it.kind.isInput || it.kind.isToggle }
-                if (!hasNewForm) break
-                say(session, session.phrases.newScreen())
+                val next = readScreen(session) ?: break
+                val hasForm = next.elements.any { it.kind.isInput || it.kind.isToggle }
+                val sameScreen = next.signature == session.currentSignature
+                // The form just filled is still showing (submitted, or the app shows it again): finished.
+                if (hasForm && sameScreen) break
+                if (hasForm) say(session, session.phrases.newScreen())
             }
             say(session, session.phrases.done())
         } catch (e: UserStop) {
@@ -636,20 +643,35 @@ class AssistantEngine(
         return submit(session, snapshot, plan, log)
     }
 
-    /** Screens without fields: let the user press buttons, scroll or go back by voice. */
+    /**
+     * Screens without fields: an assistant conversation. It asks what the user wants ("What can I do for
+     * you?"), then presses a button they name, opens an app ("open WhatsApp"), scrolls or goes back. When
+     * the user is unsure ("what can I do?", "pata nahi") or isn't understood, it suggests what this screen
+     * offers (or the AI's suggestion). It keeps listening until the user acts, says stop, or stays silent.
+     */
     private suspend fun commandMode(session: Session, snapshot: ScreenSnapshot, log: ScreenLog): ScreenOutcome {
         val phrases = session.phrases
-        val buttons = snapshot.buttons.filter { it.isEnabled }.take(MAX_BUTTONS_SPOKEN).map { it.label }
-        var prompt = if (buttons.isEmpty()) phrases.nothingToFill() else phrases.whichButton(buttons)
-        repeat(MAX_ATTEMPTS) {
+        var prompt = if (session.greeted) phrases.whatNext() else phrases.howCanIHelp()
+        session.greeted = true
+        repeat(MAX_COMMAND_TURNS) {
             val heard = askAndListen(session, prompt) ?: return@repeat
             shortcutFlow(session, snapshot, heard)?.let { flow ->
                 session.switchTo = flow
                 return ScreenOutcome.SWITCHED
             }
-            // The answer to "which button?" is usually just its name: "Login", "लॉगिन", "OK", "Next".
+            // The answer is usually just a button's name: "Login", "लॉगिन", "OK", "Next".
             spokenButton(session, snapshot, heard)?.let { button ->
                 if (press(session, button, log)) return ScreenOutcome.NAVIGATED
+                return@repeat
+            }
+            // "open WhatsApp", "YouTube kholo": a visible button of that name wins, else the installed app.
+            AppRequest.parse(heard)?.let { name ->
+                ButtonMatcher.find(name, snapshot.elements, ButtonMatcher.STRICT)?.let { button ->
+                    if (press(session, button, log)) return ScreenOutcome.NAVIGATED
+                    return@repeat
+                }
+                if (openApp(session, name)) return ScreenOutcome.NAVIGATED
+                prompt = phrases.suggest(suggestions(snapshot))
                 return@repeat
             }
             val interp = interpret(session, snapshot, null, heard, prompt)
@@ -657,7 +679,7 @@ class AssistantEngine(
                 IntentKind.CLICK -> if (clickTarget(session, snapshot, interp, log)) return ScreenOutcome.NAVIGATED
                 IntentKind.NEXT, IntentKind.SUBMIT -> {
                     val main = ButtonMatcher.primarySubmit(snapshot.elements)
-                    if (main == null) prompt = phrases.didNotCatch() + " " + prompt
+                    if (main == null) prompt = phrases.suggest(suggestions(snapshot))
                     else if (press(session, main, log)) return ScreenOutcome.NAVIGATED
                 }
                 IntentKind.BACK -> {
@@ -669,13 +691,36 @@ class AssistantEngine(
                     return ScreenOutcome.NAVIGATED
                 }
                 IntentKind.STOP, IntentKind.NO -> return ScreenOutcome.STOPPED
-                IntentKind.HELP -> prompt = phrases.help()
+                IntentKind.HELP -> prompt = interp.reply?.takeIf { it.isNotBlank() } ?: phrases.suggest(suggestions(snapshot))
                 IntentKind.UNDO -> say(session, undoLast()?.let(phrases::undone) ?: phrases.nothingToUndo())
                 IntentKind.READ_SCREEN -> if (runReader(session, snapshot, log)) return ScreenOutcome.NAVIGATED
-                else -> prompt = phrases.didNotCatch() + " " + prompt
+                IntentKind.REPEAT -> Unit
+                else -> prompt = interp.reply?.takeIf { it.isNotBlank() }
+                    ?: (phrases.didNotCatch() + " " + phrases.suggest(suggestions(snapshot)))
             }
         }
         return ScreenOutcome.STOPPED
+    }
+
+    /** The screen's main actions, for suggestions: enabled buttons with short, readable names. */
+    private fun suggestions(snapshot: ScreenSnapshot): List<String> =
+        snapshot.buttons
+            .filter { it.isEnabled && it.label.isNotBlank() && it.label.length <= MAX_SUGGESTION_CHARS }
+            .map { it.label.trim() }
+            .distinct()
+            .take(MAX_SUGGESTIONS)
+
+    /** Opens the installed app the user named; false (after explaining) when there is none. */
+    private suspend fun openApp(session: Session, name: String): Boolean {
+        val apps = runCatching { appDirectory?.apps() }.getOrNull().orEmpty()
+        val app = AppMatcher.find(name, apps)
+        if (app == null) {
+            say(session, session.phrases.appNotFound(name))
+            return false
+        }
+        val ok = act(session, ScreenAction.LaunchApp(app.packageName), session.phrases.opening(app.label))
+        if (ok) emit(EngineEvent.STEP, "Opened ${app.label}")
+        return ok
     }
 
     private suspend fun submit(session: Session, snapshot: ScreenSnapshot, plan: ScreenPlan, log: ScreenLog): ScreenOutcome {
@@ -1599,8 +1644,12 @@ class AssistantEngine(
         const val MAX_RATE = 2f
         /** "Read everything" scrolls at most this many pages. */
         const val MAX_READ_PAGES = 10
-        const val MAX_SCREENS = 12
+        const val MAX_SCREENS = 40
         const val MAX_BUTTONS_SPOKEN = 6
+        /** Turns the assistant listens on one screen before giving up (silence ends it sooner). */
+        const val MAX_COMMAND_TURNS = 12
+        const val MAX_SUGGESTIONS = 4
+        private const val MAX_SUGGESTION_CHARS = 30
         private const val MAX_WRITTEN_CHARS = 200
         /** How long the first question waits for AI-written ones (enough for a cached answer). */
         const val FIRST_QUESTION_WAIT_MS = 2_500L

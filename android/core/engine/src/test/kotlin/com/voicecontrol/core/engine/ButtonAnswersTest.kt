@@ -37,7 +37,9 @@ class ButtonAnswersTest {
         engine(screen, ScriptedStt("login"), tts).start()
         advanceUntilIdle()
         assertTrue(ScreenAction.Click("vid:login") in screen.actions)
-        assertFalse(tts.spoken.any { it.startsWith("Sorry, I didn't catch that") })
+        assertEquals("What can I do for you?", tts.spoken.first())
+        // Understood at once: nothing was said between the question and pressing Login.
+        assertEquals("Pressed Login.", tts.spoken[1])
     }
 
     @Test

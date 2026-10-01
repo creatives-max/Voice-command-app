@@ -39,7 +39,14 @@ object CommandParser {
             "स्क्रीन वाचा", "सर्व वाचा", "वाचा", "திரையைப் படி", "அனைத்தையும் படி", "படி", "స్క్రీన్ చదువు", "అన్నీ చదువు", "చదువు",
             "স্ক্রিন পড়ো", "সব পড়ো", "পড়ো", "સ્ક્રીન વાંચો", "બધું વાંચો", "વાંચો",
         ),
-        VoiceCommand.Help to setOf("help", "madad", "sahayata", "मदद", "सहायता", "मदत", "உதவி", "udhavi", "సహాయం", "sahayam", "সাহায্য", "sahajjo", "મદદ"),
+        VoiceCommand.Help to setOf(
+            "help", "madad", "sahayata", "मदद", "सहायता", "मदत", "உதவி", "udhavi", "సహాయం", "sahayam", "সাহায্য", "sahajjo", "મદદ",
+            // "What can I do here?" / "I don't know": the assistant then suggests what this screen offers.
+            "what can i do", "what can i do here", "what can you do", "options", "suggest", "i don't know", "dont know", "nothing",
+            "kya kar sakta hu", "kya kar sakti hu", "kya kar sakte ho", "kya karu", "kya karun", "kya karna hai", "pata nahi", "kuch nahi", "batao", "bataiye", "sujhao",
+            "क्या कर सकता हूं", "क्या कर सकते हो", "क्या करूं", "क्या करना है", "पता नहीं", "कुछ नहीं", "बताओ", "बताइए", "सुझाव", "विकल्प",
+            "काय करू", "माहित नाही", "என்ன செய்யலாம்", "தெரியவில்லை", "ఏమి చేయాలి", "తెలియదు", "কী করব", "জানি না", "શું કરું", "ખબર નથી",
+        ),
     )
 
     private val pressVerbsBefore = listOf("press", "click", "click on", "tap", "tap on", "hit", "select", "open", "choose")
@@ -54,6 +61,8 @@ object CommandParser {
         val core = simple.split(' ').filter { it !in politeness }.joinToString(" ")
         // Whole-utterance commands first, so "press it" / "इसे चुनो" select the current item instead of a button named "it".
         if (core.isNotEmpty()) phrases.firstOrNull { (_, set) -> core in set }?.first?.let { return it }
+        // Phrases that contain a politeness word themselves ("what can I do").
+        phrases.firstOrNull { (_, set) -> simple in set }?.first?.let { return it }
         return parsePress(simple)
     }
 

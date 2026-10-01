@@ -240,6 +240,79 @@ class Phrases(private val language: Language) {
         "કયું બટન દબાવું? $list.",
     )
 
+    /** First question on a screen without a form: the assistant offers help instead of listing buttons. */
+    fun howCanIHelp() = t(
+        "What can I do for you?",
+        "बताइए, मैं आपके लिए क्या करूं?",
+        "Bataiye, main aapke liye kya karun?",
+        "सांगा, मी तुमच्यासाठी काय करू?",
+        "சொல்லுங்கள், உங்களுக்கு என்ன செய்யட்டும்?",
+        "చెప్పండి, మీ కోసం ఏమి చేయాలి?",
+        "বলুন, আপনার জন্য কী করব?",
+        "કહો, હું તમારા માટે શું કરું?",
+    )
+
+    /** After an action, on the next screen without a form. */
+    fun whatNext() = t(
+        "What next?",
+        "अब आगे क्या करना है?",
+        "Ab aage kya karna hai?",
+        "आता पुढे काय करायचे?",
+        "அடுத்து என்ன செய்யலாம்?",
+        "తరువాత ఏమి చేయాలి?",
+        "এরপর কী করব?",
+        "હવે આગળ શું કરવું છે?",
+    )
+
+    /** Suggestions when the user is unsure: what this screen offers, and that apps can be opened. */
+    fun suggest(options: List<String>): String {
+        if (options.isEmpty()) return suggestApps()
+        val list = options.joinToString(", ")
+        return t(
+            "Here you can: $list. Just say one, or say open and an app name.",
+            "यहाँ आप ये कर सकते हैं: $list। इनमें से कोई एक बोलिए, या ऐप का नाम लेकर खोलो बोलिए।",
+            "Yahan aap ye kar sakte hain: $list. Inmein se koi ek boliye, ya app ka naam lekar kholo boliye.",
+            "इथे तुम्ही हे करू शकता: $list. यापैकी एक सांगा, किंवा अॅपचे नाव घेऊन उघडा म्हणा.",
+            "இங்கே நீங்கள் செய்யலாம்: $list. ஒன்றைச் சொல்லுங்கள், அல்லது ஆப் பெயருடன் திற என்று சொல்லுங்கள்.",
+            "ఇక్కడ మీరు చేయగలరు: $list. వీటిలో ఒకటి చెప్పండి, లేదా యాప్ పేరుతో తెరువు అని చెప్పండి.",
+            "এখানে আপনি করতে পারেন: $list। যেকোনো একটা বলুন, অথবা অ্যাপের নাম বলে খোলো বলুন।",
+            "અહીં તમે આ કરી શકો: $list. એમાંથી એક કહો, અથવા એપનું નામ લઈને ખોલો કહો.",
+        )
+    }
+
+    private fun suggestApps() = t(
+        "You can say open and an app name, like open WhatsApp, or say scroll, back or stop.",
+        "आप ऐप का नाम लेकर खोलो बोल सकते हैं, जैसे व्हाट्सऐप खोलो, या नीचे, वापस या रुको बोलिए।",
+        "Aap app ka naam lekar kholo bol sakte hain, jaise WhatsApp kholo, ya scroll, back ya stop boliye.",
+        "तुम्ही अॅपचे नाव घेऊन उघडा म्हणू शकता, जसे व्हॉट्सअॅप उघडा, किंवा खाली, मागे किंवा थांबा म्हणा.",
+        "ஆப் பெயருடன் திற என்று சொல்லலாம், உதாரணமாக வாட்ஸ்அப் திற, அல்லது கீழே, பின்னால், நிறுத்து என்று சொல்லுங்கள்.",
+        "యాప్ పేరుతో తెరువు అని చెప్పవచ్చు, ఉదాహరణకు వాట్సాప్ తెరువు, లేదా కిందకి, వెనక్కి లేదా ఆపు అని చెప్పండి.",
+        "অ্যাপের নাম বলে খোলো বলতে পারেন, যেমন হোয়াটসঅ্যাপ খোলো, অথবা নিচে, পিছনে বা থামো বলুন।",
+        "એપનું નામ લઈને ખોલો કહી શકો, જેમ કે વોટ્સએપ ખોલો, અથવા નીચે, પાછળ કે રોકો કહો.",
+    )
+
+    fun opening(app: String) = t(
+        "Opening $app.",
+        "$app खोल रहा हूं।",
+        "$app khol raha hoon.",
+        "$app उघडत आहे.",
+        "$app திறக்கிறேன்.",
+        "$app తెరుస్తున్నాను.",
+        "$app খুলছি।",
+        "$app ખોલું છું.",
+    )
+
+    fun appNotFound(name: String) = t(
+        "I couldn't find an app called $name on this phone.",
+        "इस फ़ोन पर $name नाम का ऐप नहीं मिला।",
+        "Is phone par $name naam ka app nahi mila.",
+        "या फोनवर $name नावाचे अॅप सापडले नाही.",
+        "இந்த போனில் $name என்ற ஆப் இல்லை.",
+        "ఈ ఫోన్‌లో $name అనే యాప్ లేదు.",
+        "এই ফোনে $name নামের অ্যাপ পাইনি।",
+        "આ ફોનમાં $name નામની એપ મળી નહીં.",
+    )
+
     fun nothingToFill() = t(
         "There is nothing to fill here. Say a button name, scroll, or back.",
         "यहाँ भरने को कुछ नहीं है। बटन का नाम, नीचे या वापस बोलिए।",

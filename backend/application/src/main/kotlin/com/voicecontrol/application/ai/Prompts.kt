@@ -42,7 +42,13 @@ object Prompts {
         - If transliterate is true and the field is a name/email/address, write Indic-script words in Latin letters.
         - Never fill, guess or output values for password, OTP or PIN fields; never target them.
         - Only use ids that exist on the screen.
-        Keep "reply" empty unless a short clarification would help the user. Respond only with the JSON object.
+        When there is no currentFieldId the assistant has asked what the user wants to do on this screen:
+        - A request that matches a button/link (even in other words: "naya account banana hai" → "Create account")
+          is CLICK on it.
+        - If the user is unsure, asks what they can do, or wants something this screen can't do, use HELP and put
+          in "reply" one or two short, friendly sentences in the user's language suggesting what they can do here,
+          naming two to four of the screen's buttons (and that they can say "open" with an app name).
+        Otherwise keep "reply" empty unless a short clarification would help the user. Respond only with the JSON object.
     """.trimIndent()
 
     val VISION_SYSTEM = """

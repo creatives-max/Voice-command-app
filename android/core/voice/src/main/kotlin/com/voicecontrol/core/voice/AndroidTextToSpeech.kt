@@ -27,7 +27,13 @@ class AndroidTextToSpeech @Inject constructor(
     private val initMutex = Mutex()
     private var tts: PlatformTts? = null
     private var currentTag: String? = null
-    private val pending = ConcurrentHashMap<String, Continuation<Boolean>>()
+    private val pending = ConcurrentHashMap<String, Continuation<Outcome>>()
+
+    private enum class Outcome { DONE, ERROR, STOPPED }
+
+    /** The voice picked by [useBestVoice] (null = the engine's default), and voices that failed to speak. */
+    private var chosenVoice: String? = null
+    private val brokenVoices = mutableSetOf<String>()
 
     private suspend fun engine(): PlatformTts? = initMutex.withLock {
         tts?.let { return it }
@@ -45,20 +51,20 @@ class AndroidTextToSpeech @Inject constructor(
         )
         created.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) = Unit
-            override fun onDone(utteranceId: String?) = complete(utteranceId, true)
+            override fun onDone(utteranceId: String?) = complete(utteranceId, Outcome.DONE)
 
             @Deprecated("Deprecated in Java")
-            override fun onError(utteranceId: String?) = complete(utteranceId, false)
-            override fun onError(utteranceId: String?, errorCode: Int) = complete(utteranceId, false)
-            override fun onStop(utteranceId: String?, interrupted: Boolean) = complete(utteranceId, false)
+            override fun onError(utteranceId: String?) = complete(utteranceId, Outcome.ERROR)
+            override fun onError(utteranceId: String?, errorCode: Int) = complete(utteranceId, Outcome.ERROR)
+            override fun onStop(utteranceId: String?, interrupted: Boolean) = complete(utteranceId, Outcome.STOPPED)
         })
         tts = created
         created
     }
 
-    private fun complete(id: String?, ok: Boolean) {
+    private fun complete(id: String?, outcome: Outcome) {
         id ?: return
-        pending.remove(id)?.resume(ok)
+        pending.remove(id)?.resume(outcome)
     }
 
     override suspend fun speak(text: String, languageTag: String, rate: Float): Boolean {
@@ -69,6 +75,20 @@ class AndroidTextToSpeech @Inject constructor(
             currentTag = languageTag
         }
         engine.setSpeechRate(rate.coerceIn(0.5f, 2f))
+        when (utter(engine, text)) {
+            Outcome.DONE -> return true
+            Outcome.STOPPED -> return false
+            Outcome.ERROR -> Unit
+        }
+        // The chosen voice may not work on this phone (data missing, engine quirk): never stay silent —
+        // go back to the engine's default voice for the language, don't pick that voice again, and retry.
+        val chosen = chosenVoice ?: return false
+        brokenVoices += chosen
+        selectLanguage(engine, languageTag)
+        return utter(engine, text) == Outcome.DONE
+    }
+
+    private suspend fun utter(engine: PlatformTts, text: String): Outcome {
         val id = UUID.randomUUID().toString()
         return suspendCancellableCoroutine { cont ->
             pending[id] = cont
@@ -78,7 +98,7 @@ class AndroidTextToSpeech @Inject constructor(
             }
             if (engine.speak(text, PlatformTts.QUEUE_FLUSH, null, id) != PlatformTts.SUCCESS) {
                 pending.remove(id)
-                if (cont.isActive) cont.resume(false)
+                if (cont.isActive) cont.resume(Outcome.ERROR)
             }
         }
     }
@@ -96,13 +116,14 @@ class AndroidTextToSpeech @Inject constructor(
                 used = "en-IN"
             }
         }
+        chosenVoice = null
         useBestVoice(engine, used)
     }
 
     /** The default voice for a language is often a basic one; switch to the best installed voice for it. */
     private fun useBestVoice(engine: PlatformTts, tag: String) {
         runCatching {
-            val voices = engine.voices.orEmpty().map { v ->
+            val voices = engine.voices.orEmpty().filter { it.name !in brokenVoices }.map { v ->
                 com.voicecontrol.core.engine.VoiceCandidate(
                     name = v.name,
                     language = v.locale.language,
@@ -114,7 +135,8 @@ class AndroidTextToSpeech @Inject constructor(
                 )
             }
             val best = com.voicecontrol.core.engine.VoicePicker.best(voices, tag) ?: return
-            engine.voices.orEmpty().firstOrNull { it.name == best.name }?.let { engine.voice = it }
+            val voice = engine.voices.orEmpty().firstOrNull { it.name == best.name } ?: return
+            if (engine.setVoice(voice) == PlatformTts.SUCCESS) chosenVoice = voice.name
         }
     }
 
@@ -126,6 +148,6 @@ class AndroidTextToSpeech @Inject constructor(
 
     override fun stop() {
         tts?.stop()
-        pending.keys.toList().forEach { complete(it, false) }
+        pending.keys.toList().forEach { complete(it, Outcome.STOPPED) }
     }
 }

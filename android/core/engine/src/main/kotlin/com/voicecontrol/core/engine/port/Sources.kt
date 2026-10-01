@@ -79,3 +79,11 @@ data class WrittenQuestion(val question: String, val hint: String? = null)
 fun interface QuestionWriter {
     suspend fun write(screen: com.voicecontrol.core.model.ScreenSnapshot, language: com.voicecontrol.core.model.Language): Map<String, WrittenQuestion>
 }
+
+/** An app the user can open by voice. */
+data class InstalledApp(val label: String, val packageName: String)
+
+/** The phone's launchable apps ("open WhatsApp"). */
+fun interface AppDirectory {
+    suspend fun apps(): List<InstalledApp>
+}

@@ -56,6 +56,9 @@ abstract class AssistantModule {
     abstract fun documentTextReader(impl: com.voicecontrol.feature.assistant.scan.MlKitDocumentTextReader): com.voicecontrol.feature.assistant.scan.DocumentTextReader
 
     @Binds
+    abstract fun appDirectory(impl: com.voicecontrol.feature.assistant.launch.AndroidAppDirectory): com.voicecontrol.core.engine.port.AppDirectory
+
+    @Binds
     abstract fun teachLauncher(controller: com.voicecontrol.feature.assistant.teach.TeachController): com.voicecontrol.core.engine.port.TeachLauncher
 
     companion object {
@@ -75,6 +78,7 @@ abstract class AssistantModule {
             shortcuts: com.voicecontrol.core.engine.port.ShortcutSource,
             answers: com.voicecontrol.core.engine.port.AnswerMemory,
             questionWriter: com.voicecontrol.core.engine.port.QuestionWriter,
+            appDirectory: com.voicecontrol.core.engine.port.AppDirectory,
         ): AssistantEngine = AssistantEngine(
             screen = screen,
             stt = stt,
@@ -90,6 +94,7 @@ abstract class AssistantModule {
             shortcuts = shortcuts,
             answers = answers,
             questionWriter = questionWriter,
+            appDirectory = appDirectory,
         )
 
         @Provides

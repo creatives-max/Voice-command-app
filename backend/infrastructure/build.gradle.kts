@@ -10,10 +10,13 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.anthropic.java)
     implementation(libs.otel.api)
     implementation(libs.logback.classic)
 
     testImplementation(libs.testcontainers.postgres)
     testImplementation(libs.testcontainers.junit)
     testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.ktor.server.netty)
+    testImplementation(libs.ktor.server.core)
 }

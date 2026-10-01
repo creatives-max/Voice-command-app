@@ -1,0 +1,65 @@
+// Mirrors android/core/nlp so the offline "rules" provider understands speech exactly like the phone.
+package com.voicecontrol.application.nlp
+
+/**
+ * Recognizes control commands in English, Hindi and Hinglish.
+ *
+ * A command must be (almost) the whole utterance, so answers that merely contain a command word
+ * ("Next Generation School", "Back office") are not mistaken for commands.
+ */
+object CommandParser {
+
+    private val politeness = setOf(
+        "please", "plz", "now", "karo", "kar", "do", "kariye", "kijiye", "karna", "करो", "कर", "दो", "करें",
+        "कीजिए", "करिए", "ji", "जी", "na", "ना", "ab", "अब", "jao", "जाओ", "chalo", "चलो", "go", "the", "to", "par", "pe", "पर", "पे",
+    )
+
+    private val phrases: List<Pair<VoiceCommand, Set<String>>> = listOf(
+        VoiceCommand.Next to setOf("next", "next field", "go next", "move on", "aage", "aage badho", "agla", "agle", "आगे", "अगला", "आगे बढ़ो", "अगले"),
+        VoiceCommand.Previous to setOf("previous", "previous field", "last field", "pichla", "pichhla", "पिछला", "पिछले"),
+        VoiceCommand.Skip to setOf("skip", "skip it", "skip this", "leave it", "chhodo", "chodo", "chhod", "rehne", "rehne do", "rahne do", "छोड़ो", "छोड़", "रहने", "रहने दो"),
+        VoiceCommand.Submit to setOf("submit", "send", "done", "finish", "save", "confirm", "jama", "submit karo", "bhejo", "bhej", "जमा", "सबमिट", "भेजो", "भेज", "सेव"),
+        VoiceCommand.Back to setOf("back", "go back", "wapas", "vapas", "peeche", "piche", "पीछे", "वापस", "बैक"),
+        VoiceCommand.ScrollDown to setOf("scroll", "scroll down", "down", "neeche", "niche", "neeche scroll", "नीचे", "स्क्रॉल", "नीचे स्क्रॉल"),
+        VoiceCommand.ScrollUp to setOf("scroll up", "up", "upar", "oopar", "upar scroll", "ऊपर", "ऊपर स्क्रॉल"),
+        VoiceCommand.Repeat to setOf("repeat", "again", "say again", "what", "pardon", "phir se", "fir se", "dobara", "dubara", "फिर से", "दोबारा", "क्या"),
+        VoiceCommand.Stop to setOf("stop", "cancel", "exit", "quit", "band", "ruko", "ruk", "bas", "बंद", "रुको", "रुक", "बस"),
+        VoiceCommand.Yes to setOf("yes", "ok", "okay", "yeah", "yep", "yup", "sure", "correct", "right", "haan", "han", "ha", "haa", "hanji", "haanji", "theek", "theek hai", "thik hai", "sahi", "हाँ", "हां", "हा", "ठीक", "ठीक है", "सही", "हांजी"),
+        VoiceCommand.No to setOf("no", "nope", "wrong", "nahi", "nahin", "nai", "mat", "galat", "नहीं", "नही", "मत", "गलत"),
+        VoiceCommand.Clear to setOf("clear", "erase", "delete", "clear it", "mitao", "hatao", "मिटाओ", "हटाओ", "साफ"),
+        VoiceCommand.Help to setOf("help", "madad", "sahayata", "मदद", "सहायता"),
+    )
+
+    private val pressVerbsBefore = listOf("press", "click", "click on", "tap", "tap on", "hit", "select", "open", "choose")
+    private val pressVerbsAfter = listOf("dabao", "dabaao", "daba do", "dabaiye", "click karo", "click", "pe click", "par click", "दबाओ", "दबाइए", "दबा", "क्लिक", "पर क्लिक", "चुनो", "खोलो", "kholo", "chuno")
+
+    fun parse(utterance: String): VoiceCommand? {
+        val simple = TextCleanup.simplify(utterance)
+        if (simple.isEmpty()) return null
+        parsePress(simple)?.let { return it }
+        val core = simple.split(' ').filter { it !in politeness }.joinToString(" ")
+        if (core.isEmpty()) return null
+        return phrases.firstOrNull { (_, set) -> core in set }?.first
+    }
+
+    private fun parsePress(simple: String): VoiceCommand.Press? {
+        for (verb in pressVerbsBefore.sortedByDescending { it.length }) {
+            if (simple.startsWith("$verb ")) {
+                val target = cleanTarget(simple.removePrefix("$verb "))
+                if (target.isNotEmpty()) return VoiceCommand.Press(target)
+            }
+        }
+        for (verb in pressVerbsAfter.sortedByDescending { it.length }) {
+            val stripped = simple.split(' ').filterNot { it in setOf("karo", "करो", "कर", "do", "दो") }.joinToString(" ")
+            if (stripped.endsWith(" $verb")) {
+                val target = cleanTarget(stripped.removeSuffix(" $verb"))
+                if (target.isNotEmpty()) return VoiceCommand.Press(target)
+            }
+        }
+        return null
+    }
+
+    private fun cleanTarget(raw: String): String =
+        raw.removePrefix("the ").removeSuffix(" button").removeSuffix(" बटन").removeSuffix(" wala").removeSuffix(" वाला")
+            .removeSuffix(" pe").removeSuffix(" par").removeSuffix(" पर").removeSuffix(" पे").trim()
+}

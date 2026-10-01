@@ -32,10 +32,10 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Unit tests, commit + push
 
 ## Phase 5 — AI brain
-- [ ] Backend `/v1/ai/interpret` with pluggable LLM provider (Anthropic / OpenAI / rule-based) via env
-- [ ] Android client uses backend interpretation with local fallback
-- [ ] Hindi/English/Hinglish prompt + rule-based parsing
-- [ ] Tests, commit + push
+- [x] Backend `/v1/ai/interpret` with pluggable LLM provider (Anthropic / OpenAI / rule-based) via env
+- [x] Android client uses backend interpretation with local fallback
+- [x] Hindi/English/Hinglish prompt + rule-based parsing
+- [x] Tests, commit + push
 
 ## Phase 6 — Backend core
 - [ ] JWT auth (register/login/refresh/logout) with Redis sessions

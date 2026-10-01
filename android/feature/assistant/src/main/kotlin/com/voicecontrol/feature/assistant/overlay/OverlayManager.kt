@@ -93,7 +93,7 @@ class OverlayManager @Inject constructor(
         scope.coroutineContext.cancelChildren()
         window?.hide()
         window = null
-        service?.let(VoiceSessionService::stop)
+        service?.let { VoiceSessionService.stop(it) }
         service = null
     }
 

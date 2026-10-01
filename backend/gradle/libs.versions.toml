@@ -16,6 +16,7 @@ otelInstrumentation = "2.15.0-alpha"
 otelLogback = "2.15.0-alpha"
 junit = "5.12.2"
 shadow = "8.3.6"
+anthropic = "2.34.0"
 
 [libraries]
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
@@ -41,6 +42,8 @@ ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+anthropic-java = { module = "com.anthropic:anthropic-java", version.ref = "anthropic" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version = "2.0.17" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 logstash-encoder = { module = "net.logstash.logback:logstash-logback-encoder", version.ref = "logstash" }
 hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }

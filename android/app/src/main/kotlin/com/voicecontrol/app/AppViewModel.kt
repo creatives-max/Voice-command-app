@@ -17,5 +17,7 @@ class AppViewModel @Inject constructor(settings: SettingsRepository, auth: AuthR
     /** null until settings were read once. */
     val onboardingDone: StateFlow<Boolean?> = settings.settings.map { it.onboardingDone }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val appLock: StateFlow<Boolean> = settings.settings.map { it.appLock }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val themeMode: StateFlow<com.voicecontrol.core.model.ThemeMode> =
+        settings.settings.map { it.themeMode }.stateIn(viewModelScope, SharingStarted.Eagerly, com.voicecontrol.core.model.ThemeMode.SYSTEM)
     val signedIn: StateFlow<Boolean> = auth.user.map { it != null }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 }

@@ -7,7 +7,9 @@ import { useCurrentOrg } from "@/features/org/use-org";
 import { api } from "@/lib/api";
 import { useFormat, useT } from "@/lib/i18n";
 import { useOrgId } from "@/lib/org";
-import { STATUS_COLORS, browserZone } from "./analytics";
+import { Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { STATUS_COLORS, browserZone, downloadCsv, overviewCsv } from "./analytics";
 import { DailyRunsChart, SplitBar } from "./charts";
 import { Kpis, PeriodSelect } from "./kpis";
 
@@ -31,7 +33,17 @@ export function AnalyticsPage() {
           </h1>
           <p className="text-sm text-muted-foreground">{t("analytics.subtitle")}</p>
         </div>
-        <PeriodSelect days={days} onChange={setDays} />
+        <div className="flex flex-wrap items-center gap-2">
+          <PeriodSelect days={days} onChange={setDays} />
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data.data?.flows.length}
+            onClick={() => data.data && downloadCsv(overviewCsv(data.data), `analytics-${org?.name ?? "personal"}-${days}d`)}
+          >
+            <Download /> {t("analytics.downloadCsv")}
+          </Button>
+        </div>
       </div>
       {data.isPending ? (
         <Skeleton className="h-80" />
@@ -39,7 +51,7 @@ export function AnalyticsPage() {
         <p className="text-destructive">{data.error.message}</p>
       ) : (
         <>
-          <Kpis usage={data.data.totals} showDuration={false} />
+          <Kpis usage={data.data.totals} previous={data.data.previous} days={days} showDuration={false} />
           <Card>
             <CardHeader>
               <CardTitle className="text-base">{t("analytics.daily")}</CardTitle>

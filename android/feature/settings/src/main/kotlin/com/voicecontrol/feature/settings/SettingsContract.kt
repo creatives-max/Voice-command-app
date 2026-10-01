@@ -17,6 +17,7 @@ data class SettingsState(
 sealed interface SettingsIntent {
     data class SetLanguage(val language: Language) : SettingsIntent
     data class SetSpeechRate(val rate: Float) : SettingsIntent
+    data class SetThemeMode(val mode: com.voicecontrol.core.model.ThemeMode) : SettingsIntent
     data class Toggle(val option: Option, val enabled: Boolean) : SettingsIntent
     data class EditBackendUrl(val value: String) : SettingsIntent
     data class EditDashboardUrl(val value: String) : SettingsIntent

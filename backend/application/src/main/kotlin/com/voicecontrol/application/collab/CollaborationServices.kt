@@ -6,6 +6,7 @@ import com.voicecontrol.domain.collab.AnalyticsRepository
 import com.voicecontrol.domain.collab.CommentRepository
 import com.voicecontrol.domain.collab.DailyRuns
 import com.voicecontrol.domain.collab.FlowAnalytics
+import com.voicecontrol.domain.collab.FlowUsage
 import com.voicecontrol.domain.collab.FlowComment
 import com.voicecontrol.domain.collab.FlowUsageRow
 import com.voicecontrol.domain.collab.LayoutRepository
@@ -46,11 +47,32 @@ class AnalyticsService(
         return rows to daily
     }
 
+    /**
+     * Totals for the period and for the same number of days just before it, so changes can be shown
+     * ("runs up 20%"). Each run is counted once even when it used several of the flows.
+     */
+    suspend fun comparison(userId: UUID, orgId: UUID?, flowId: UUID?, days: Int, zone: String?, key: KeyContext? = null): PeriodComparison {
+        val ids = if (flowId != null) {
+            flows.get(userId, flowId, key)
+            listOf(flowId)
+        } else {
+            flows.list(userId, null, 200, 0, orgId).map { it.id }
+        }
+        val start = since(days, zone)
+        val previousStart = start.atZone(ZoneId.of(zoneOf(zone))).minusDays(days.coerceIn(1, 365).toLong()).toInstant()
+        // Phones' clocks can run a little ahead, so the current period ends a day from now.
+        val now = clock.instant()
+        if (ids.isEmpty()) return PeriodComparison(FlowUsage.EMPTY, FlowUsage.EMPTY)
+        return PeriodComparison(repo.totals(ids, start, now.plus(Duration.ofDays(1))), repo.totals(ids, previousStart, start))
+    }
+
     private fun since(days: Int, zone: String?) =
         clock.instant().atZone(ZoneId.of(zoneOf(zone))).toLocalDate().minusDays((days.coerceIn(1, 365) - 1).toLong()).atStartOfDay(ZoneId.of(zoneOf(zone))).toInstant()
 
     private fun zoneOf(zone: String?): String = zone?.takeIf { z -> runCatching { ZoneId.of(z) }.isSuccess } ?: "UTC"
 }
+
+data class PeriodComparison(val current: FlowUsage, val previous: FlowUsage)
 
 /** Comments on flows. Anyone who can open the flow may comment; authors edit and delete their own; editors resolve. */
 class CommentService(

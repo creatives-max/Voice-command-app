@@ -28,6 +28,7 @@ import com.voicecontrol.app.lock.AppLockController
 import com.voicecontrol.app.lock.LockScreen
 import com.voicecontrol.app.navigation.VoiceControlNavHost
 import com.voicecontrol.core.ui.theme.VoiceControlTheme
+import androidx.compose.foundation.isSystemInDarkTheme
 import com.voicecontrol.feature.assistant.overlay.OverlayManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,7 +65,8 @@ class MainActivity : FragmentActivity() {
             }
         }
         setContent {
-            VoiceControlTheme {
+            val themeMode by appViewModel.themeMode.collectAsStateWithLifecycle()
+            VoiceControlTheme(darkTheme = themeMode.isDark(isSystemInDarkTheme())) {
                 val locked by lock.locked.collectAsStateWithLifecycle()
                 val onboardingDone by appViewModel.onboardingDone.collectAsStateWithLifecycle()
                 val signedIn by appViewModel.signedIn.collectAsStateWithLifecycle()

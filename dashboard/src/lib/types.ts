@@ -372,12 +372,14 @@ export const flowAnalyticsSchema = z.object({
   steps: z.array(stepStatsSchema),
   interpretedBy: z.record(z.number()),
   remoteRuns: z.record(z.number()),
+  previous: usageSchema.nullish(),
 });
 export type FlowAnalytics = z.infer<typeof flowAnalyticsSchema>;
 export const analyticsOverviewSchema = z.object({
   flows: z.array(z.object({ flowId: z.string(), name: z.string(), appPackage: z.string(), usage: usageSchema })),
   daily: z.array(dailySchema),
   totals: usageSchema,
+  previous: usageSchema.nullish(),
 });
 export type AnalyticsOverview = z.infer<typeof analyticsOverviewSchema>;
 

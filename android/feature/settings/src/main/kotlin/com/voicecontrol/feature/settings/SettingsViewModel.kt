@@ -38,6 +38,7 @@ class SettingsViewModel @Inject constructor(
         when (intent) {
             is SettingsIntent.SetLanguage -> repository.update { it.copy(language = intent.language) }
             is SettingsIntent.SetSpeechRate -> repository.update { it.copy(speechRate = intent.rate.coerceIn(0.5f, 2f)) }
+            is SettingsIntent.SetThemeMode -> repository.update { it.copy(themeMode = intent.mode) }
             is SettingsIntent.Toggle -> {
                 repository.update { it.with(intent.option, intent.enabled) }
                 if (intent.option == Option.REMEMBER_ANSWERS && !intent.enabled) {

@@ -44,6 +44,8 @@ data class AppSettings(
     val lockTimeoutSeconds: Int = 60,
     /** Send crash reports (without personal data) to the VoiceControl server. */
     val crashReports: Boolean = false,
+    /** Light or dark look of the app (the phone's setting by default). */
+    val themeMode: com.voicecontrol.core.model.ThemeMode = com.voicecontrol.core.model.ThemeMode.SYSTEM,
     /** The first-run tutorial was finished or skipped. */
     val onboardingDone: Boolean = false,
     val backendUrl: String = "",

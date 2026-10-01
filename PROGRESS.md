@@ -200,8 +200,13 @@ phase notes say which earlier phase covered the rest.
 - [x] Dashboard: key expiry picker, expiry badges and Rotate; audit From/To and Download CSV; usage card; OpenAPI
 - [x] Tests, commit + push
 
-## Phase 27 — Analytics & visual builder (gaps; Phase 15)
-- [ ] Gap-fill, tests, commit + push
+## Phase 27 — Analytics & visual builder (gaps; per-flow analytics charts, the drag-and-drop canvas, comments, presence, dashboard dark mode and Hindi i18n were done in Phase 15)
+- [x] Period comparison: analytics API returns the previous period's totals; KPIs show the change (runs, success, people); totals count each run and person once
+- [x] Analytics CSV download (workspace overview; a flow's days and step outcomes), formula-safe
+- [x] Flow editor undo/redo (buttons and keyboard, 100 steps, typing merged, change note kept)
+- [x] Phone Insights tab (History): 7/30/90 days, completion vs the period before, voice share, time, per-day chart, busiest apps, fields that need work — computed on the phone
+- [x] Phone theme choice (same as phone / light / dark); English and Hindi strings for the new dashboard parts
+- [x] Tests, commit + push
 
 ## Phase 28 — Security & platform polish (gaps; Phase 16)
 - [ ] Gap-fill, tests, commit + push

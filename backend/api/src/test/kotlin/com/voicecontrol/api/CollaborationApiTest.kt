@@ -104,6 +104,8 @@ class CollaborationApiTest {
         // Runs from both members; one run without the flow is ignored.
         client.json("POST", "/v1/runs", admin.accessToken, UploadRunsRequest(listOf(run(flow.id, RunStatus.COMPLETED, StepOutcome.FILLED), run(flow.id, RunStatus.STOPPED, StepOutcome.MANUAL))))
         client.json("POST", "/v1/runs", viewer.accessToken, UploadRunsRequest(listOf(run(flow.id, RunStatus.COMPLETED, StepOutcome.FILLED, ago = 86_400 * 2), run(null, RunStatus.FAILED, StepOutcome.SKIPPED))))
+        // Ten days ago: outside a 7-day period, inside the 7 days before it.
+        client.json("POST", "/v1/runs", admin.accessToken, UploadRunsRequest(listOf(run(flow.id, RunStatus.FAILED, StepOutcome.SKIPPED, ago = 86_400 * 10))))
 
         val stats: FlowAnalyticsDto = client.json("GET", "/v1/flows/${flow.id}/analytics?days=7&tz=Asia/Kolkata", viewer.accessToken).body()
         assertEquals(3, stats.usage.runs)
@@ -112,15 +114,23 @@ class CollaborationApiTest {
         assertEquals(2.0 / 3, stats.usage.successRate!!, 1e-9)
         assertEquals(60_000L, stats.usage.avgDurationMillis)
         assertEquals(7, stats.daily.size)
+        assertEquals(1, stats.previous!!.runs)
+        assertEquals(1, stats.previous!!.failed)
+        assertEquals(0.0, stats.previous!!.successRate!!, 1e-9)
         assertEquals(3, stats.daily.sumOf { it.completed + it.stopped + it.failed })
         val pin = stats.steps.first { it.elementId == "vid:pin" }
         assertEquals(mapOf("FILLED" to 2, "MANUAL" to 1), pin.outcomes)
         assertEquals(mapOf("rules" to 3, "llm" to 2), stats.interpretedBy)
         assertEquals(HttpStatusCode.NotFound, client.json("GET", "/v1/flows/${flow.id}/analytics", outsider.accessToken).status)
 
-        val overview: OverviewDto = client.json("GET", "/v1/analytics/flows?days=30", admin.accessToken, org = org.id).body()
+        val overview: OverviewDto = client.json("GET", "/v1/analytics/flows?days=7", admin.accessToken, org = org.id).body()
         assertEquals(listOf(flow.id), overview.flows.map { it.flowId })
         assertEquals(3, overview.totals.runs)
+        assertEquals(2, overview.totals.users)
+        assertEquals(1, overview.previous!!.runs)
+        val month: OverviewDto = client.json("GET", "/v1/analytics/flows?days=30", admin.accessToken, org = org.id).body()
+        assertEquals(4, month.totals.runs)
+        assertEquals(0, month.previous!!.runs)
         val personal: OverviewDto = client.json("GET", "/v1/analytics/flows?days=30", admin.accessToken).body()
         assertTrue(personal.flows.isEmpty())
 

@@ -8,7 +8,9 @@ import { api } from "@/lib/api";
 import { useFormat, useT, type MessageKey } from "@/lib/i18n";
 import { flowQuery } from "@/lib/queries";
 import { STATUS_LABELS } from "@/features/automation/run-log";
-import { OUTCOME_COLORS, browserZone, stepsByTrouble, troubleRate } from "./analytics";
+import { Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { OUTCOME_COLORS, browserZone, downloadCsv, flowCsv, stepsByTrouble, troubleRate } from "./analytics";
 import { DailyRunsChart, SplitBar } from "./charts";
 import { Kpis, PeriodSelect } from "./kpis";
 
@@ -33,7 +35,17 @@ export function FlowAnalyticsPage() {
           <h1 className="text-2xl font-semibold">{t("analytics.flowTitle", { name: flow.data?.name ?? "…" })}</h1>
           <p className="text-sm text-muted-foreground">{flow.data?.appPackage}</p>
         </div>
-        <PeriodSelect days={days} onChange={setDays} />
+        <div className="flex flex-wrap items-center gap-2">
+          <PeriodSelect days={days} onChange={setDays} />
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data.data}
+            onClick={() => data.data && downloadCsv(flowCsv(data.data), `analytics-${flow.data?.name ?? flowId}-${days}d`)}
+          >
+            <Download /> {t("analytics.downloadCsv")}
+          </Button>
+        </div>
       </div>
       {data.isPending ? (
         <Skeleton className="h-80" />
@@ -41,7 +53,7 @@ export function FlowAnalyticsPage() {
         <p className="text-destructive">{data.error.message}</p>
       ) : (
         <>
-          <Kpis usage={data.data.usage} />
+          <Kpis usage={data.data.usage} previous={data.data.previous} days={days} />
           <Card>
             <CardHeader>
               <CardTitle className="text-base">{t("analytics.daily")}</CardTitle>

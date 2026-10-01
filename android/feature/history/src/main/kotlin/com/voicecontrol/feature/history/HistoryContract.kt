@@ -1,5 +1,6 @@
 package com.voicecontrol.feature.history
 
+import com.voicecontrol.core.model.Insights
 import com.voicecontrol.core.model.RunStatus
 import com.voicecontrol.core.model.SessionSummary
 import com.voicecontrol.core.model.StepOutcome
@@ -9,6 +10,10 @@ data class HistoryState(
     val sessions: List<SessionSummary> = emptyList(),
     val selected: SessionSummary? = null,
     val historyEnabled: Boolean = true,
+    val tab: HistoryTab = HistoryTab.SESSIONS,
+    val insightDays: Int = 30,
+    /** Analytics from this phone's history for the last [insightDays] days. */
+    val insights: Insights? = null,
 ) {
     val totals: HistoryTotals get() = HistoryTotals.of(sessions)
 }
@@ -23,7 +28,11 @@ data class HistoryTotals(val sessions: Int, val completed: Int, val fieldsFilled
     }
 }
 
+enum class HistoryTab { SESSIONS, INSIGHTS }
+
 sealed interface HistoryIntent {
+    data class SelectTab(val tab: HistoryTab) : HistoryIntent
+    data class SetInsightDays(val days: Int) : HistoryIntent
     data class Open(val sessionId: String) : HistoryIntent
     data object CloseDetail : HistoryIntent
     data class Delete(val sessionId: String) : HistoryIntent

@@ -118,8 +118,15 @@ images.
 - **Analytics** (sidebar): runs per day, success rate, people and last run for every flow in the workspace; per flow
   also average time, how each step went (filled by voice, typed by hand, skipped…) with the worst steps first, how
   answers were understood and remote-run outcomes. Built from the run history phones upload (no values).
+  Headline numbers show the change against the same number of days before ("+20% vs the 30 days before"), and
+  *Download CSV* saves every flow's usage, or a flow's runs per day and step outcomes, for spreadsheets.
+- **Insights on the phone** (History → Insights): sessions, completion, fields filled by voice, time spent, sessions
+  per day, busiest apps and the fields you often type by hand or skip — worked out on the phone, nothing is sent.
 - **Canvas** view in the flow editor: steps as nodes, one column per screen, loop edges for repeats; drag a step onto
   another to reorder, drag logic steps from the palette, click a node to edit it. Positions are shared.
+- **Undo / redo** in the flow editor (buttons, or Ctrl/⌘+Z and Ctrl/⌘+Shift+Z): up to 100 edits; typing in one
+  field counts as one edit.
+- **Light or dark** on the phone too: Settings → Look (same as phone, light, dark).
 - **Comments** on a flow or a step (resolve, edit, delete) and **presence**: see who else has the flow open or is
   editing, and get told when someone saves a newer version.
 - **Dark mode** (system/light/dark) and **Hindi** in the sidebar.

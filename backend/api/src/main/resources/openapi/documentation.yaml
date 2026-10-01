@@ -941,6 +941,7 @@ paths:
                     items: { type: object, properties: { flowId: { type: string }, name: { type: string }, appPackage: { type: string }, usage: { $ref: "#/components/schemas/Usage" } } }
                   daily: { type: array, items: { $ref: "#/components/schemas/DailyRuns" } }
                   totals: { $ref: "#/components/schemas/Usage" }
+                  previous: { description: "Totals for the same number of days just before the period", allOf: [{ $ref: "#/components/schemas/Usage" }] }
   /v1/flows/{id}/comments:
     parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
     get:
@@ -1165,6 +1166,7 @@ components:
               outcomes: { type: object, additionalProperties: { type: integer }, example: { FILLED: 12, MANUAL: 3 } }
         interpretedBy: { type: object, additionalProperties: { type: integer } }
         remoteRuns: { type: object, additionalProperties: { type: integer } }
+        previous: { description: "Usage in the same number of days just before the period", allOf: [{ $ref: "#/components/schemas/Usage" }] }
     Comment:
       type: object
       properties:

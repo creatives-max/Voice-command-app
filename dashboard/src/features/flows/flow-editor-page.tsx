@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { ArrowRightLeft, BarChart3, CalendarClock, Eye, FlaskConical, History, LayoutList, Layers, MessageSquare, Save, Share2, Trash2, Undo2, Workflow } from "lucide-react";
+import { ArrowRightLeft, BarChart3, CalendarClock, Eye, FlaskConical, History, LayoutList, Layers, MessageSquare, Redo2, Save, Share2, Trash2, Undo, Undo2, Workflow } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api";
 import { flowQuery, flowsQuery, useDeleteFlow, useUpdateFlow } from "@/lib/queries";
 import type { Flow } from "@/lib/types";
-import { editorReducer, initialEditor, toUpdatePayload, validateSteps, type LogicAction } from "./editor";
+import { toUpdatePayload, validateSteps, type LogicAction } from "./editor";
+import { canRedo, canUndo, historyReducer, initialHistory, shortcutFor } from "./history";
 import { ACTION_LABELS } from "./logic";
 import { PublishDialog } from "@/features/marketplace/publish-dialog";
 import { SourceBanner } from "@/features/marketplace/listing-page";
@@ -42,7 +43,8 @@ export function FlowEditorPage() {
 }
 
 function FlowEditor({ flow }: { flow: Flow }) {
-  const [state, dispatch] = useReducer(editorReducer, flow, initialEditor);
+  const [history, dispatch] = useReducer(historyReducer, flow, initialHistory);
+  const state = history.present;
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [testing, setTesting] = useState(false);
   const [appendOpen, setAppendOpen] = useState(false);
@@ -58,6 +60,19 @@ function FlowEditor({ flow }: { flow: Flow }) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentStep, setCommentStep] = useState<string | null>(null);
   const t = useT();
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      const inTextField = !!target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+      const shortcut = shortcutFor(e, inTextField);
+      if (!shortcut) return;
+      e.preventDefault();
+      dispatch({ type: shortcut });
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const qc = useQueryClient();
   const presence = usePresence(flow.id, state.dirty);
   const comments = useComments(flow.id);
@@ -296,6 +311,12 @@ function FlowEditor({ flow }: { flow: Flow }) {
           </Label>
           <Input id="note" placeholder={t("editor.note")} value={state.changeNote} onChange={(e) => dispatch({ type: "note", text: e.target.value })} />
           <div className="flex gap-2">
+            <Button variant="ghost" size="icon" aria-label={t("editor.undo")} title={`${t("editor.undo")} (Ctrl+Z)`} disabled={!canUndo(history)} onClick={() => dispatch({ type: "undo" })}>
+              <Undo />
+            </Button>
+            <Button variant="ghost" size="icon" aria-label={t("editor.redo")} title={`${t("editor.redo")} (Ctrl+Shift+Z)`} disabled={!canRedo(history)} onClick={() => dispatch({ type: "redo" })}>
+              <Redo2 />
+            </Button>
             <Button variant="ghost" disabled={!state.dirty} onClick={() => dispatch({ type: "reset", flow })}>
               <Undo2 /> {t("editor.discard")}
             </Button>

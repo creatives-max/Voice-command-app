@@ -121,6 +121,25 @@ class JdbcAnalyticsRepository(private val db: Database) : AnalyticsRepository {
         usage to fillDays(daily, since, zone)
     }
 
+    override suspend fun totals(flowIds: List<UUID>, from: Instant, until: Instant): FlowUsage = db.tx {
+        val ids = createArrayOf("text", flowIds.map { it.toString() }.toTypedArray())
+        query(
+            """
+            SELECT count(*) AS runs,
+                   count(*) FILTER (WHERE status = 'COMPLETED') AS completed,
+                   count(*) FILTER (WHERE status = 'STOPPED') AS stopped,
+                   count(*) FILTER (WHERE status = 'FAILED') AS failed,
+                   count(DISTINCT user_id) AS users,
+                   avg(extract(epoch FROM ended_at - started_at) * 1000) AS avg_ms,
+                   max(started_at) AS last_run
+            FROM runs r
+            WHERE r.started_at >= ? AND r.started_at < ?
+              AND EXISTS (SELECT 1 FROM jsonb_array_elements(r.screens) sc WHERE sc->>'flowId' = ANY(?))
+            """.trimIndent(),
+            from, until, ids, map = ::toUsage,
+        ).first()
+    }
+
     private fun toUsage(rs: ResultSet) = FlowUsage(
         runs = rs.getInt("runs"),
         completed = rs.getInt("completed"),

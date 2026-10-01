@@ -56,6 +56,7 @@ class SettingsRepository @Inject constructor(
         val lockTimeout = intPreferencesKey("lock_timeout_seconds")
         val crashReports = booleanPreferencesKey("crash_reports")
         val onboardingDone = booleanPreferencesKey("onboarding_done")
+        val themeMode = stringPreferencesKey("theme_mode")
     }
 
     val settings: Flow<AppSettings> = store.data.map(::read)
@@ -152,6 +153,7 @@ class SettingsRepository @Inject constructor(
             p[Keys.lockTimeout] = next.lockTimeoutSeconds.coerceIn(0, 86_400)
             p[Keys.crashReports] = next.crashReports
             p[Keys.onboardingDone] = next.onboardingDone
+            p[Keys.themeMode] = next.themeMode.name
         }
     }
 
@@ -185,6 +187,7 @@ class SettingsRepository @Inject constructor(
             lockTimeoutSeconds = p[Keys.lockTimeout] ?: d.lockTimeoutSeconds,
             crashReports = p[Keys.crashReports] ?: d.crashReports,
             onboardingDone = p[Keys.onboardingDone] ?: d.onboardingDone,
+            themeMode = com.voicecontrol.core.model.ThemeMode.parse(p[Keys.themeMode]),
         )
     }
 }

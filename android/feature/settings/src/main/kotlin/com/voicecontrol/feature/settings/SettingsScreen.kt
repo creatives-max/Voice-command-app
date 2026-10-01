@@ -156,6 +156,16 @@ fun SettingsScreen(
                 Spacer(Modifier.width(8.dp))
                 Text("Test voice")
             }
+            Text("Look", style = MaterialTheme.typography.titleMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                com.voicecontrol.core.model.ThemeMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = s.themeMode == mode,
+                        onClick = { onIntent(SettingsIntent.SetThemeMode(mode)) },
+                        label = { Text(mode.label) },
+                    )
+                }
+            }
             HorizontalDivider()
             toggles.forEach { (option, title, subtitle) ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

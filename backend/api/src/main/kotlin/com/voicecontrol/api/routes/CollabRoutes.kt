@@ -68,14 +68,17 @@ import java.util.UUID
     val steps: List<StepStatsDto>,
     val interpretedBy: Map<String, Int>,
     val remoteRuns: Map<String, Int>,
+    /** The same number of days just before the period, for showing changes. */
+    val previous: UsageDto? = null,
 ) {
     companion object {
-        fun from(a: FlowAnalytics) = FlowAnalyticsDto(
+        fun from(a: FlowAnalytics, previous: FlowUsage? = null) = FlowAnalyticsDto(
             UsageDto.from(a.usage),
             a.daily.map(DailyDto::from),
             a.steps.map { s -> StepStatsDto(s.elementId, s.label, s.total, s.outcomes.mapKeys { it.key.name }) },
             a.interpretedBy,
             a.remoteRuns,
+            previous?.let(UsageDto::from),
         )
     }
 }
@@ -84,7 +87,13 @@ import java.util.UUID
         fun from(r: FlowUsageRow) = OverviewRowDto(r.flowId.toString(), r.name, r.appPackage, UsageDto.from(r.usage))
     }
 }
-@Serializable data class OverviewDto(val flows: List<OverviewRowDto>, val daily: List<DailyDto>, val totals: UsageDto)
+@Serializable data class OverviewDto(
+    val flows: List<OverviewRowDto>,
+    val daily: List<DailyDto>,
+    val totals: UsageDto,
+    /** Totals for the same number of days just before the period. */
+    val previous: UsageDto? = null,
+)
 
 @Serializable data class CommentDto(
     val id: String,
@@ -122,22 +131,19 @@ fun Route.collabRoutes(analytics: AnalyticsService, comments: CommentService, pr
     authenticate(JWT_AUTH, API_KEY_AUTH) {
         get("/v1/flows/{id}/analytics") {
             call.requireScope(ApiScope.FLOWS_READ)
-            val result = analytics.flow(call.userId, call.uuidParam("id"), call.days(), call.request.queryParameters["tz"], call.keyContext)
-            call.respond(FlowAnalyticsDto.from(result))
+            val id = call.uuidParam("id")
+            val tz = call.request.queryParameters["tz"]
+            val result = analytics.flow(call.userId, id, call.days(), tz, call.keyContext)
+            val compared = analytics.comparison(call.userId, null, id, call.days(), tz, call.keyContext)
+            call.respond(FlowAnalyticsDto.from(result, compared.previous))
         }
         get("/v1/analytics/flows") {
             call.requireScope(ApiScope.FLOWS_READ)
-            val (rows, daily) = analytics.overview(call.userId, call.orgContext, call.days(), call.request.queryParameters["tz"])
-            val totals = FlowUsage(
-                runs = daily.sumOf { it.total },
-                completed = daily.sumOf { it.counts[com.voicecontrol.domain.history.RunStatus.COMPLETED] ?: 0 },
-                stopped = daily.sumOf { it.counts[com.voicecontrol.domain.history.RunStatus.STOPPED] ?: 0 },
-                failed = daily.sumOf { it.counts[com.voicecontrol.domain.history.RunStatus.FAILED] ?: 0 },
-                users = rows.maxOfOrNull { it.usage.users } ?: 0,
-                avgDurationMillis = null,
-                lastRunAt = rows.mapNotNull { it.usage.lastRunAt }.maxOrNull(),
-            )
-            call.respond(OverviewDto(rows.map(OverviewRowDto::from), daily.map(DailyDto::from), UsageDto.from(totals)))
+            val tz = call.request.queryParameters["tz"]
+            val (rows, daily) = analytics.overview(call.userId, call.orgContext, call.days(), tz)
+            // Totals count each run and each person once, even across several flows.
+            val compared = analytics.comparison(call.userId, call.orgContext, null, call.days(), tz)
+            call.respond(OverviewDto(rows.map(OverviewRowDto::from), daily.map(DailyDto::from), UsageDto.from(compared.current), UsageDto.from(compared.previous)))
         }
     }
 

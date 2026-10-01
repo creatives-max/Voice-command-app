@@ -26,7 +26,11 @@ data class FlowUsage(
     val users: Int,
     val avgDurationMillis: Long?,
     val lastRunAt: Instant?,
-)
+) {
+    companion object {
+        val EMPTY = FlowUsage(0, 0, 0, 0, 0, null, null)
+    }
+}
 
 data class FlowAnalytics(
     val usage: FlowUsage,
@@ -46,6 +50,8 @@ interface AnalyticsRepository {
     suspend fun flowAnalytics(flowId: UUID, since: Instant, zone: String): FlowAnalytics
     /** Usage of each of [flowIds] since [since] plus all their runs per day. */
     suspend fun overview(flowIds: List<UUID>, since: Instant, zone: String): Pair<Map<UUID, FlowUsage>, List<DailyRuns>>
+    /** Usage of all of [flowIds] together (each run counted once) for runs started in [from, until). */
+    suspend fun totals(flowIds: List<UUID>, from: Instant, until: Instant): FlowUsage
 }
 
 // Comments ----------------------------------------------------------------------------------------

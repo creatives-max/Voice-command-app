@@ -27,6 +27,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -84,25 +86,16 @@ fun HistoryScreen(state: HistoryState, snackbar: SnackbarHostState, onBack: () -
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },
-    ) { padding ->
-        when {
-            state.loading -> LoadingBox(Modifier.padding(padding))
-            selected != null -> SessionDetail(selected, Modifier.padding(padding)) { onIntent(HistoryIntent.Delete(selected.sessionId)) }
-            state.sessions.isEmpty() -> EmptyState(
-                if (state.historyEnabled) "No voice sessions yet." else "History is turned off in Settings.",
-                Modifier.padding(padding),
-                Icons.Filled.History,
-            )
-            else -> LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                item {
-                    val t = state.totals
-                    SectionCard(
-                        title = "${t.sessions} sessions · ${t.fieldsFilled} fields filled",
-                        subtitle = "${t.completed} completed. Values you spoke are never stored, only what happened to each field.",
-                    )
+    ) { scaffoldPadding ->
+        val showTabs = !state.loading && selected == null && state.sessions.isNotEmpty()
+        Column(Modifier.fillMaxSize().padding(scaffoldPadding)) {
+            if (showTabs) {
+                TabRow(selectedTabIndex = state.tab.ordinal) {
+                    Tab(selected = state.tab == HistoryTab.SESSIONS, onClick = { onIntent(HistoryIntent.SelectTab(HistoryTab.SESSIONS)) }, text = { Text("Sessions") })
+                    Tab(selected = state.tab == HistoryTab.INSIGHTS, onClick = { onIntent(HistoryIntent.SelectTab(HistoryTab.INSIGHTS)) }, text = { Text("Insights") })
                 }
-                items(state.sessions, key = { it.sessionId }) { s -> SessionRow(s) { onIntent(HistoryIntent.Open(s.sessionId)) } }
             }
+            HistoryBody(state, selected, Modifier.weight(1f), onIntent)
         }
     }
     if (confirmClear) {
@@ -113,6 +106,31 @@ fun HistoryScreen(state: HistoryState, snackbar: SnackbarHostState, onBack: () -
             confirmButton = { TextButton(onClick = { confirmClear = false; onIntent(HistoryIntent.ClearAll) }) { Text("Clear") } },
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
         )
+    }
+}
+
+@Composable
+private fun HistoryBody(state: HistoryState, selected: SessionSummary?, modifier: Modifier, onIntent: (HistoryIntent) -> Unit) {
+    val insights = state.insights
+    when {
+        state.loading -> LoadingBox(modifier)
+        selected != null -> SessionDetail(selected, modifier) { onIntent(HistoryIntent.Delete(selected.sessionId)) }
+        state.sessions.isEmpty() -> EmptyState(
+            if (state.historyEnabled) "No voice sessions yet." else "History is turned off in Settings.",
+            modifier,
+            Icons.Filled.History,
+        )
+        state.tab == HistoryTab.INSIGHTS && insights != null -> InsightsContent(insights, { onIntent(HistoryIntent.SetInsightDays(it)) }, modifier)
+        else -> LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            item {
+                val t = state.totals
+                SectionCard(
+                    title = "${t.sessions} sessions · ${t.fieldsFilled} fields filled",
+                    subtitle = "${t.completed} completed. Values you spoke are never stored, only what happened to each field.",
+                )
+            }
+            items(state.sessions, key = { it.sessionId }) { s -> SessionRow(s) { onIntent(HistoryIntent.Open(s.sessionId)) } }
+        }
     }
 }
 

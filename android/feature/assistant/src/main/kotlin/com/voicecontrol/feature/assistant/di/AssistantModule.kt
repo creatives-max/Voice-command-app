@@ -1,12 +1,32 @@
 package com.voicecontrol.feature.assistant.di
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import com.voicecontrol.core.accessibility.ServiceListener
+import com.voicecontrol.core.engine.AssistantEngine
+import com.voicecontrol.core.engine.port.FlowSource
+import com.voicecontrol.core.engine.port.Interpreter
+import com.voicecontrol.core.engine.port.ProfileSource
+import com.voicecontrol.core.engine.port.ScreenGateway
+import com.voicecontrol.core.engine.port.SessionConfigProvider
+import com.voicecontrol.core.engine.port.SessionRecorder
+import com.voicecontrol.core.engine.port.SpeechToText
+import com.voicecontrol.core.engine.port.TextToSpeech
+import com.voicecontrol.feature.assistant.MicPermission
 import com.voicecontrol.feature.assistant.overlay.OverlayManager
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoSet
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -14,4 +34,34 @@ abstract class AssistantModule {
     @Binds
     @IntoSet
     abstract fun overlayListener(manager: OverlayManager): ServiceListener
+
+    companion object {
+        @Provides
+        @Singleton
+        fun engine(
+            screen: ScreenGateway,
+            stt: SpeechToText,
+            tts: TextToSpeech,
+            interpreter: Interpreter,
+            flows: FlowSource,
+            profiles: ProfileSource,
+            recorder: SessionRecorder,
+            config: SessionConfigProvider,
+        ): AssistantEngine = AssistantEngine(
+            screen = screen,
+            stt = stt,
+            tts = tts,
+            interpreter = interpreter,
+            flows = flows,
+            profiles = profiles,
+            recorder = recorder,
+            config = config,
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        )
+
+        @Provides
+        fun micPermission(@ApplicationContext context: Context): MicPermission = MicPermission {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        }
+    }
 }

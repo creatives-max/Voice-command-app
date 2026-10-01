@@ -25,11 +25,11 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Unit tests, commit + push
 
 ## Phase 4 — Voice loop
-- [ ] TTS + STT interfaces with Android implementations (swappable for cloud)
-- [ ] Hindi/English/Hinglish normalization (numbers, email, phone)
-- [ ] Commands: next / submit / back / scroll / skip / repeat / stop
-- [ ] Assistant session engine (MVI) asks → listens → fills, wired to overlay
-- [ ] Unit tests, commit + push
+- [x] TTS + STT interfaces with Android implementations (swappable for cloud)
+- [x] Hindi/English/Hinglish normalization (numbers, email, phone)
+- [x] Commands: next / submit / back / scroll / skip / repeat / stop
+- [x] Assistant session engine (MVI) asks → listens → fills, wired to overlay
+- [x] Unit tests, commit + push
 
 ## Phase 5 — AI brain
 - [ ] Backend `/v1/ai/interpret` with pluggable LLM provider (Anthropic / OpenAI / rule-based) via env

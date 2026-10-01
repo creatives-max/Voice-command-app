@@ -60,11 +60,12 @@ fun HomeScreen(
                 subtitle = "Hindi · English · Hinglish",
                 icon = Icons.Filled.Mic,
             )
+            PermissionsCard()
             if (state.serviceConnected) {
                 SectionCard(
                     title = "Accessibility service is on",
-                    subtitle = state.lastApp?.let { "Last screen: $it (${state.lastAppFieldCount} fields)" }
-                        ?: "Open any app to start",
+                    subtitle = (state.lastApp?.let { "Last screen: $it (${state.lastAppFieldCount} fields). " } ?: "") +
+                        "Open any app and tap the floating mic to start. Long-press it for the touch panel.",
                     icon = Icons.Filled.CheckCircle,
                 )
             } else {

@@ -34,6 +34,7 @@ class SettingsRepository @Inject constructor(
         val visionFallback = booleanPreferencesKey("vision_fallback")
         val autoStart = booleanPreferencesKey("auto_start_with_flow")
         val backendUrl = stringPreferencesKey("backend_url")
+        val dashboardUrl = stringPreferencesKey("dashboard_url")
     }
 
     val settings: Flow<AppSettings> = store.data.map(::read)
@@ -42,6 +43,10 @@ class SettingsRepository @Inject constructor(
     suspend fun appSettings(): AppSettings = settings.first()
 
     override suspend fun current(): SessionConfig = appSettings().toSessionConfig()
+
+    /** Dashboard address to open from the app. */
+    suspend fun dashboardUrl(): String =
+        appSettings().dashboardUrl.ifBlank { com.voicecontrol.core.network.BuildConfig.DEFAULT_DASHBOARD_URL }
 
     suspend fun update(transform: (AppSettings) -> AppSettings) {
         store.edit { p ->
@@ -58,6 +63,7 @@ class SettingsRepository @Inject constructor(
             p[Keys.visionFallback] = next.visionFallback
             p[Keys.autoStart] = next.autoStartWithFlow
             p[Keys.backendUrl] = next.backendUrl.trim().trimEnd('/')
+            p[Keys.dashboardUrl] = next.dashboardUrl.trim().trimEnd('/')
         }
     }
 
@@ -76,6 +82,7 @@ class SettingsRepository @Inject constructor(
             visionFallback = p[Keys.visionFallback] ?: d.visionFallback,
             autoStartWithFlow = p[Keys.autoStart] ?: d.autoStartWithFlow,
             backendUrl = p[Keys.backendUrl] ?: d.backendUrl,
+            dashboardUrl = p[Keys.dashboardUrl] ?: d.dashboardUrl,
         )
     }
 }

@@ -10,6 +10,7 @@ android {
     defaultConfig {
         // 10.0.2.2 is the host machine when running in the Android emulator.
         buildConfigField("String", "DEFAULT_BACKEND_URL", "\"http://10.0.2.2:8080\"")
+        buildConfigField("String", "DEFAULT_DASHBOARD_URL", "\"http://10.0.2.2:3000\"")
     }
 }
 

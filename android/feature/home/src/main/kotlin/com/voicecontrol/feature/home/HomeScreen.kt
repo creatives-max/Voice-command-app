@@ -33,6 +33,7 @@ import com.voicecontrol.core.ui.mvi.CollectEffects
 fun HomeRoute(
     onOpenInspector: () -> Unit,
     onOpenAccount: (signedIn: Boolean) -> Unit,
+    onOpenFlows: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -42,7 +43,7 @@ fun HomeRoute(
             HomeEffect.LaunchAccessibilitySettings -> context.startActivity(AccessibilityStatus.settingsIntent())
         }
     }
-    HomeScreen(state, viewModel::dispatch, onOpenInspector, onOpenAccount)
+    HomeScreen(state, viewModel::dispatch, onOpenInspector, onOpenAccount, onOpenFlows)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,6 +53,7 @@ fun HomeScreen(
     onIntent: (HomeIntent) -> Unit,
     onOpenInspector: () -> Unit,
     onOpenAccount: (signedIn: Boolean) -> Unit = {},
+    onOpenFlows: () -> Unit = {},
 ) {
     Scaffold(topBar = { TopAppBar(title = { Text("VoiceControl") }) }) { padding ->
         Column(
@@ -88,6 +90,13 @@ fun HomeScreen(
                 icon = Icons.Filled.AccountCircle,
             ) {
                 OutlinedButton(onClick = { onOpenAccount(email != null) }) { Text(if (email != null) "Profile & account" else "Sign in") }
+            }
+            SectionCard(
+                title = "Saved flows",
+                subtitle = "Every form you fill by voice is saved per app and screen. Edited flows run automatically next time.",
+                icon = Icons.Filled.Mic,
+            ) {
+                OutlinedButton(onClick = onOpenFlows) { Text("Open flows") }
             }
             SectionCard(
                 title = "Screen inspector",

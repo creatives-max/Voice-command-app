@@ -1,0 +1,55 @@
+import { ACCESS_COOKIE, REFRESH_COOKIE, handleProxy, type ProxyRequest } from "./proxy";
+
+function req(overrides: Partial<ProxyRequest>): ProxyRequest {
+  return { method: "GET", path: ["flows"], search: "", body: null, cookies: { get: () => undefined }, ...overrides };
+}
+
+const tokens = { accessToken: "A2", refreshToken: "R2", expiresInSeconds: 900, user: { id: "u", email: "a@b.co" } };
+
+describe("handleProxy", () => {
+  it("stores tokens in cookies on login and returns only the user", async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify(tokens), { status: 200 }));
+    const res = await handleProxy(req({ method: "POST", path: ["auth", "login"], body: "{}" }), "http://b", fetcher);
+    expect(res.status).toBe(200);
+    expect(JSON.parse(res.body!)).toEqual(tokens.user);
+    expect(res.body).not.toContain("A2");
+    expect(res.setCookies.map((c) => c.name)).toEqual([ACCESS_COOKIE, REFRESH_COOKIE]);
+  });
+
+  it("forwards with bearer token and refreshes once on 401", async () => {
+    const calls: { url: string; auth?: string }[] = [];
+    const fetcher = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      calls.push({ url: String(url), auth: headers.Authorization });
+      if (String(url).endsWith("/v1/auth/refresh")) return new Response(JSON.stringify(tokens), { status: 200 });
+      if (headers.Authorization === "Bearer A1") return new Response("{}", { status: 401 });
+      return new Response(JSON.stringify({ items: [] }), { status: 200 });
+    });
+    const cookies = { get: (n: string) => (n === ACCESS_COOKIE ? "A1" : "R1") };
+    const res = await handleProxy(req({ path: ["flows"], search: "?limit=5", cookies }), "http://b", fetcher as typeof fetch);
+    expect(res.status).toBe(200);
+    expect(calls.map((c) => c.url)).toEqual(["http://b/v1/flows?limit=5", "http://b/v1/auth/refresh", "http://b/v1/flows?limit=5"]);
+    expect(calls[2]?.auth).toBe("Bearer A2");
+    expect(res.setCookies.find((c) => c.name === ACCESS_COOKIE)?.value).toBe("A2");
+  });
+
+  it("clears cookies when refresh fails and blocks unknown routes", async () => {
+    const fetcher = vi.fn(async (url: string | URL | Request) =>
+      String(url).endsWith("/refresh") ? new Response("{}", { status: 401 }) : new Response("{}", { status: 401 }),
+    );
+    const res = await handleProxy(req({ path: ["profile"], cookies: { get: () => "x" } }), "http://b", fetcher as typeof fetch);
+    expect(res.status).toBe(401);
+    expect(res.setCookies.every((c) => c.maxAge === 0)).toBe(true);
+
+    const blocked = await handleProxy(req({ path: ["auth", "refresh"] }), "http://b", fetcher as typeof fetch);
+    expect(blocked.status).toBe(404);
+  });
+
+  it("returns 502 when the backend is down", async () => {
+    const fetcher = vi.fn(async () => {
+      throw new Error("ECONNREFUSED");
+    });
+    const res = await handleProxy(req({}), "http://b", fetcher as typeof fetch);
+    expect(res.status).toBe(502);
+  });
+});

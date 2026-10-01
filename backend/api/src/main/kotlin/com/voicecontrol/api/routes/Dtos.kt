@@ -90,3 +90,6 @@ import kotlinx.serialization.Serializable
 }
 
 @Serializable data class Page<T>(val items: List<T>, val limit: Int, val offset: Int)
+
+@Serializable data class MatchRequest(val appPackage: String, val signature: String)
+@Serializable data class MatchResponse(val flow: FlowDto? = null, val matchedBy: String? = null, val similarity: Double? = null)

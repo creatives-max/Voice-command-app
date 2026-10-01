@@ -4,6 +4,7 @@ import com.voicecontrol.api.plugins.JWT_AUTH
 import com.voicecontrol.api.plugins.userId
 import com.voicecontrol.application.flow.FlowService
 import com.voicecontrol.application.flow.NewFlow
+import com.voicecontrol.application.match.FlowMatchService
 import com.voicecontrol.domain.common.DomainException
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -18,7 +19,7 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import java.util.UUID
 
-fun Route.flowRoutes(flows: FlowService) {
+fun Route.flowRoutes(flows: FlowService, matcher: FlowMatchService) {
     authenticate(JWT_AUTH) {
         route("/v1/flows") {
             get {
@@ -33,6 +34,14 @@ fun Route.flowRoutes(flows: FlowService) {
                 call.respond(HttpStatusCode.Created, FlowDto.from(saved))
             }
             get("/apps") { call.respond(flows.apps(call.userId).map(AppSummaryDto::from)) }
+            post("/match") {
+                val body = call.receive<MatchRequest>()
+                if (body.signature.isBlank() || body.signature.length > FlowService.MAX_SIGNATURE) throw DomainException.Validation("Invalid signature")
+                val match = matcher.match(call.userId, FlowService.validatePackage(body.appPackage), body.signature)
+                call.respond(
+                    if (match == null) MatchResponse() else MatchResponse(FlowDto.from(match.flow), match.kind.name.lowercase(), match.similarity),
+                )
+            }
             route("/{id}") {
                 get { call.respond(FlowDto.from(flows.get(call.userId, call.flowId()))) }
                 put {

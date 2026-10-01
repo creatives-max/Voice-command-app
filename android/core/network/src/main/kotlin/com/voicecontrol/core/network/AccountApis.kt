@@ -7,6 +7,8 @@ import com.voicecontrol.core.network.dto.CreateFlowRequestDto
 import com.voicecontrol.core.network.dto.FlowSummaryDto
 import com.voicecontrol.core.network.dto.LoginRequestDto
 import com.voicecontrol.core.network.dto.LogoutRequestDto
+import com.voicecontrol.core.network.dto.MatchRequestDto
+import com.voicecontrol.core.network.dto.MatchResponseDto
 import com.voicecontrol.core.network.dto.PageDto
 import com.voicecontrol.core.network.dto.RegisterRequestDto
 import com.voicecontrol.core.network.dto.UserDto
@@ -44,6 +46,12 @@ class FlowApi @Inject constructor(private val api: ApiClient) {
     )
 
     suspend fun get(id: String): FlowDefinition = api.get("/v1/flows/$id")
+
+    /** Closest saved flow for a screen (exact signature or pgvector similarity), or null. */
+    suspend fun match(appPackage: String, signature: String): MatchResponseDto =
+        api.post<MatchRequestDto, MatchResponseDto>("/v1/flows/match", MatchRequestDto(appPackage, signature))
+
+    suspend fun delete(id: String) = api.delete("/v1/flows/$id")
 
     suspend fun list(appPackage: String? = null, limit: Int = 200): List<FlowSummaryDto> =
         api.get<PageDto<FlowSummaryDto>>("/v1/flows") {

@@ -20,6 +20,8 @@ data class AppSettings(
     /** Start the voice session automatically when an app with a saved flow opens. */
     val autoStartWithFlow: Boolean = false,
     val backendUrl: String = "",
+    /** Web dashboard where flows are edited; blank = the default for this build. */
+    val dashboardUrl: String = "",
 ) {
     fun toSessionConfig() = SessionConfig(
         language = language,

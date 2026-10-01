@@ -4,6 +4,12 @@ import com.voicecontrol.application.ai.AiService
 import com.voicecontrol.application.auth.AuthService
 import com.voicecontrol.application.flow.FlowCacheInvalidator
 import com.voicecontrol.application.flow.FlowService
+import com.voicecontrol.application.match.FlowEmbeddingHandler
+import com.voicecontrol.application.match.FlowMatchService
+import com.voicecontrol.domain.match.EmbeddingProvider
+import com.voicecontrol.infrastructure.embedding.HashingEmbeddingProvider
+import com.voicecontrol.infrastructure.embedding.OpenAiEmbeddingProvider
+import com.voicecontrol.infrastructure.persistence.JdbcEmbeddingRepository
 import com.voicecontrol.application.profile.ProfileService
 import com.voicecontrol.domain.event.EventHandler
 import com.voicecontrol.domain.event.RateLimiter
@@ -31,6 +37,7 @@ class Services(
     val auth: AuthService,
     val profiles: ProfileService,
     val flows: FlowService,
+    val matcher: FlowMatchService,
     val rateLimiter: RateLimiter,
     val eventBus: RedisStreamEventBus,
     private val database: Database,
@@ -54,14 +61,30 @@ class Services(
 
 /** Wires adapters to ports. The only place that knows concrete infrastructure classes. */
 object Bootstrap {
+    private fun embeddingProvider(config: AppConfig, http: HttpClient): EmbeddingProvider {
+        val key = config.llm.openAiApiKey
+        return if (config.embeddingProvider == "openai" && key != null) {
+            OpenAiEmbeddingProvider(http, key, config.llm.openAiBaseUrl)
+        } else {
+            HashingEmbeddingProvider()
+        }
+    }
+
     fun create(config: AppConfig, extraHandlers: List<EventHandler> = emptyList(), bcryptCost: Int = 12): Services {
         val database = Database.connect(config.database).also { it.migrate() }
         val redis = RedisConnections(config.redisUrl)
         val http = HttpClient(CIO) { engine { requestTimeout = config.llm.timeoutMillis * 3 } }
         val cache = RedisCache(redis)
-        val handlers = listOf<EventHandler>(FlowCacheInvalidator(cache)) + extraHandlers
-        val bus = RedisStreamEventBus(redis, handlers).also { it.start() }
         val flowRepository = JdbcFlowRepository(database)
+        val embeddingRepository = JdbcEmbeddingRepository(database)
+        val embedder = embeddingProvider(config, http)
+        // Order matters: store the new embedding first, then drop cached match results,
+        // so a concurrent match can't cache a miss computed without the new embedding.
+        val handlers = listOf(
+            FlowEmbeddingHandler(flowRepository, embeddingRepository, embedder),
+            FlowCacheInvalidator(cache),
+        ) + extraHandlers
+        val bus = RedisStreamEventBus(redis, handlers).also { it.start() }
         return Services(
             config = config,
             ai = AiService(LlmProviderFactory.create(config.llm, http), timeoutMillis = config.llm.timeoutMillis),
@@ -73,6 +96,7 @@ object Bootstrap {
             ),
             profiles = ProfileService(JdbcProfileRepository(database), cache),
             flows = FlowService(flowRepository, bus),
+            matcher = FlowMatchService(flowRepository, embeddingRepository, embedder, cache),
             rateLimiter = RedisRateLimiter(redis),
             eventBus = bus,
             database = database,

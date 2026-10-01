@@ -13,3 +13,9 @@ import kotlinx.serialization.Serializable
 @Serializable data class FlowSummaryDto(val id: String, val appPackage: String, val name: String, val currentVersion: Int, val updatedAt: String)
 @Serializable data class PageDto<T>(val items: List<T>, val limit: Int, val offset: Int)
 @Serializable data class RefreshRequestDto(val refreshToken: String)
+@Serializable data class MatchRequestDto(val appPackage: String, val signature: String)
+@Serializable data class MatchResponseDto(
+    val flow: com.voicecontrol.core.model.FlowDefinition? = null,
+    val matchedBy: String? = null,
+    val similarity: Double? = null,
+)

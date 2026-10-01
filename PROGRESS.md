@@ -47,11 +47,11 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Tests, commit + push
 
 ## Phase 7 — Flow Library
-- [ ] Versioned flows (history, rollback)
-- [ ] pgvector embeddings + screen → flow matching
-- [ ] Dashboard: login, flows list, flow editor (question, rules, defaults, skip, order, help video), versions
-- [ ] Android: fetch matched flow and run edited flow next time
-- [ ] Tests, commit + push
+- [x] Versioned flows (history, rollback)
+- [x] pgvector embeddings + screen → flow matching
+- [x] Dashboard: login, flows list, flow editor (question, rules, defaults, skip, order, help video), versions
+- [x] Android: fetch matched flow and run edited flow next time
+- [x] Tests, commit + push
 
 ## Phase 8 — Settings, history, vision, compliance, k8s, observability
 - [ ] Android settings + run history screens; backend run history API + dashboard history

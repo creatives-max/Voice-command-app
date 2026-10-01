@@ -30,6 +30,14 @@ tags:
   - name: Teams
   - name: Analytics
   - name: Collaboration
+  - name: Caregiving
+    description: |
+      Remote caregiver mode with consent. The person to be helped creates an invite code with the permissions they
+      agree to (`edit_flows`, `run_flows`, `view_history`; seeing flows, triggers, phones and runs is always included).
+      The caregiver accepts it, then sends `X-Care-Link: <link id>` to work on that person's flows through the normal
+      endpoints (list/get/edit flows, versions, rollback, triggers, dry run, analytics, devices, run now, run history).
+      Anything else is refused while acting (GET requests answer for the caregiver themself). Every change and run is
+      recorded on the link; either side can end it. API keys can't act for someone.
 paths:
   /health:
     get:
@@ -936,6 +944,64 @@ paths:
       summary: Save node positions (editors)
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Layout" } } } }
       responses: { "204": { description: Saved } }
+  /v1/care/invites:
+    post:
+      tags: [Caregiving]
+      summary: The person to be helped creates a one-time invite code (valid 30 minutes, at most 5 open)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { permissions: { type: array, items: { type: string, enum: [edit_flows, run_flows, view_history] } } } } } } }
+      responses:
+        "201": { description: Invite, content: { application/json: { schema: { type: object, properties: { link: { $ref: "#/components/schemas/CareLink" }, code: { type: string, example: "K7QM-29PX" }, expiresAt: { type: string, format: date-time } } } } } }
+  /v1/care/accept:
+    post:
+      tags: [Caregiving]
+      summary: The caregiver enters the code (case and dashes ignored; 10 attempts a minute)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [code], properties: { code: { type: string } } } } } }
+      responses:
+        "200": { description: Active link, content: { application/json: { schema: { $ref: "#/components/schemas/CareLink" } } } }
+        "404": { description: Wrong or expired code }
+        "409": { description: Already helping this person }
+  /v1/care/links:
+    get:
+      tags: [Caregiving]
+      summary: People who help me and people I help (and my open invites)
+      responses:
+        "200": { description: Links, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/CareLink" } } } } }
+  /v1/care/links/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Caregiving]
+      summary: Change what the caregiver may do (the person helped only)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [permissions], properties: { permissions: { type: array, items: { type: string } } } } } } }
+      responses:
+        "200": { description: Link, content: { application/json: { schema: { $ref: "#/components/schemas/CareLink" } } } }
+    delete:
+      tags: [Caregiving]
+      summary: End the link or cancel the invite (either side); access stops at once
+      responses:
+        "204": { description: Ended }
+  /v1/care/links/{id}/events:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+    get:
+      tags: [Caregiving]
+      summary: Everything done through the link, newest first
+      responses:
+        "200":
+          description: Events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    action: { type: string, enum: [invited, accepted, permissions_changed, flow_edited, flow_restored, trigger_added, trigger_changed, trigger_removed, flow_added, flow_run, run_stopped, invite_cancelled, ended] }
+                    actorEmail: { type: string, nullable: true }
+                    details: { type: object, additionalProperties: { type: string } }
+                    at: { type: string, format: date-time }
   /v1/me/export:
     get:
       tags: [Auth]
@@ -1186,6 +1252,18 @@ components:
         lastSeenAt: { type: string, format: date-time }
         online: { type: boolean, description: Polled in the last 90 seconds }
         createdAt: { type: string, format: date-time }
+    CareLink:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string, enum: [receiver, caregiver], description: "receiver: you are being helped" }
+        status: { type: string, enum: [PENDING, ACTIVE] }
+        permissions: { type: array, items: { type: string } }
+        otherEmail: { type: string, nullable: true }
+        otherName: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        acceptedAt: { type: string, format: date-time, nullable: true }
+        expiresAt: { type: string, format: date-time, nullable: true }
     TriggerInput:
       type: object
       required: [type]
@@ -1343,7 +1421,7 @@ components:
       properties:
         version: { type: integer }
         steps: { type: array, items: { $ref: "#/components/schemas/FlowStep" } }
-        source: { type: string, enum: [DEVICE, DASHBOARD, ROLLBACK, IMPORT, RECORDED] }
+        source: { type: string, enum: [DEVICE, DASHBOARD, ROLLBACK, IMPORT, RECORDED, CAREGIVER] }
         changeNote: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
     CreateFlowRequest:

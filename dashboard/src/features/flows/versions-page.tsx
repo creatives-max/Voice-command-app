@@ -18,6 +18,7 @@ export const VERSION_SOURCE_LABELS: Record<FlowVersion["source"], string> = {
   ROLLBACK: "rollback",
   IMPORT: "imported",
   RECORDED: "taught on phone",
+  CAREGIVER: "by caregiver",
 };
 
 export function VersionsPage() {

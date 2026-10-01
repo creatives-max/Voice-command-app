@@ -1,6 +1,10 @@
 import { z } from "zod";
+import { getCareLinkId } from "./care";
 import { getOrgId } from "./org";
 import {
+  careEventSchema,
+  careInviteSchema,
+  careLinkSchema,
   crashGroupSchema,
   analyticsOverviewSchema,
   commentSchema,
@@ -88,13 +92,20 @@ export class ApiError extends Error {
 type Fetcher = typeof fetch;
 
 /** Calls the same-origin `/api` proxy (which holds the tokens in httpOnly cookies). */
-export function createApi(fetcher: Fetcher = (...args) => fetch(...args), orgId: () => string | null = getOrgId) {
+export function createApi(
+  fetcher: Fetcher = (...args) => fetch(...args),
+  orgId: () => string | null = getOrgId,
+  careLink: () => string | null = getCareLinkId,
+) {
   async function request<S extends z.ZodTypeAny>(schema: S | null, path: string, init?: RequestInit): Promise<z.output<S>> {
     const org = orgId();
+    // Helping someone and working in an organization are exclusive; care endpoints are always the caller's own.
+    const link = path.startsWith("/care") ? null : careLink();
+    const context: Record<string, string> = link ? { "X-Care-Link": link } : org ? { "X-Org-Id": org } : {};
     const response = await fetcher(`/api${path}`, {
       ...init,
       credentials: "same-origin",
-      headers: { "Content-Type": "application/json", ...(org ? { "X-Org-Id": org } : {}), ...(init?.headers ?? {}) },
+      headers: { "Content-Type": "application/json", ...context, ...(init?.headers ?? {}) },
     });
     if (!response.ok) {
       const body = await response.json().catch(() => null);
@@ -227,6 +238,15 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), orgId:
     },
     deleteAccount: (password: string) => request(null, "/me", { method: "DELETE", body: json({ password }) }),
     crashes: () => request(crashGroupSchema.array(), "/crashes"),
+
+    // Caregiving (always the caller's own; see lib/care.ts)
+    careLinks: () => request(careLinkSchema.array(), "/care/links"),
+    careInvite: (permissions: string[]) => request(careInviteSchema, "/care/invites", { method: "POST", body: json({ permissions }) }),
+    careAccept: (code: string) => request(careLinkSchema, "/care/accept", { method: "POST", body: json({ code }) }),
+    careSetPermissions: (id: string, permissions: string[]) =>
+      request(careLinkSchema, `/care/links/${id}`, { method: "PATCH", body: json({ permissions }) }),
+    careEnd: (id: string) => request(null, `/care/links/${id}`, { method: "DELETE" }),
+    careEvents: (id: string) => request(careEventSchema.array(), `/care/links/${id}/events`),
 
     profile: () => request(profileSchema, "/profile"),
     saveProfile: (profile: Profile) => request(profileSchema, "/profile", { method: "PUT", body: json(profile) }),

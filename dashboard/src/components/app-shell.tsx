@@ -1,39 +1,65 @@
 import { useEffect } from "react";
 import { Link, Outlet, useNavigate } from "@tanstack/react-router";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { BarChart3, Building2, History, Languages, LogOut, Mic, Moon, Smartphone, Store, Sun, SunMoon, UserRound, Workflow } from "lucide-react";
+import { BarChart3, Building2, HandHeart, History, Languages, LogOut, Mic, Moon, Smartphone, Store, Sun, SunMoon, UserRound, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
-import { useCurrentOrg, useSwitchOrg } from "@/features/org/use-org";
+import { useQuery } from "@tanstack/react-query";
+import { personName } from "@/features/care/care";
+import { useCurrentOrg, useSwitchCare, useSwitchOrg } from "@/features/org/use-org";
+import { setCareLinkId, useCareLinkId } from "@/lib/care";
 import { api } from "@/lib/api";
 import { LOCALE_NAMES, locales, setLocale, useLocale, useT, type Locale } from "@/lib/i18n";
 import { setOrgId } from "@/lib/org";
-import { sessionQuery } from "@/lib/queries";
+import { careLinksQuery, sessionQuery } from "@/lib/queries";
 import { setTheme, themes, useTheme, type Theme } from "@/lib/theme";
 
-/** Personal flows or one of the user's organizations; every page then works in that context. */
+/** People the user helps as a caregiver (active links). */
+function useHelping() {
+  const links = useQuery(careLinksQuery);
+  return { helping: (links.data ?? []).filter((l) => l.role === "caregiver" && l.status === "ACTIVE"), loading: links.isPending };
+}
+
+/**
+ * Personal flows, one of the user's organizations, or a person they help as a caregiver; every page
+ * then works in that context.
+ */
 function OrgSwitcher() {
   const { orgId, orgs, loading } = useCurrentOrg();
+  const { helping, loading: loadingCare } = useHelping();
+  const careLink = useCareLinkId();
   const switchOrg = useSwitchOrg();
+  const switchCare = useSwitchCare();
   const navigate = useNavigate();
   const t = useT();
   // A remembered organization the user no longer belongs to falls back to personal flows.
   useEffect(() => {
     if (!loading && orgId && !orgs.some((o) => o.id === orgId)) switchOrg(null);
   }, [loading, orgId, orgs, switchOrg]);
+  // Likewise for someone who stopped being helped.
+  useEffect(() => {
+    if (!loadingCare && careLink && !helping.some((l) => l.id === careLink)) switchCare(null);
+  }, [loadingCare, careLink, helping, switchCare]);
 
   return (
     <NativeSelect
       aria-label={t("nav.workspace")}
       className="mb-2"
-      value={orgId ?? ""}
+      value={careLink ? `care:${careLink}` : (orgId ?? "")}
       onChange={(e) => {
-        if (e.target.value === "__new") {
+        const value = e.target.value;
+        if (value === "__new") {
+          switchCare(null);
           switchOrg(null);
           void navigate({ to: "/org" });
           return;
         }
-        switchOrg(e.target.value || null);
+        if (value.startsWith("care:")) {
+          switchCare(value.slice(5));
+        } else {
+          switchCare(null);
+          switchOrg(value || null);
+        }
         void navigate({ to: "/" });
       }}
     >
@@ -43,8 +69,36 @@ function OrgSwitcher() {
           {o.name}
         </option>
       ))}
+      {helping.length > 0 && (
+        <optgroup label={t("nav.helpingGroup")}>
+          {helping.map((l) => (
+            <option key={l.id} value={`care:${l.id}`}>
+              {personName(l)}
+            </option>
+          ))}
+        </optgroup>
+      )}
       <option value="__new">{t("nav.newOrg")}</option>
     </NativeSelect>
+  );
+}
+
+/** Shown on every page while a caregiver works on someone else's account. */
+function HelpingBanner() {
+  const careLink = useCareLinkId();
+  const { helping } = useHelping();
+  const switchCare = useSwitchCare();
+  const t = useT();
+  const link = helping.find((l) => l.id === careLink);
+  if (!careLink || !link) return null;
+  return (
+    <div role="status" className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-primary/40 bg-primary/10 px-4 py-2 text-sm">
+      <HandHeart className="size-4 text-primary" aria-hidden />
+      <span className="flex-1">{t("care.banner", { name: personName(link) })}</span>
+      <Button size="sm" variant="outline" onClick={() => switchCare(null)}>
+        {t("care.stop")}
+      </Button>
+    </div>
   );
 }
 
@@ -87,10 +141,12 @@ export function AppShell() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const t = useT();
+  const acting = useCareLinkId() != null;
 
   async function signOut() {
     await api.logout().catch(() => undefined);
     setOrgId(null);
+    setCareLinkId(null);
     qc.clear();
     await navigate({ to: "/login", search: {} });
   }
@@ -122,8 +178,13 @@ export function AppShell() {
         <Link to="/devices" className={nav} activeProps={active}>
           <Smartphone className="size-4" /> {t("nav.devices")}
         </Link>
-        <Link to="/org" className={nav} activeProps={active}>
-          <Building2 className="size-4" /> {t("nav.organization")}
+        {!acting && (
+          <Link to="/org" className={nav} activeProps={active}>
+            <Building2 className="size-4" /> {t("nav.organization")}
+          </Link>
+        )}
+        <Link to="/care" className={nav} activeProps={active}>
+          <HandHeart className="size-4" /> {t("nav.caregiving")}
         </Link>
         <Link to="/profile" className={nav} activeProps={active}>
           <UserRound className="size-4" /> {t("nav.profile")}
@@ -137,6 +198,7 @@ export function AppShell() {
         </div>
       </aside>
       <main className="min-w-0 flex-1 p-4 md:p-8">
+        <HelpingBanner />
         <Outlet />
       </main>
     </div>

@@ -162,7 +162,11 @@ phase notes say which earlier phase covered the rest.
 - [x] Tests, commit + push
 
 ## Phase 21 — Remote caregiver mode (with consent)
-- [ ] Caregiver links, consent, remote flow setup, tests, commit + push
+- [x] Backend care links (migration V10): invite codes created by the person helped (one-time, 30 min, hashed), chosen permissions (edit flows, run flows, see history), accept, change, end from either side, activity log, data export
+- [x] Acting for someone (`X-Care-Link`): existing flow, trigger, dry-run, analytics, device, run and history endpoints work on their account within the permissions; everything else refused; edits saved as CAREGIVER versions; actions logged
+- [x] Dashboard: Caregiving page (enter a code, people I help, invites, permissions, activity, remove), workspace switcher entry, "You are helping …" banner
+- [x] Phone: Caregivers screen (create and share a code, helpers' permissions, what they did, stop their help)
+- [x] Tests, commit + push
 
 ## Phase 22 — Offline + regional languages (gaps; six languages were done in Phase 12)
 - [ ] Offline speech packs, tests, commit + push

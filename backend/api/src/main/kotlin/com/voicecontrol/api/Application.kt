@@ -1,5 +1,6 @@
 package com.voicecontrol.api
 
+import com.voicecontrol.api.plugins.careContext
 import com.voicecontrol.api.plugins.configureHttp
 import com.voicecontrol.api.plugins.Telemetry
 import com.voicecontrol.api.plugins.configureSecurity
@@ -8,6 +9,7 @@ import com.voicecontrol.api.routes.historyRoutes
 import com.voicecontrol.api.routes.aiRoutes
 import com.voicecontrol.api.routes.automationRoutes
 import com.voicecontrol.api.routes.authRoutes
+import com.voicecontrol.api.routes.careRoutes
 import com.voicecontrol.api.routes.flowRoutes
 import com.voicecontrol.api.routes.marketplaceRoutes
 import com.voicecontrol.api.routes.accountRoutes
@@ -44,6 +46,8 @@ fun Application.voiceControl(services: Services) {
     configureHttp(services.config.corsOrigins)
     configureSecurity(services.config.jwt, services::apiKeyPrincipal)
     routing {
+        // Caregivers acting for the person they help (X-Care-Link); see CareContext.
+        careContext(services.care, services.flows)
         get("/health") { call.respond(HttpStatusCode.OK, Health("ok", services.ai.providerName)) }
         get("/ready") {
             val ready = services.readiness()
@@ -61,6 +65,7 @@ fun Application.voiceControl(services: Services) {
         orgRoutes(services.orgs, services.apiKeys, services.webhooks, services.audit)
         collabRoutes(services.analytics, services.comments, services.presence, services.layouts)
         accountRoutes(services.account, services.crashes, services.rateLimiter)
+        careRoutes(services.care, services.rateLimiter)
     }
 }
 

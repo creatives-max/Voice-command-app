@@ -127,6 +127,14 @@ floating panel (or the record icon in *Saved flows*), fill the form by touch acr
 red bubble. Review the steps, choose which typed values to keep as defaults (never passwords, OTPs or PINs) and save.
 Next time VoiceControl asks for each field in that order.
 
+## Caregivers (remote help, with consent)
+
+A son, daughter or friend can set up flows for someone else's phone. On the phone, *Settings → Caregivers → Create
+a code* (choose what the helper may do: edit flows, run flows, see history). The helper enters the code on the
+dashboard (*Caregiving*), then picks the person in the workspace switcher: Flows, triggers, devices, runs and the
+marketplace then work on that person's account (`X-Care-Link`), within the granted permissions. Edits are saved as
+*by caregiver* versions; everything is logged on the link, visible to both, and either side can end it at once.
+
 ## Fill from a photo (OCR)
 
 On a form, open the VoiceControl panel and tap the document button: take or choose a photo of a PAN card, Aadhaar

@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { setCareLinkId } from "@/lib/care";
 import { setOrgId, useOrgId } from "@/lib/org";
 import { orgsQuery } from "@/lib/queries";
 import type { Org } from "@/lib/types";
@@ -18,7 +19,21 @@ export function useSwitchOrg() {
   return useCallback(
     (id: string | null) => {
       setOrgId(id);
-      void qc.resetQueries({ predicate: (q) => !["session", "orgs"].includes(String(q.queryKey[0])) });
+      if (id) setCareLinkId(null);
+      void qc.resetQueries({ predicate: (q) => !["session", "orgs", "care"].includes(String(q.queryKey[0])) });
+    },
+    [qc],
+  );
+}
+
+/** Starts or stops working for a person the caller helps (null = their own account). */
+export function useSwitchCare() {
+  const qc = useQueryClient();
+  return useCallback(
+    (linkId: string | null) => {
+      setCareLinkId(linkId);
+      if (linkId) setOrgId(null);
+      void qc.resetQueries({ predicate: (q) => !["session", "orgs", "care"].includes(String(q.queryKey[0])) });
     },
     [qc],
   );

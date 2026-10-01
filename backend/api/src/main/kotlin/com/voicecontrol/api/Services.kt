@@ -108,6 +108,7 @@ class Services(
     val layouts: LayoutService,
     val account: AccountService,
     val crashes: CrashService,
+    val care: com.voicecontrol.application.care.CareService,
     val eventBus: RedisStreamEventBus,
     /** Kafka bus when KAFKA_BOOTSTRAP_SERVERS is set; Redis Streams stays the fallback queue. */
     val kafkaBus: KafkaEventBus?,
@@ -263,6 +264,7 @@ object Bootstrap {
                 onDeleted = { userId -> cache.deleteByPrefix(FlowCacheInvalidator.userCachePattern(userId.toString())) },
             ),
             crashes = CrashService(JdbcCrashRepository(database)),
+            care = com.voicecontrol.application.care.CareService(com.voicecontrol.infrastructure.persistence.JdbcCareRepository(database)),
             eventBus = bus,
             kafkaBus = kafka,
             database = database,

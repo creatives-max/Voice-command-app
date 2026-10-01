@@ -1,6 +1,7 @@
 package com.voicecontrol.api.routes
 
 import com.voicecontrol.api.plugins.API_KEY_AUTH
+import com.voicecontrol.api.plugins.actingAs
 import com.voicecontrol.api.plugins.ApiKeyPrincipal
 import com.voicecontrol.api.plugins.JWT_AUTH
 import com.voicecontrol.api.plugins.keyContext
@@ -15,6 +16,7 @@ import com.voicecontrol.application.match.FlowMatchService
 import com.voicecontrol.application.profile.ProfileService
 import com.voicecontrol.domain.common.DomainException
 import com.voicecontrol.domain.org.ApiScope
+import com.voicecontrol.domain.flow.VersionSource
 import kotlinx.serialization.Serializable
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -71,8 +73,11 @@ fun Route.flowRoutes(flows: FlowService, matcher: FlowMatchService, profiles: Pr
                 put {
                     call.requireScope(ApiScope.FLOWS_WRITE)
                     val body = call.receive<UpdateFlowRequest>()
+                    val caregiver = call.actingAs?.link?.let { it.caregiverName ?: it.caregiverEmail }
+                    val source = if (caregiver != null) VersionSource.CAREGIVER else VersionSource.DASHBOARD
+                    val note = if (caregiver != null) "By $caregiver" + (body.changeNote?.takeIf { it.isNotBlank() }?.let { ": $it" } ?: "") else body.changeNote
                     call.respond(
-                        FlowDto.from(flows.update(call.userId, call.flowId(), body.expectedVersion, body.name, body.steps, body.changeNote, key = call.keyContext)),
+                        FlowDto.from(flows.update(call.userId, call.flowId(), body.expectedVersion, body.name, body.steps, note, source, key = call.keyContext)),
                     )
                 }
                 delete {

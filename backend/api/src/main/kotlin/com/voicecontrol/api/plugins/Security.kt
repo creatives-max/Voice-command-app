@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.voicecontrol.domain.common.DomainException
 import com.voicecontrol.infrastructure.config.AppConfig
+import com.voicecontrol.application.care.ActingAs
 import com.voicecontrol.application.flow.KeyContext
 import com.voicecontrol.domain.org.ApiKey
 import com.voicecontrol.domain.org.ApiScope
@@ -20,6 +21,7 @@ import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.auth.jwt.jwt
 import io.ktor.server.auth.principal
 import io.ktor.server.response.respond
+import io.ktor.util.AttributeKey
 import java.util.UUID
 
 const val JWT_AUTH = "jwt"
@@ -80,9 +82,22 @@ fun Application.configureSecurity(jwtConfig: AppConfig.JwtConfig, apiKeys: suspe
  * creator, still a member of the key's organization.
  */
 val ApplicationCall.userId: UUID
+    get() = actingAs?.receiverId ?: ownUserId
+
+/** The caller themself, even while they act as a caregiver for someone else. */
+val ApplicationCall.ownUserId: UUID
     get() = principal<JWTPrincipal>()?.payload?.subject?.let(UUID::fromString)
         ?: principal<ApiKeyPrincipal>()?.actingUserId
         ?: throw DomainException.Unauthorized()
+
+/** Set while a caregiver works on the account of the person they help (see [CARE_HEADER]). */
+val ApplicationCall.actingAs: ActingAs?
+    get() = attributes.getOrNull(ActingAsKey)
+
+val ActingAsKey = AttributeKey<ActingAs>("care-acting-as")
+
+/** Header the dashboard sends while a caregiver works for someone: the id of their care link. */
+const val CARE_HEADER = "X-Care-Link"
 
 /** Set when the call is made with an API key. */
 val ApplicationCall.keyContext: KeyContext?

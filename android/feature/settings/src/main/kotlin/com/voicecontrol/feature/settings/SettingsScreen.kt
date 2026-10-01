@@ -33,6 +33,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -63,7 +64,7 @@ import com.voicecontrol.core.ui.components.LoadingBox
 import com.voicecontrol.core.ui.mvi.CollectEffects
 
 @Composable
-fun SettingsRoute(onBack: () -> Unit, onOpenPrivacy: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsRoute(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenCare: () -> Unit = {}, viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     CollectEffects(viewModel.effects) { effect ->
@@ -75,7 +76,7 @@ fun SettingsRoute(onBack: () -> Unit, onOpenPrivacy: () -> Unit, viewModel: Sett
             }
         }
     }
-    SettingsScreen(state, snackbar, onBack, onOpenPrivacy, viewModel::dispatch)
+    SettingsScreen(state, snackbar, onBack, onOpenPrivacy, viewModel::dispatch, onOpenCare)
 }
 
 private val toggles = listOf(
@@ -105,6 +106,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenPrivacy: () -> Unit,
     onIntent: (SettingsIntent) -> Unit,
+    onOpenCare: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -197,6 +199,11 @@ fun SettingsScreen(
             HorizontalDivider()
             SecurityAndData(state, onIntent, snackbar)
             HorizontalDivider()
+            OutlinedButton(onClick = onOpenCare, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Filled.VolunteerActivism, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Caregivers (let someone help you)")
+            }
             OutlinedButton(onClick = onOpenPrivacy, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Filled.PrivacyTip, null)
                 Spacer(Modifier.width(8.dp))

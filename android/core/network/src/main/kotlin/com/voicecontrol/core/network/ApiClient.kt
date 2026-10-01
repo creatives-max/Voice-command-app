@@ -92,6 +92,9 @@ class ApiClient(
     suspend inline fun <reified B : Any, reified T> put(path: String, body: B): T =
         send(HttpMethod.Put, path) { setBody(body) }.body()
 
+    suspend inline fun <reified B : Any, reified T> patch(path: String, body: B): T =
+        send(HttpMethod.Patch, path) { setBody(body) }.body()
+
     suspend fun delete(path: String) {
         send(HttpMethod.Delete, path)
     }

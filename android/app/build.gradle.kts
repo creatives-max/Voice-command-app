@@ -61,6 +61,7 @@ dependencies {
     implementation(projects.feature.history)
     implementation(projects.feature.settings)
     implementation(projects.feature.onboarding)
+    implementation(projects.feature.care)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.biometric)

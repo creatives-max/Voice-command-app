@@ -31,6 +31,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.voicecontrol.feature.auth.AuthRoute
 import com.voicecontrol.feature.auth.ProfileRoute
+import com.voicecontrol.feature.care.CareRoute
 import com.voicecontrol.feature.flows.FlowsRoute
 import com.voicecontrol.feature.flows.TeachReviewRoute
 import com.voicecontrol.feature.history.HistoryRoute
@@ -51,6 +52,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object PrivacyDestination
 @Serializable data object OnboardingDestination
 @Serializable data object TeachReviewDestination
+@Serializable data object CareDestination
 
 /** Top-level places shown in the navigation rail on tablets and unfolded phones. */
 private class RailItem(val label: String, val icon: ImageVector, val isCurrent: (NavDestination?) -> Boolean, val go: () -> Any)
@@ -154,7 +156,11 @@ private fun Graph(navController: NavHostController, startWithOnboarding: Boolean
             SettingsRoute(
                 onBack = { navController.popBackStack() },
                 onOpenPrivacy = { navController.navigate(PrivacyDestination) },
+                onOpenCare = { navController.navigate(CareDestination) },
             )
+        }
+        composable<CareDestination> {
+            CareRoute(onBack = { navController.popBackStack() }, onSignIn = { navController.navigate(AuthDestination) })
         }
         composable<PrivacyDestination> {
             PrivacyScreen(onBack = { navController.popBackStack() })

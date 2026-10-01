@@ -58,6 +58,20 @@ describe("handleProxy", () => {
     expect(seen).toEqual([org, undefined, undefined]);
   });
 
+  it("passes a caregiver's care link through and drops anything else", async () => {
+    const seen: (string | undefined)[] = [];
+    const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      seen.push(((init?.headers ?? {}) as Record<string, string>)["X-Care-Link"]);
+      return new Response("[]", { status: 200 });
+    });
+    const link = "7d1f3a3e-9d7f-4f43-a1d5-0c1f2a3b4c5d";
+    await handleProxy(req({ path: ["flows"], careLink: link, cookies: { get: () => "A" } }), "http://b", fetcher as typeof fetch);
+    await handleProxy(req({ path: ["flows"], careLink: "nope", cookies: { get: () => "A" } }), "http://b", fetcher as typeof fetch);
+    await handleProxy(req({ path: ["care", "links"], cookies: { get: () => "A" } }), "http://b", fetcher as typeof fetch);
+    expect(seen).toEqual([link, undefined, undefined]);
+    expect(String(fetcher.mock.calls[2]![0])).toBe("http://b/v1/care/links");
+  });
+
   it("returns 502 when the backend is down", async () => {
     const fetcher = vi.fn(async () => {
       throw new Error("ECONNREFUSED");

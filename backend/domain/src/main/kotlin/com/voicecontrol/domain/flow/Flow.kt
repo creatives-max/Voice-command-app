@@ -60,8 +60,11 @@ data class FlowStep(
 )
 
 @Serializable
-/** Where a version came from. RECORDED = taught on the phone by demonstration ("teach by doing"). */
-enum class VersionSource { DEVICE, DASHBOARD, ROLLBACK, IMPORT, RECORDED }
+/**
+ * Where a version came from. RECORDED = taught on the phone by demonstration ("teach by doing");
+ * CAREGIVER = edited by a caregiver for the person they help.
+ */
+enum class VersionSource { DEVICE, DASHBOARD, ROLLBACK, IMPORT, RECORDED, CAREGIVER }
 
 data class Flow(
     val id: UUID,

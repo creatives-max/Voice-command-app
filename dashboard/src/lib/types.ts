@@ -89,7 +89,7 @@ export const flowPageSchema = z.object({ items: z.array(flowSummarySchema), limi
 export const flowVersionSchema = z.object({
   version: z.number(),
   steps: z.array(flowStepSchema),
-  source: z.enum(["DEVICE", "DASHBOARD", "ROLLBACK", "IMPORT", "RECORDED"]),
+  source: z.enum(["DEVICE", "DASHBOARD", "ROLLBACK", "IMPORT", "RECORDED", "CAREGIVER"]),
   changeNote: z.string().nullish(),
   createdAt: z.string(),
 });
@@ -394,3 +394,29 @@ export const crashGroupSchema = z.object({
   latestStacktrace: z.string(),
 });
 export type CrashGroup = z.infer<typeof crashGroupSchema>;
+
+export const carePermissions = ["edit_flows", "run_flows", "view_history"] as const;
+export type CarePermission = (typeof carePermissions)[number];
+export const careLinkSchema = z.object({
+  id: z.string(),
+  /** "receiver": the caller is being helped; "caregiver": the caller helps the other person. */
+  role: z.enum(["receiver", "caregiver"]),
+  status: z.enum(["PENDING", "ACTIVE", "REVOKED"]),
+  permissions: z.array(z.string()),
+  otherEmail: z.string().nullish(),
+  otherName: z.string().nullish(),
+  createdAt: z.string(),
+  acceptedAt: z.string().nullish(),
+  expiresAt: z.string().nullish(),
+});
+export type CareLink = z.infer<typeof careLinkSchema>;
+export const careInviteSchema = z.object({ link: careLinkSchema, code: z.string(), expiresAt: z.string() });
+export type CareInvite = z.infer<typeof careInviteSchema>;
+export const careEventSchema = z.object({
+  id: z.number(),
+  action: z.string(),
+  actorEmail: z.string().nullish(),
+  details: z.record(z.string()).default({}),
+  at: z.string(),
+});
+export type CareEvent = z.infer<typeof careEventSchema>;

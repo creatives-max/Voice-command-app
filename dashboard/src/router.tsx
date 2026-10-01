@@ -1,4 +1,5 @@
 import { createRootRouteWithContext, createRoute, createRouter, Outlet, redirect } from "@tanstack/react-router";
+import { CarePage } from "@/features/care/care-page";
 import type { QueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/app-shell";
 import { LoginPage } from "@/features/auth/login-page";
@@ -75,6 +76,7 @@ const webhooksRoute = createRoute({ getParentRoute: () => appRoute, path: "org/w
 const auditRoute = createRoute({ getParentRoute: () => appRoute, path: "org/audit", component: AuditPage });
 const inviteRoute = createRoute({ getParentRoute: () => appRoute, path: "invite/$token", component: AcceptInvitePage });
 const liveRunRoute = createRoute({ getParentRoute: () => appRoute, path: "runs/$requestId", component: LiveRunPage });
+const careRoute = createRoute({ getParentRoute: () => appRoute, path: "care", component: CarePage });
 
 export const routeTree = rootRoute.addChildren([loginRoute, privacyRoute, appRoute.addChildren([
     flowsRoute,
@@ -94,6 +96,7 @@ export const routeTree = rootRoute.addChildren([loginRoute, privacyRoute, appRou
     webhooksRoute,
     auditRoute,
     inviteRoute,
+    careRoute,
   ])]);
 
 export const router = createRouter({ routeTree, context: { queryClient }, defaultPreload: "intent" });

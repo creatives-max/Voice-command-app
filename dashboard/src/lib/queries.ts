@@ -222,3 +222,10 @@ export function useTransferFlow(flowId: string) {
     },
   });
 }
+
+export const careKeys = {
+  links: ["care", "links"] as const,
+  events: (id: string) => ["care", "events", id] as const,
+};
+export const careLinksQuery = queryOptions({ queryKey: careKeys.links, queryFn: api.careLinks, staleTime: 15_000 });
+export const careEventsQuery = (id: string) => queryOptions({ queryKey: careKeys.events(id), queryFn: () => api.careEvents(id) });

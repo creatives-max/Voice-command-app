@@ -46,6 +46,16 @@ class JdbcAccountDataRepository(private val db: Database) : AccountDataRepositor
             "comments" to section("SELECT id, flow_id, step_id, body, created_at, edited_at, resolved_at FROM flow_comments WHERE user_id = ?"),
             "apiKeysCreated" to section("SELECT id, org_id, name, prefix, scopes, rate_limit_per_minute, created_at, last_used_at, revoked_at FROM api_keys WHERE created_by = ?"),
             "auditEntries" to section("SELECT org_id, action, target_type, target_id, details, at FROM audit_logs WHERE actor_user_id = ? ORDER BY at"),
+            "caregiving" to section(
+                """
+                SELECT l.id, CASE WHEN l.receiver_id = ? THEN 'helped by' ELSE 'helping' END AS relation,
+                       (SELECT u.email FROM users u WHERE u.id = CASE WHEN l.receiver_id = ? THEN l.caregiver_id ELSE l.receiver_id END) AS other_email,
+                       l.permissions, l.status, l.created_at, l.accepted_at, l.revoked_at,
+                       (SELECT json_agg(json_build_object('action', e.action, 'details', e.details, 'at', e.at) ORDER BY e.id) FROM care_events e WHERE e.link_id = l.id) AS events
+                FROM care_links l WHERE l.receiver_id = ? OR l.caregiver_id = ?
+                """.trimIndent(),
+                params = 4,
+            ),
             "crashReports" to section("SELECT id, exception, message, stacktrace, app_version, android_sdk, device_model, occurred_at FROM crash_reports WHERE user_id = ?"),
         )
         val sql = "SELECT json_build_object('exportedAt', now(), " +

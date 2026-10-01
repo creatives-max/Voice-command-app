@@ -22,6 +22,14 @@ While you record a flow by touch, VoiceControl notes which fields you type into 
 you typed stays in the phone's memory until you review the recording; it is saved only for fields you tick as
 defaults, and never for password, OTP, PIN or CVV fields.
 
+## Caregivers
+
+You can let someone you trust (a caregiver) set up your flows from the VoiceControl website. Nothing is shared
+until you create an invite code on your phone and give it to them; the code works once, for 30 minutes. You choose
+what they may do (edit flows and when they run, run flows on your phone, see your run history) and can change or
+end it at any time; they can always see your flows, phones and runs, but never your profile, passwords or what you
+typed. Everything a caregiver does is recorded and shown to both of you, and is part of your data export.
+
 ## Fill from a photo
 
 When you use *Fill from a photo*, the photo is read on your phone by an on-device text recogniser. It is never

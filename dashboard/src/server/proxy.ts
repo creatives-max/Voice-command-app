@@ -6,7 +6,7 @@
  * - `/api/session` → current user (`/v1/me`).
  * - everything else `/api/<path>` → `/v1/<path>` with `Authorization: Bearer <access>`; on 401 the
  *   refresh token is rotated once and the request retried. The selected organization (`X-Org-Id`,
- *   a UUID) is passed through.
+ *   a UUID) and the person a caregiver is helping (`X-Care-Link`, a UUID) are passed through.
  */
 
 export const ACCESS_COOKIE = "vc_at";
@@ -25,6 +25,8 @@ export interface ProxyRequest {
   cookies: CookieJar;
   /** Organization selected in the dashboard (`X-Org-Id`). */
   orgId?: string | null;
+  /** Care link of the person a caregiver is helping (`X-Care-Link`). */
+  careLink?: string | null;
 }
 
 export interface SetCookie {
@@ -64,7 +66,9 @@ const clearCookies: SetCookie[] = [
   { name: REFRESH_COOKIE, value: "", maxAge: 0 },
 ];
 
-const ALLOWED_PREFIXES = ["flows", "profile", "me", "ai", "runs", "devices", "triggers", "run-requests", "marketplace", "orgs", "invitations", "analytics", "comments", "crashes"];
+const ALLOWED_PREFIXES = [
+  "flows", "profile", "me", "ai", "runs", "devices", "triggers", "run-requests", "marketplace", "orgs", "invitations", "analytics", "comments", "crashes", "care",
+];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function handleProxy(req: ProxyRequest, backendUrl: string, fetcher: typeof fetch = fetch): Promise<ProxyResponse> {
@@ -102,11 +106,12 @@ export async function handleProxy(req: ProxyRequest, backendUrl: string, fetcher
     const refresh = req.cookies.get(REFRESH_COOKIE);
     const setCookies: SetCookie[] = [];
 
-    const orgHeader: Record<string, string> = req.orgId && UUID.test(req.orgId) ? { "X-Org-Id": req.orgId } : {};
+    const contextHeaders: Record<string, string> = req.orgId && UUID.test(req.orgId) ? { "X-Org-Id": req.orgId } : {};
+    if (req.careLink && UUID.test(req.careLink)) contextHeaders["X-Care-Link"] = req.careLink;
     const forward = (token: string | undefined) =>
       call(target, {
         method: req.method,
-        headers: { ...orgHeader, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        headers: { ...contextHeaders, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: req.method === "GET" || req.method === "HEAD" ? undefined : (req.body ?? undefined),
       });
 

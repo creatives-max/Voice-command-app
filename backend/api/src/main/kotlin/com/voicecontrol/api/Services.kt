@@ -230,7 +230,7 @@ object Bootstrap {
         val tenantLimits = com.voicecontrol.application.org.TenantLimits(maxMembers = config.orgMaxMembers, maxApiKeys = config.orgMaxApiKeys)
         return Services(
             config = config,
-            ai = AiService(LlmProviderFactory.create(config.llm, http), timeoutMillis = config.llm.timeoutMillis),
+            ai = AiService(LlmProviderFactory.create(config.llm, http), timeoutMillis = config.llm.timeoutMillis, cache = cache),
             auth = AuthService(
                 users = JdbcUserRepository(database),
                 hasher = BcryptPasswordHasher(bcryptCost),

@@ -68,3 +68,14 @@ interface AnswerMemory {
     suspend fun recall(appPackage: String, key: String): String?
     suspend fun remember(appPackage: String, key: String, label: String, value: String)
 }
+
+/** What to ask for one field, and a short explanation for when the user is stuck. */
+data class WrittenQuestion(val question: String, val hint: String? = null)
+
+/**
+ * Friendlier spoken questions for a screen's fields, written by AI on the server in the user's language.
+ * Returns questions by element id; empty or failing means the built-in questions are used.
+ */
+fun interface QuestionWriter {
+    suspend fun write(screen: com.voicecontrol.core.model.ScreenSnapshot, language: com.voicecontrol.core.model.Language): Map<String, WrittenQuestion>
+}

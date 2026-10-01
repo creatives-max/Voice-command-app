@@ -43,6 +43,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -119,6 +120,9 @@ class AssistantEngine(
     private val shortcuts: com.voicecontrol.core.engine.port.ShortcutSource? = null,
     /** Answers remembered across sessions (used when [SessionConfig.rememberAnswers] is on). */
     private val answers: com.voicecontrol.core.engine.port.AnswerMemory? = null,
+    /** AI-written questions for screens without saved ones (not in on-device only mode). */
+    private val questionWriter: com.voicecontrol.core.engine.port.QuestionWriter? = null,
+    private val questionTimeoutMillis: Long = 10_000L,
 ) {
     private val _state = MutableStateFlow(EngineState())
     val state: StateFlow<EngineState> = _state.asStateFlow()
@@ -327,7 +331,7 @@ class AssistantEngine(
                 session.profile = profile
                 session.screenVars = screenVariables(snapshot)
                 session.currentSignature = snapshot.signature
-                val plan = PlanBuilder(session.phrases).build(snapshot, flow, profile)
+                val plan = withWrittenQuestions(session, snapshot, PlanBuilder(session.phrases).build(snapshot, flow, profile))
                 emit(EngineEvent.SCREEN, "Screen: ${snapshot.title ?: snapshot.activityName?.substringAfterLast('.') ?: snapshot.packageName}")
                 val log = ScreenLog(snapshot, plan.flowId, plan.flowVersion) { record ->
                     val verb = when (record.outcome) {
@@ -1150,7 +1154,7 @@ class AssistantEngine(
                 }
                 IntentKind.PREVIOUS -> return StepResult.Previous
                 IntentKind.REPEAT -> Unit
-                IntentKind.HELP -> say(session, phrases.help())
+                IntentKind.HELP -> say(session, listOfNotNull(step.hint, phrases.help()).joinToString(" "))
                 IntentKind.STOP -> return StepResult.Stop
                 IntentKind.SUBMIT -> return StepResult.Submit
                 IntentKind.BACK -> {
@@ -1190,7 +1194,7 @@ class AssistantEngine(
                     }
                     val validation = FieldValidator.validate(value, step.fieldType, step.rules)
                     if (validation is FieldValidator.Result.Invalid) {
-                        say(session, phrases.invalid(validation.message))
+                        say(session, listOfNotNull(phrases.invalid(validation.message), step.hint).joinToString(" "))
                         attempts++
                         continue
                     }
@@ -1216,7 +1220,7 @@ class AssistantEngine(
                 }
                 IntentKind.READ_SCREEN -> if (runReader(session, snapshot, log)) return StepResult.Navigated
                 IntentKind.UNKNOWN -> {
-                    say(session, phrases.didNotCatch())
+                    say(session, listOfNotNull(phrases.didNotCatch(), step.hint).joinToString(" "))
                     attempts++
                 }
             }
@@ -1467,6 +1471,34 @@ class AssistantEngine(
             ?: runCatching { interpreter.interpret(request) }.getOrElse { localCommands.interpret(request) }
     }
 
+    /** AI-written questions by screen and language, so a screen is asked about once per session. */
+    private val writtenQuestions = mutableMapOf<String, Map<String, com.voicecontrol.core.engine.port.WrittenQuestion>>()
+
+    /**
+     * Replaces the built-in questions of fields that have no saved question with AI-written ones (and adds
+     * their hints). Saved questions always win; on-device only mode, a slow or failing server keep the
+     * built-in ones.
+     */
+    private suspend fun withWrittenQuestions(session: Session, snapshot: ScreenSnapshot, plan: ScreenPlan): ScreenPlan {
+        val writer = questionWriter ?: return plan
+        if (session.cfg.localOnly) return plan
+        val open = plan.steps.filter { !it.virtual && !it.customQuestion && !it.isSensitive && it.action != StepAction.CLICK && it.action != StepAction.READ }
+        if (open.isEmpty()) return plan
+        val key = "${snapshot.packageName}|${snapshot.signature}|${session.cfg.language}"
+        if (key !in writtenQuestions) setStatus(EngineStatus.THINKING)
+        val written = writtenQuestions[key]
+            ?: withTimeoutOrNull(questionTimeoutMillis) { runCatching { writer.write(snapshot.redacted(), session.cfg.language) }.getOrNull() }
+                ?.also { if (it.isNotEmpty()) writtenQuestions[key] = it }
+            ?: return plan
+        val ids = open.map { it.elementId }.toSet()
+        return plan.copy(
+            steps = plan.steps.map { step ->
+                val w = written[step.elementId]?.takeIf { step.elementId in ids && it.question.isNotBlank() } ?: return@map step
+                step.copy(question = w.question.trim().take(MAX_WRITTEN_CHARS), hint = w.hint?.trim()?.take(MAX_WRITTEN_CHARS)?.takeIf { it.isNotEmpty() })
+            },
+        )
+    }
+
     private fun request(session: Session, snapshot: ScreenSnapshot, heard: String) =
         InterpretRequest(snapshot.redacted(), null, heard, session.cfg.language, null)
 
@@ -1549,6 +1581,7 @@ class AssistantEngine(
         const val MAX_READ_PAGES = 10
         const val MAX_SCREENS = 12
         const val MAX_BUTTONS_SPOKEN = 6
+        private const val MAX_WRITTEN_CHARS = 200
         /** Commands that are also common button labels. */
         private val BUTTON_WORDS = setOf(
             IntentKind.NEXT, IntentKind.SUBMIT, IntentKind.YES, IntentKind.NO, IntentKind.BACK, IntentKind.SKIP,

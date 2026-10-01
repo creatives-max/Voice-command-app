@@ -14,6 +14,8 @@ data class PlanStep(
     val action: StepAction,
     val question: String,
     val customQuestion: Boolean,
+    /** Said when the user is stuck or the answer didn't fit (AI-written; see QuestionWriter). */
+    val hint: String? = null,
     val rules: List<String> = emptyList(),
     /** Value to offer ("say yes to use …"): from the flow default or the user profile. */
     val suggestedValue: String? = null,

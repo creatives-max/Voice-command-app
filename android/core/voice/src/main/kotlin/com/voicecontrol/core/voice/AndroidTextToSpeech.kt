@@ -86,12 +86,35 @@ class AndroidTextToSpeech @Inject constructor(
     private fun selectLanguage(engine: PlatformTts, tag: String) {
         val wanted = Locale.forLanguageTag(tag)
         val result = engine.setLanguage(wanted)
+        var used = tag
         if (result == PlatformTts.LANG_MISSING_DATA || result == PlatformTts.LANG_NOT_SUPPORTED) {
             // Fall back to the base language (e.g. "hi"), then to Indian English.
             val base = engine.setLanguage(Locale.Builder().setLanguage(wanted.language).build())
+            used = wanted.language
             if (base == PlatformTts.LANG_MISSING_DATA || base == PlatformTts.LANG_NOT_SUPPORTED) {
                 engine.setLanguage(Locale.forLanguageTag("en-IN"))
+                used = "en-IN"
             }
+        }
+        useBestVoice(engine, used)
+    }
+
+    /** The default voice for a language is often a basic one; switch to the best installed voice for it. */
+    private fun useBestVoice(engine: PlatformTts, tag: String) {
+        runCatching {
+            val voices = engine.voices.orEmpty().map { v ->
+                com.voicecontrol.core.engine.VoiceCandidate(
+                    name = v.name,
+                    language = v.locale.language,
+                    country = v.locale.country,
+                    quality = v.quality,
+                    latency = v.latency,
+                    needsNetwork = v.isNetworkConnectionRequired,
+                    notInstalled = PlatformTts.Engine.KEY_FEATURE_NOT_INSTALLED in v.features.orEmpty(),
+                )
+            }
+            val best = com.voicecontrol.core.engine.VoicePicker.best(voices, tag) ?: return
+            engine.voices.orEmpty().firstOrNull { it.name == best.name }?.let { engine.voice = it }
         }
     }
 

@@ -60,10 +60,23 @@ class VisionCommand(
     val language: Language,
 )
 
+/** Asks for friendly spoken questions for a screen's fields, in the user's language. */
+@Serializable
+data class QuestionsCommand(val screen: ScreenContext, val language: Language = Language.ENGLISH)
+
+/** What to ask for one field, and a short explanation to give when the user is stuck. */
+@Serializable
+data class FieldQuestion(val elementId: String, val question: String, val hint: String? = null)
+
+@Serializable
+data class QuestionsResult(val questions: List<FieldQuestion>, val source: String)
+
 /** A language-model backend. Implementations: rules (offline), Anthropic, OpenAI-compatible. */
 interface LlmProvider {
     val name: String
     suspend fun interpret(command: InterpretCommand): Interpretation
+    /** Writes questions for the fields of a screen; providers that can't return an empty list. */
+    suspend fun writeQuestions(command: QuestionsCommand): List<FieldQuestion> = emptyList()
     /** Detects fields/buttons on a screenshot. Providers without vision throw [UnsupportedOperationException]. */
     suspend fun detectElements(command: VisionCommand): VisionResult
 }

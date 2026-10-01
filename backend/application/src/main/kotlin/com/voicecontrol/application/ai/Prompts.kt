@@ -2,6 +2,7 @@ package com.voicecontrol.application.ai
 
 import com.voicecontrol.domain.ai.InterpretCommand
 import com.voicecontrol.domain.ai.Language
+import com.voicecontrol.domain.ai.QuestionsCommand
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -84,6 +85,41 @@ object Prompts {
         }
     }.toString()
 
+    val QUESTIONS_SYSTEM = """
+        You write the spoken questions of VoiceControl, an Android assistant that fills forms in other apps by
+        voice for people who may not read well or see well. You get a screen's fields (id, kind, label, type,
+        hint) and the user's language. For every field write:
+        - question: what the assistant says to ask for it. Short (at most 15 words), warm and polite (in Hindi
+          and Hinglish use "aap"), plain everyday words, one thing at a time. Say what is expected when it
+          helps ("10 digit mobile number", "date, like 5 March 1990"). Checkboxes and switches are yes/no
+          questions; dropdowns ask which option.
+        - hint: one short sentence said when the user is stuck or the answer didn't fit: what to say, the
+          format, and an example with made-up values. Never invent real-looking personal data.
+        Write in the user's language and script: ENGLISH English, HINDI Devanagari Hindi, HINGLISH romanized
+        Hindi mixed with common English words, MARATHI, TAMIL, TELUGU, BENGALI, GUJARATI in their own scripts
+        (English words like OTP, email, PIN code may stay). Use only the given ids, one entry per field.
+        Respond only with the JSON object.
+    """.trimIndent()
+
+    fun questionsUserMessage(c: QuestionsCommand): String = buildJsonObject {
+        put("language", c.language.name)
+        putJsonObject("screen") {
+            put("app", c.screen.packageName)
+            c.screen.title?.let { put("title", it) }
+            putJsonArray("fields") {
+                c.screen.elements.forEach { e ->
+                    add(buildJsonObject {
+                        put("id", e.id)
+                        put("kind", e.kind.name)
+                        put("label", e.label)
+                        e.fieldType?.let { put("fieldType", it.name) }
+                        e.hint?.let { put("hint", it) }
+                    })
+                }
+            }
+        }
+    }.toString()
+
     fun visionUserText(language: Language) = "Screen language hint: ${language.name}. List the interactive elements."
 
     private fun str() = buildJsonObject { put("type", "string") }
@@ -110,6 +146,15 @@ object Prompts {
             },
             "reply" to str(),
             "confidence" to buildJsonObject { put("type", "number") },
+        ),
+    )
+
+    val QUESTIONS_SCHEMA: JsonObject = objectOf(
+        mapOf(
+            "questions" to buildJsonObject {
+                put("type", "array")
+                put("items", objectOf(mapOf("elementId" to str(), "question" to str(), "hint" to str())))
+            },
         ),
     )
 

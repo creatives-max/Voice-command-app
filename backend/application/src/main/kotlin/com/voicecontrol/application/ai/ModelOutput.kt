@@ -2,6 +2,7 @@ package com.voicecontrol.application.ai
 
 import com.voicecontrol.domain.ai.ElementKind
 import com.voicecontrol.domain.ai.FieldFill
+import com.voicecontrol.domain.ai.FieldQuestion
 import com.voicecontrol.domain.ai.FieldType
 import com.voicecontrol.domain.ai.IntentKind
 import com.voicecontrol.domain.ai.Interpretation
@@ -49,6 +50,16 @@ object ModelOutput {
             confidence = o["confidence"]?.jsonPrimitive?.floatOrNull?.coerceIn(0f, 1f) ?: 0.8f,
             source = source,
         )
+    }
+
+    fun questions(text: String): List<FieldQuestion> {
+        val o = extractObject(text)
+        return (o["questions"]?.jsonArray ?: emptyList()).mapNotNull { el ->
+            val q = el.jsonObject
+            val id = q.str("elementId") ?: return@mapNotNull null
+            val question = q.str("question") ?: return@mapNotNull null
+            FieldQuestion(id, question, q.str("hint"))
+        }
     }
 
     fun vision(text: String, source: String): VisionResult {

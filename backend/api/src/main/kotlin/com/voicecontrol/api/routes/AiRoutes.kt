@@ -6,6 +6,7 @@ import com.voicecontrol.application.ai.AiService
 import com.voicecontrol.domain.common.DomainException
 import com.voicecontrol.domain.event.RateLimiter
 import com.voicecontrol.domain.ai.InterpretCommand
+import com.voicecontrol.domain.ai.QuestionsCommand
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -22,6 +23,7 @@ import java.util.Base64
 data class VisionRequest(val packageName: String, val imageBase64: String, val width: Int, val height: Int, val language: Language = Language.ENGLISH)
 
 private const val VISION_PER_MINUTE = 20
+private const val QUESTIONS_PER_MINUTE = 30
 
 /** Screen + speech → action. The phone never talks to an LLM directly; only this endpoint does. */
 fun Route.aiRoutes(ai: AiService, limiter: RateLimiter, perMinute: Int = 120) {
@@ -30,6 +32,10 @@ fun Route.aiRoutes(ai: AiService, limiter: RateLimiter, perMinute: Int = 120) {
             post("/interpret") {
                 if (!limiter.tryAcquire("ai:${call.userId}", perMinute, 60)) throw DomainException.RateLimited("Too many voice requests, slow down a little")
                 call.respond(ai.interpret(call.receive<InterpretCommand>()))
+            }
+            post("/questions") {
+                if (!limiter.tryAcquire("questions:${call.userId}", QUESTIONS_PER_MINUTE, 60)) throw DomainException.RateLimited("Too many requests")
+                call.respond(ai.writeQuestions(call.receive<QuestionsCommand>()))
             }
             post("/vision") {
                 if (!limiter.tryAcquire("vision:${call.userId}", VISION_PER_MINUTE, 60)) throw DomainException.RateLimited("Too many screenshot requests")

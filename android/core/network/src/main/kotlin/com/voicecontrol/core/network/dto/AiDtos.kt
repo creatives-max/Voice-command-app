@@ -86,3 +86,13 @@ data class VisionElementDto(
 
 @Serializable
 data class VisionResponseDto(val elements: List<VisionElementDto>, val source: String = "")
+
+/** Asks the backend (Claude) to write friendly questions for a screen's fields. */
+@Serializable
+data class QuestionsRequestDto(val screen: ScreenContextDto, val language: Language)
+
+@Serializable
+data class FieldQuestionDto(val elementId: String, val question: String, val hint: String? = null)
+
+@Serializable
+data class QuestionsResponseDto(val questions: List<FieldQuestionDto> = emptyList(), val source: String = "")

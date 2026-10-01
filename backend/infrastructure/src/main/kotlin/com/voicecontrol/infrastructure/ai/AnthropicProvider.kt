@@ -13,7 +13,9 @@ import com.anthropic.models.messages.OutputConfig
 import com.anthropic.models.messages.TextBlockParam
 import com.voicecontrol.application.ai.ModelOutput
 import com.voicecontrol.application.ai.Prompts
+import com.voicecontrol.domain.ai.FieldQuestion
 import com.voicecontrol.domain.ai.InterpretCommand
+import com.voicecontrol.domain.ai.QuestionsCommand
 import com.voicecontrol.domain.ai.Interpretation
 import com.voicecontrol.domain.ai.LlmProvider
 import com.voicecontrol.domain.ai.VisionCommand
@@ -43,6 +45,14 @@ class AnthropicProvider(
             .addUserMessage(Prompts.interpretUserMessage(command))
             .build()
         ModelOutput.interpretation(textOf(client.messages().create(params)), name)
+    }
+
+    override suspend fun writeQuestions(command: QuestionsCommand): List<FieldQuestion> = withContext(Dispatchers.IO) {
+        val params = base(Prompts.QUESTIONS_SCHEMA, OutputConfig.Effort.LOW, maxTokens = 8_000)
+            .system(Prompts.QUESTIONS_SYSTEM)
+            .addUserMessage(Prompts.questionsUserMessage(command))
+            .build()
+        ModelOutput.questions(textOf(client.messages().create(params)))
     }
 
     override suspend fun detectElements(command: VisionCommand): VisionResult = withContext(Dispatchers.IO) {

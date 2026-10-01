@@ -442,6 +442,38 @@ paths:
       tags: [History]
       responses:
         "204": { description: Deleted }
+  /v1/ai/questions:
+    post:
+      tags: [AI]
+      summary: Friendly spoken questions (and a short explanation) for a screen's fields, in the user's language
+      description: Written by the configured model and cached per screen and language for 30 days. Buttons, sensitive fields and typed values are never sent to the model. Empty when the provider can't write questions (rules) or fails; 30 per minute per user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [screen]
+              properties:
+                screen: { type: object, description: Same screen object as /v1/ai/interpret }
+                language: { type: string, enum: [ENGLISH, HINDI, HINGLISH, MARATHI, TAMIL, TELUGU, BENGALI, GUJARATI] }
+      responses:
+        "200":
+          description: Questions by element id
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  source: { type: string }
+                  questions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        elementId: { type: string }
+                        question: { type: string }
+                        hint: { type: string, nullable: true }
   /v1/ai/vision:
     post:
       tags: [AI]

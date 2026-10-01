@@ -83,13 +83,13 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Tests, commit + push
 
 ## Phase 12 — Voice & AI upgrades
-- [ ] Streaming partial results with early command detection
-- [ ] Barge-in (interrupt TTS by speaking)
-- [ ] Custom wake word
-- [ ] Confidence-based re-ask
-- [ ] Context memory ("same as above", pronouns)
-- [ ] Marathi, Tamil, Telugu, Bengali, Gujarati
-- [ ] Tests, commit + push
+- [x] Streaming partial results with early command detection
+- [x] Barge-in (interrupt TTS by speaking)
+- [x] Custom wake word
+- [x] Confidence-based re-ask
+- [x] Context memory ("same as above", pronouns)
+- [x] Marathi, Tamil, Telugu, Bengali, Gujarati
+- [x] Tests, commit + push
 
 ## Phase 13 — Accessibility power
 - [ ] Screen-reader mode (read whole screen, navigate, activate)

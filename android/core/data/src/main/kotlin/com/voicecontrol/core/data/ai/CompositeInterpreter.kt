@@ -8,6 +8,7 @@ import com.voicecontrol.core.engine.port.Interpreter
 import com.voicecontrol.core.model.Interpretation
 import com.voicecontrol.core.network.AiApi
 import com.voicecontrol.core.network.dto.InterpretRequestDto
+import com.voicecontrol.core.network.dto.MemoryDto
 import com.voicecontrol.core.network.dto.ScreenContextDto
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
@@ -36,6 +37,7 @@ class CompositeInterpreter @Inject constructor(
             language = request.language,
             question = request.question,
             transliterate = request.transliterate,
+            memory = request.memory.map { MemoryDto(it.label, it.value) },
         )
         val remote = withTimeoutOrNull(REMOTE_TIMEOUT_MS) { runCatching { ai.interpret(dto) }.getOrNull() }
         return remote ?: local.interpret(request)

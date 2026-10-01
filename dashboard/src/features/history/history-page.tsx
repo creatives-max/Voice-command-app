@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { NativeSelect } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { runStatsQuery, runsQuery, useClearRuns, useDeleteRun } from "@/lib/queries";
-import type { Run } from "@/lib/types";
+import { LANGUAGE_NAMES, type Run } from "@/lib/types";
 import { OUTCOME_LABELS, automationRate, formatDuration } from "./format";
 
 function StatusIcon({ status }: { status: Run["status"] }) {
@@ -80,7 +80,7 @@ export function HistoryPage() {
                 </CardDescription>
               </button>
               <Badge variant="secondary">{automationRate(run)}% hands-free</Badge>
-              <Badge variant="outline">{run.language.toLowerCase()}</Badge>
+              <Badge variant="outline">{LANGUAGE_NAMES[run.language]}</Badge>
               <Button
                 variant="ghost"
                 size="icon"

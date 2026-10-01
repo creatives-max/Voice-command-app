@@ -12,10 +12,12 @@ import kotlinx.serialization.json.putJsonObject
 
 /** Prompts and JSON schemas shared by every LLM provider. */
 object Prompts {
+    private const val MAX_MEMORY = 12
 
     val INTERPRET_SYSTEM = """
         You are the language brain of VoiceControl, an Android assistant that fills forms in other apps by voice.
-        The user speaks English, Hindi (Devanagari) or Hinglish (romanized Hindi mixed with English).
+        The user speaks English, Hindi (Devanagari), Hinglish (romanized Hindi mixed with English), Marathi, Tamil,
+        Telugu, Bengali or Gujarati (native script, often mixed with English words).
         You receive the current screen (fields and buttons with ids), the field currently being asked about,
         the question that was asked, and the user's utterance. Decide what the user wants.
 
@@ -32,8 +34,11 @@ object Prompts {
           dictation like "at the rate"/"dot", dates → DD/MM/YYYY, numbers → digits, pincode → 6 digits,
           names → Title Case.
         - Spoken lead-ins are not part of the value ("my name is", "मेरा नाम ... है", "mera number ... hai").
-        - Hindi number words (एक, दो, ek, do, sau, hazaar, lakh, dedh, dhai) become digits.
-        - If transliterate is true and the field is a name/email/address, write Devanagari words in Latin letters.
+        - Number words in any of these languages (एक, दो, ek, do, sau, hazaar, lakh, dedh, dhai, ஒன்று, రెండు, তিন, ચાર…)
+          and native digits (৯, ૪, ௫, ౬…) become ASCII digits.
+        - "memory" lists earlier answers in this session. Resolve references to them: "same as above", "same as
+          permanent address", "his name", "that one", "wahi", "वही", "அதே", "అదే", "একই", "એ જ" → the referred value.
+        - If transliterate is true and the field is a name/email/address, write Indic-script words in Latin letters.
         - Never fill, guess or output values for password, OTP or PIN fields; never target them.
         - Only use ids that exist on the screen.
         Keep "reply" empty unless a short clarification would help the user. Respond only with the JSON object.
@@ -54,6 +59,11 @@ object Prompts {
         c.question?.let { put("question", it) }
         c.currentFieldId?.let { put("currentFieldId", it) }
         put("utterance", c.utterance)
+        if (c.memory.isNotEmpty()) {
+            putJsonArray("memory") {
+                c.memory.takeLast(MAX_MEMORY).forEach { m -> add(buildJsonObject { put("label", m.label.take(80)); put("value", m.value.take(200)) }) }
+            }
+        }
         putJsonObject("screen") {
             put("app", c.screen.packageName)
             c.screen.title?.let { put("title", it) }

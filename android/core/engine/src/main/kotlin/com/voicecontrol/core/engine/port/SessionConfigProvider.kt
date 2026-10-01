@@ -18,6 +18,10 @@ data class SessionConfig(
     val skipFilledFields: Boolean = false,
     /** Use a screenshot + backend vision model when the app exposes no readable fields. */
     val visionFallback: Boolean = false,
+    /** Stop talking as soon as the user starts speaking. */
+    val bargeIn: Boolean = false,
+    /** Ask "Did you say …?" when the recognizer is unsure. */
+    val confirmLowConfidence: Boolean = true,
 )
 
 fun interface SessionConfigProvider {

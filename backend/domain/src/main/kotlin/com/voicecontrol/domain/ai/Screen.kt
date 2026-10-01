@@ -13,7 +13,7 @@ enum class FieldType {
 }
 
 @Serializable
-enum class Language { ENGLISH, HINDI, HINGLISH }
+enum class Language { ENGLISH, HINDI, HINGLISH, MARATHI, TAMIL, TELUGU, BENGALI, GUJARATI }
 
 /** One element as sent by the phone (values of sensitive fields are always null). */
 @Serializable

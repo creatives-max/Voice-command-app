@@ -110,6 +110,18 @@ export type Profile = z.infer<typeof profileSchema>;
 
 export const apiErrorSchema = z.object({ error: z.string(), message: z.string() });
 
+export const languages = ["ENGLISH", "HINDI", "HINGLISH", "MARATHI", "TAMIL", "TELUGU", "BENGALI", "GUJARATI"] as const;
+export const LANGUAGE_NAMES: Record<(typeof languages)[number], string> = {
+  ENGLISH: "English",
+  HINDI: "हिन्दी",
+  HINGLISH: "Hinglish",
+  MARATHI: "मराठी",
+  TAMIL: "தமிழ்",
+  TELUGU: "తెలుగు",
+  BENGALI: "বাংলা",
+  GUJARATI: "ગુજરાતી",
+};
+
 export const stepOutcomes = ["FILLED", "DEFAULT_FILLED", "KEPT", "SKIPPED", "MANUAL", "CLICKED", "TOGGLED", "FAILED"] as const;
 
 export const runSchema = z.object({
@@ -118,7 +130,7 @@ export const runSchema = z.object({
   startedAtMillis: z.number(),
   endedAtMillis: z.number(),
   status: z.enum(["COMPLETED", "STOPPED", "FAILED"]),
-  language: z.enum(["ENGLISH", "HINDI", "HINGLISH"]),
+  language: z.enum(languages),
   filledCount: z.number().default(0),
   stepCount: z.number().default(0),
   screens: z.array(

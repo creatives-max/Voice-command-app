@@ -43,7 +43,7 @@ object ButtonMatcher {
         return buttons.singleOrNull()
     }
 
-    internal fun normalize(s: String): String = LabelText.normalize(Transliterator.devanagariToLatin(s))
+    internal fun normalize(s: String): String = LabelText.normalize(Transliterator.toLatin(s))
         .let { if (it.isBlank()) LabelText.normalize(s) else it }
 
     internal fun score(target: String, label: String): Double {

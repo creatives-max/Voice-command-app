@@ -24,7 +24,7 @@ object EmailNormalizer {
         // Standalone "at" between two words is almost always "@" when dictating an email.
         if ('@' !in s) s = s.replace(Regex(" at (?=[\\p{L}\\p{N}]+ ?(\\.|dot))"), " @ ")
         var joined = s.replace(Regex("\\s+"), "")
-        joined = Transliterator.devanagariToLatin(joined)
+        joined = Transliterator.toLatin(joined)
         return joined.trim('.', '-', '_').replace(Regex("\\.{2,}"), ".").replace("@.", "@")
     }
 

@@ -31,7 +31,12 @@ class AiService(
 
     suspend fun interpret(command: InterpretCommand): Interpretation {
         validate(command)
-        val safe = command.copy(screen = command.screen.redacted(), utterance = command.utterance.trim())
+        val safe = command.copy(
+            screen = command.screen.redacted(),
+            utterance = command.utterance.trim(),
+            // Defense in depth: the phone never sends secrets as memory, but drop anything labelled like one.
+            memory = command.memory.filterNot { sensitiveLabel.containsMatchIn(it.label) }.takeLast(MAX_MEMORY),
+        )
         rules.commandOf(safe)?.let { return it }
         if (provider.name == RulesInterpreter.SOURCE) return rules.interpret(safe)
         val raw = try {
@@ -92,5 +97,7 @@ class AiService(
         const val MAX_UTTERANCE = 500
         const val MAX_ELEMENTS = 300
         const val MAX_IMAGE_BYTES = 4_000_000
+        const val MAX_MEMORY = 12
+        private val sensitiveLabel = Regex("(?i)pass|otp|\\bpin\\b|cvv|cvc|card number|पासवर्ड|ओटीपी")
     }
 }

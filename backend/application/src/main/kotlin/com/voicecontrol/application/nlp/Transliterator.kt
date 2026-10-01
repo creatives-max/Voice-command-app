@@ -2,8 +2,11 @@
 package com.voicecontrol.application.nlp
 
 /**
- * Minimal Devanagari → Latin transliteration (Hunterian-like) so a Hindi-dictated name such as
- * "राहुल शर्मा" can be typed as "Rahul Sharma" into forms that expect English letters.
+ * Minimal Indic → Latin transliteration (Hunterian-like) so a dictated name such as "राहुल शर्मा",
+ * "রাহুল", "રાહુલ", "రాహుల్" or "ராகுல்" can be typed as "Rahul" into forms that expect English letters.
+ *
+ * Bengali, Gujarati, Tamil and Telugu share Devanagari's (ISCII) layout, so their letters are first
+ * mapped to Devanagari by Unicode block offset and then transliterated with the same rules.
  */
 object Transliterator {
     private const val VIRAMA = '्'
@@ -16,23 +19,52 @@ object Transliterator {
         'त' to "t", 'थ' to "th", 'द' to "d", 'ध' to "dh", 'न' to "n",
         'प' to "p", 'फ' to "ph", 'ब' to "b", 'भ' to "bh", 'म' to "m",
         'य' to "y", 'र' to "r", 'ल' to "l", 'व' to "v", 'श' to "sh", 'ष' to "sh", 'स' to "s", 'ह' to "h",
-        'ळ' to "l", '\u0958' to "q", '\u0959' to "kh", '\u095A' to "g", '\u095B' to "z", '\u095C' to "r", '\u095D' to "rh", '\u095E' to "f",
+        'ळ' to "l", 'ऴ' to "zh", 'ऱ' to "r", 'ऩ' to "n", '\u095F' to "y", '\u0958' to "q", '\u0959' to "kh", '\u095A' to "g", '\u095B' to "z", '\u095C' to "r", '\u095D' to "rh", '\u095E' to "f",
     )
     private val nuktaForms = mapOf('क' to "q", 'ख' to "kh", 'ग' to "g", 'ज' to "z", 'ड' to "r", 'ढ' to "rh", 'फ' to "f")
     private val vowels = mapOf(
         'अ' to "a", 'आ' to "aa", 'इ' to "i", 'ई' to "i", 'उ' to "u", 'ऊ' to "u", 'ऋ' to "ri",
-        'ए' to "e", 'ऐ' to "ai", 'ओ' to "o", 'औ' to "au", 'ऑ' to "o",
+        'ए' to "e", 'ऐ' to "ai", 'ओ' to "o", 'औ' to "au", 'ऑ' to "o", 'ऎ' to "e", 'ऒ' to "o",
     )
     private val matras = mapOf(
         'ा' to "a", 'ि' to "i", 'ी' to "i", 'ु' to "u", 'ू' to "u", 'ृ' to "ri",
-        'े' to "e", 'ै' to "ai", 'ो' to "o", 'ौ' to "au", 'ॉ' to "o",
+        'े' to "e", 'ै' to "ai", 'ो' to "o", 'ौ' to "au", 'ॉ' to "o", 'ॆ' to "e", 'ॊ' to "o",
+        // Length marks of Tamil/Telugu/Bengali vowels once mapped to Devanagari.
+        '\u0957' to "au", '\u0955' to "",
     )
     private val labials = setOf('प', 'फ', 'ब', 'भ', 'म')
     private val signs = mapOf('ं' to "n", 'ँ' to "n", 'ः' to "h", '।' to ".")
 
+    /** Unicode blocks laid out like Devanagari (offset from U+0900). */
+    private val indicBlocks = listOf(0x0980, 0x0A80, 0x0B80, 0x0C00) // Bengali, Gujarati, Tamil, Telugu
+
     fun containsDevanagari(s: String): Boolean = s.any { it in 'ऀ'..'ॿ' }
 
-    fun devanagariToLatin(input: String): String {
+    fun containsIndic(s: String): Boolean = s.any { c -> c in 'ऀ'..'ॿ' || indicBlocks.any { c.code in it until it + 0x80 } }
+
+    /** Maps Bengali/Gujarati/Tamil/Telugu letters onto the equivalent Devanagari letters. */
+    fun toDevanagari(input: String): String = buildString(input.length) {
+        input.forEach { c ->
+            val block = indicBlocks.firstOrNull { c.code in it until it + 0x80 }
+            when {
+                c == 'ৎ' -> append('त').append(VIRAMA) // Bengali khanda ta
+                block != null && !Character.isDigit(c) -> append((c.code - block + 0x0900).toChar())
+                else -> append(c)
+            }
+        }
+    }
+
+    /**
+     * Any supported Indic script → Latin letters. Telugu and Tamil words keep their final vowel
+     * ("ప్రియ" → "priya"), unlike Hindi/Marathi where it is silent ("राम" → "ram").
+     */
+    fun toLatin(input: String): String {
+        if (!containsIndic(input)) return input
+        val keepFinalA = input.any { it.code in 0x0B80..0x0C7F }
+        return devanagariToLatin(toDevanagari(input), schwaDeletion = !keepFinalA)
+    }
+
+    fun devanagariToLatin(input: String, schwaDeletion: Boolean = true): String {
         if (!containsDevanagari(input)) return input
         val out = StringBuilder()
         var i = 0
@@ -54,7 +86,7 @@ object Transliterator {
                         // Inherent "a" is dropped at word end (schwa deletion): "राहुल" → "rahul", "राम" → "ram".
                         val atWordEnd = next == null || !isDevanagariLetter(next)
                         out.append(latin)
-                        if (!atWordEnd) out.append('a')
+                        if (!atWordEnd || !schwaDeletion) out.append('a')
                         i = j
                     }
                 }

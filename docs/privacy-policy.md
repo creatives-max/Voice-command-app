@@ -18,9 +18,12 @@ buttons you name.
 
 ## Microphone
 
-Audio is captured only while a voice session is running; a persistent notification ("VoiceControl is listening")
-and the red microphone bubble show when that is the case. Speech is converted to text by your phone's speech
-recognition service. VoiceControl does not record or keep audio.
+Audio is captured only while a voice session is running, or — if you turn on **Wake phrase** — while VoiceControl
+waits for your phrase; a persistent notification ("VoiceControl is listening" / "Waiting for …") shows when that is
+the case, and you can pause it from the notification. Speech is converted to text by your phone's speech recognition
+service (on-device when available for the wake phrase); wake-phrase transcripts are only compared with your phrase and
+discarded. With **Interrupt by speaking** on, the microphone level is checked while questions are spoken to notice
+when you start talking. VoiceControl does not record or keep audio.
 
 ## Data sent to the VoiceControl server
 
@@ -29,6 +32,7 @@ Only when you are **signed in** and **local-only mode is off**:
 | Data | Purpose |
 |---|---|
 | Field labels/types of the current screen and the text you spoke | Understand your answer (AI interpretation) |
+| Your earlier answers in the same session (field label and value; never passwords, OTPs, PINs or card numbers) | Understand references like "same as above" |
 | Screen structure signature (labels and types, no values) | Find and update your saved flows |
 | Screenshot (only with **Screenshot fallback** on, only for apps with no readable fields) | Detect fields and buttons |
 | Flows: labels, questions, rules, defaults you add | Flow library and dashboard editing |

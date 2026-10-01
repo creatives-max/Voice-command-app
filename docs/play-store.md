@@ -36,7 +36,7 @@ Google Play requires a prominent disclosure and a clear core use for accessibili
 |---|---|---|
 | `BIND_ACCESSIBILITY_SERVICE` | Read and operate the foreground app | Declaration above |
 | `RECORD_AUDIO` | Speech recognition during sessions | Runtime permission, requested from Home |
-| `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_MICROPHONE` | Keep the mic available while another app is in front | Foreground service type `microphone`; declare in Play Console "Foreground service permissions" with the demo video |
+| `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_MICROPHONE` | Keep the mic available while another app is in front, and (opt-in) listen for the wake phrase | Foreground service type `microphone` with a visible notification; declare in Play Console "Foreground service permissions" with the demo video (show the wake phrase setting and notification) |
 | `POST_NOTIFICATIONS` | "VoiceControl is listening" notice | Runtime on Android 13+ |
 | `INTERNET` | Backend sync and AI interpretation | Optional at runtime (local-only mode) |
 

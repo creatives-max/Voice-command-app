@@ -1,0 +1,56 @@
+package com.voicecontrol.core.nlp
+
+/**
+ * Matches a user-chosen wake phrase ("Hey VoiceControl", "सुनो मित्र", …) in a transcript.
+ *
+ * Recognizers spell the same words differently ("voice control" / "voicecontrol" / "वॉइस कंट्रोल"), so
+ * both sides are transliterated to Latin letters, lowercased and stripped of spaces and punctuation,
+ * then matched approximately: the phrase must appear with at most one edit per six letters.
+ */
+object WakeWord {
+    const val DEFAULT = "hey voice control"
+    private const val MIN_LENGTH = 4
+
+    fun normalize(text: String): String =
+        TextCleanup.simplify(Transliterator.toLatin(text)).filter { it.isLetterOrDigit() }
+
+    /** A phrase must have enough letters to avoid waking on every sound. */
+    fun isValidPhrase(phrase: String): Boolean = normalize(phrase).length >= MIN_LENGTH
+
+    fun matches(transcript: String, phrase: String): Boolean {
+        val p = normalize(phrase)
+        if (p.length < MIN_LENGTH) return false
+        val t = normalize(transcript)
+        if (t.isEmpty()) return false
+        if (p in t || minSubstringDistance(p, t) <= maxEdits(p)) return true
+        // Same words spelled from another script ("वॉइस कंट्रोल" for "voice control"): compare consonant skeletons.
+        val ps = skeleton(p)
+        // Short skeletons must match exactly; longer ones tolerate one edit per eight consonants.
+        return ps.length >= MIN_LENGTH && minSubstringDistance(ps, skeleton(t)) <= ps.length / 8
+    }
+
+    /** Consonant skeleton with common spelling variants folded (c/k/q, ph/f, w/v, z/j). */
+    internal fun skeleton(s: String): String {
+        val folded = s.replace("ph", "f").replace("sh", "s").replace("ch", "c")
+            .replace(Regex("c(?=[eiy])"), "s").replace('c', 'k').replace('q', 'k').replace('w', 'v').replace('z', 'j')
+        return folded.filter { it !in "aeiouyh" || it == folded.first() }
+    }
+
+    /** Edits tolerated for a phrase of this (normalized) length. */
+    fun maxEdits(phrase: String): Int = (phrase.length / 6).coerceAtLeast(1)
+
+    /** Smallest edit distance between [p] and any substring of [t] (approximate string matching). */
+    private fun minSubstringDistance(p: String, t: String): Int {
+        var prev = IntArray(t.length + 1) // free start anywhere in t
+        for (i in 1..p.length) {
+            val cur = IntArray(t.length + 1)
+            cur[0] = i
+            for (j in 1..t.length) {
+                val cost = if (p[i - 1] == t[j - 1]) 0 else 1
+                cur[j] = minOf(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
+            }
+            prev = cur
+        }
+        return prev.min()
+    }
+}

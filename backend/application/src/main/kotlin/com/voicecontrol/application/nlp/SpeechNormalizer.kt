@@ -62,7 +62,7 @@ object SpeechNormalizer {
     }
 
     private fun maybeTransliterate(s: String, enabled: Boolean) =
-        if (enabled) Transliterator.devanagariToLatin(s) else s
+        if (enabled) Transliterator.toLatin(s) else s
 
     private fun titleCase(s: String): String = s.trim().split(Regex("\\s+")).joinToString(" ") { word ->
         word.lowercase().replaceFirstChar { it.titlecase() }

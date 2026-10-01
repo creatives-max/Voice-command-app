@@ -29,7 +29,12 @@ data class InterpretCommand(
     val language: Language = Language.ENGLISH,
     val question: String? = null,
     val transliterate: Boolean = true,
+    /** Earlier answers in this session (never sensitive values), for references like "same as above". */
+    val memory: List<MemoryItem> = emptyList(),
 )
+
+@Serializable
+data class MemoryItem(val label: String, val value: String)
 
 /** Vision fallback: an element found on a screenshot, in image pixel coordinates. */
 @Serializable

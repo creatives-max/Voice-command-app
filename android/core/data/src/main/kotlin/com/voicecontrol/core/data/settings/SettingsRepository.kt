@@ -41,6 +41,10 @@ class SettingsRepository @Inject constructor(
         val appOpenTriggers = stringPreferencesKey("app_open_triggers")
         val templates = stringPreferencesKey("starter_templates")
         val useTemplates = booleanPreferencesKey("use_templates")
+        val bargeIn = booleanPreferencesKey("barge_in")
+        val confirmLowConfidence = booleanPreferencesKey("confirm_low_confidence")
+        val wakeWordEnabled = booleanPreferencesKey("wake_word_enabled")
+        val wakeWord = stringPreferencesKey("wake_word")
     }
 
     val settings: Flow<AppSettings> = store.data.map(::read)
@@ -96,6 +100,10 @@ class SettingsRepository @Inject constructor(
             p[Keys.remoteRuns] = next.remoteRuns
             p[Keys.deviceName] = next.deviceName.trim().take(60)
             p[Keys.useTemplates] = next.useTemplates
+            p[Keys.bargeIn] = next.bargeIn
+            p[Keys.confirmLowConfidence] = next.confirmLowConfidence
+            p[Keys.wakeWordEnabled] = next.wakeWordEnabled
+            p[Keys.wakeWord] = next.wakeWord.trim().take(60)
         }
     }
 
@@ -118,6 +126,10 @@ class SettingsRepository @Inject constructor(
             remoteRuns = p[Keys.remoteRuns] ?: d.remoteRuns,
             deviceName = p[Keys.deviceName] ?: d.deviceName,
             useTemplates = p[Keys.useTemplates] ?: d.useTemplates,
+            bargeIn = p[Keys.bargeIn] ?: d.bargeIn,
+            confirmLowConfidence = p[Keys.confirmLowConfidence] ?: d.confirmLowConfidence,
+            wakeWordEnabled = p[Keys.wakeWordEnabled] ?: d.wakeWordEnabled,
+            wakeWord = p[Keys.wakeWord]?.takeIf { it.isNotBlank() } ?: d.wakeWord,
         )
     }
 }

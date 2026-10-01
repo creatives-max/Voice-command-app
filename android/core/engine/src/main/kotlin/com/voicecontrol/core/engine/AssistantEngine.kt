@@ -11,6 +11,7 @@ import com.voicecontrol.core.engine.port.ScreenGateway
 import com.voicecontrol.core.engine.port.SessionConfig
 import com.voicecontrol.core.engine.port.SessionConfigProvider
 import com.voicecontrol.core.engine.port.SessionRecorder
+import com.voicecontrol.core.engine.port.SpeechDetector
 import com.voicecontrol.core.engine.port.SpeechToText
 import com.voicecontrol.core.engine.port.TextToSpeech
 import com.voicecontrol.core.engine.port.VisionDetector
@@ -38,6 +39,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -109,6 +113,8 @@ class AssistantEngine(
     private val newId: () -> String = { UUID.randomUUID().toString() },
     private val screenSettleMillis: Long = 1_200L,
     private val vision: VisionDetector? = null,
+    /** Barge-in: detects the user speaking over a question. */
+    private val speechDetector: SpeechDetector? = null,
 ) {
     private val _state = MutableStateFlow(EngineState())
     val state: StateFlow<EngineState> = _state.asStateFlow()
@@ -170,6 +176,10 @@ class AssistantEngine(
         /** Values already on the current screen, by label slug (lowest precedence). */
         var screenVars: Map<String, String> = emptyMap()
         var profile: UserProfile? = null
+        /** Earlier answers (never sensitive) for "same as above" and the AI's context. */
+        val memory = mutableListOf<MemoryItem>()
+        /** Recognizer confidence of the last answer (null when the recognizer gives none). */
+        var lastConfidence: Float? = null
         /** Signature of the screen as last seen (loops can change it by adding rows). */
         var currentSignature: String = ""
 
@@ -719,12 +729,22 @@ class AssistantEngine(
     /** Stores a step's answer in its variable (and `<name>_<index>` inside a loop). Never sensitive values. */
     private fun remember(session: Session, step: PlanStep, value: String) {
         if (step.isSensitive) return
+        session.memory.removeAll { it.label == step.label }
+        session.memory += MemoryItem(step.label, step.fieldType, value)
+        if (session.memory.size > MAX_MEMORY) session.memory.removeAt(0)
         val name = step.variable ?: return
         session.vars[name] = value
         session.vars[FlowVariables.INDEX]?.let { session.vars["${name}_$it"] = value }
     }
 
     private fun yesNo(value: Boolean) = if (value) "yes" else "no"
+
+    /** The recognizer was unsure about an answer it heard (not one taken from context). */
+    private fun needsConfirmation(session: Session, interp: Interpretation): Boolean {
+        if (!session.cfg.confirmLowConfidence || interp.source == CONTEXT_SOURCE) return false
+        val confidence = session.lastConfidence ?: return false
+        return confidence > 0f && confidence < LOW_CONFIDENCE
+    }
 
     // ---------------------------------------------------------------------------------------------
     // Step
@@ -783,7 +803,17 @@ class AssistantEngine(
                 attempts++
                 continue
             }
-            val interp = interpret(session, snapshot, step.elementId, heard, question)
+            // "same as above", "my email": resolved from earlier answers or the profile, offline.
+            val referenced = if (step.action == StepAction.FILL && step.kind == ElementKind.TEXT_FIELD) {
+                ContextResolver.resolve(heard, element, session.memory, session.profile)
+            } else {
+                null
+            }
+            val interp = if (referenced != null) {
+                Interpretation(IntentKind.FILL, step.elementId, referenced, source = CONTEXT_SOURCE)
+            } else {
+                interpret(session, snapshot, step.elementId, heard, question)
+            }
             when (interp.intent) {
                 IntentKind.NEXT, IntentKind.SKIP -> {
                     log.put(step, StepOutcome.SKIPPED, question)
@@ -834,6 +864,16 @@ class AssistantEngine(
                         say(session, phrases.invalid(validation.message))
                         attempts++
                         continue
+                    }
+                    if (needsConfirmation(session, interp)) {
+                        when (askYesNoOr(session, snapshot, phrases.didYouSay(value), default = false)) {
+                            null -> return StepResult.Stop
+                            false -> {
+                                attempts++
+                                continue
+                            }
+                            true -> Unit
+                        }
                     }
                     val result = fill(session, step, value, log, question, interp.source, interp.extraFills.map { it.targetId to it.value }, filledByExtras, snapshot)
                     if (result != null) return result
@@ -942,19 +982,50 @@ class AssistantEngine(
     // ---------------------------------------------------------------------------------------------
     // Helpers
 
-    /** Speaks the question, then listens. Returns the transcript or null if nothing usable was heard. */
+    /**
+     * Speaks the question (interruptible by speech when barge-in is on), then listens. Returns the
+     * transcript or null if nothing usable was heard. A command recognized in the live partial results
+     * ("stop", "next", "haan"…) ends listening early instead of waiting for the end-of-speech timeout.
+     */
     private suspend fun askAndListen(session: Session, question: String): String? {
-        say(session, question)
+        if (session.cfg.bargeIn && speechDetector != null) sayInterruptible(session, question, speechDetector) else say(session, question)
         setStatus(EngineStatus.LISTENING, caption = question)
-        val result = stt.listen(
-            ListenRequest(session.cfg.language.speechTag),
-            onPartial = { partial -> _state.update { it.copy(heard = partial) } },
-            onLevel = { level -> _state.update { it.copy(micLevel = level) } },
-        )
+        var early: String? = null
+        val result = coroutineScope {
+            var latest = ""
+            var pending: Job? = null
+            val heard = stt.listen(
+                ListenRequest(session.cfg.language.speechTag),
+                onPartial = { partial ->
+                    _state.update { it.copy(heard = partial) }
+                    latest = partial
+                    pending?.cancel()
+                    if (isEarlyCommand(partial)) {
+                        pending = launch {
+                            delay(EARLY_COMMAND_STABLE_MS)
+                            if (latest == partial && early == null) {
+                                early = partial
+                                stt.stopListening()
+                            }
+                        }
+                    }
+                },
+                onLevel = { level -> _state.update { it.copy(micLevel = level) } },
+            )
+            pending?.cancel()
+            heard
+        }
         _state.update { it.copy(micLevel = 0f) }
+        early?.let { command ->
+            session.silentFailures = 0
+            session.lastConfidence = null
+            _state.update { it.copy(heard = command) }
+            return command
+        }
         return when (result) {
             is ListenResult.Heard -> {
                 session.silentFailures = 0
+                session.lastConfidence = result.confidence
                 _state.update { it.copy(heard = result.text) }
                 result.text.takeIf { it.isNotBlank() }
             }
@@ -966,6 +1037,28 @@ class AssistantEngine(
                 if (!result.recoverable) throw IllegalStateException(result.message)
                 noSpeech(session)
                 null
+            }
+        }
+    }
+
+    /** Commands short enough to act on from a stable partial transcript. */
+    private fun isEarlyCommand(partial: String): Boolean {
+        val command = com.voicecontrol.core.nlp.CommandParser.parse(partial) ?: return false
+        return command !is com.voicecontrol.core.nlp.VoiceCommand.Press
+    }
+
+    /** Speaks [text] but stops as soon as the user starts talking (barge-in). */
+    private suspend fun sayInterruptible(session: Session, text: String, detector: SpeechDetector) {
+        setStatus(EngineStatus.SPEAKING, caption = text)
+        coroutineScope {
+            val speaking = async { tts.speak(text, session.cfg.language.voiceTag, session.cfg.speechRate) }
+            val interrupted = async { detector.awaitSpeech() }
+            select<Unit> {
+                speaking.onAwait { interrupted.cancel() }
+                interrupted.onAwait {
+                    tts.stop()
+                    speaking.cancel()
+                }
             }
         }
     }
@@ -1014,7 +1107,9 @@ class AssistantEngine(
         question: String?,
     ): Interpretation {
         setStatus(EngineStatus.THINKING)
-        val request = InterpretRequest(snapshot.redacted(), fieldId, utterance, session.cfg.language, question, session.cfg.transliterate)
+        val request = InterpretRequest(
+            snapshot.redacted(), fieldId, utterance, session.cfg.language, question, session.cfg.transliterate, session.memory.toList(),
+        )
         return localCommands.commandOf(request)
             ?: runCatching { interpreter.interpret(request) }.getOrElse { localCommands.interpret(request) }
     }
@@ -1077,5 +1172,9 @@ class AssistantEngine(
         const val MAX_WAIT_SECONDS = 120
         const val SCREEN_POLL_MS = 500L
         const val MAX_REPEAT = 50
+        const val MAX_MEMORY = 12
+        const val LOW_CONFIDENCE = 0.5f
+        const val EARLY_COMMAND_STABLE_MS = 500L
+        const val CONTEXT_SOURCE = "context"
     }
 }

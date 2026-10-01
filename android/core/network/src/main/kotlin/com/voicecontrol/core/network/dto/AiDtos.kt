@@ -59,7 +59,12 @@ data class InterpretRequestDto(
     val language: Language,
     val question: String?,
     val transliterate: Boolean,
+    /** Earlier answers in this session (non-sensitive), so the model can resolve "same as above", "his", "that one". */
+    val memory: List<MemoryDto> = emptyList(),
 )
+
+@Serializable
+data class MemoryDto(val label: String, val value: String)
 
 @Serializable
 data class ApiErrorDto(val error: String = "error", val message: String = "Request failed")

@@ -2,7 +2,8 @@
 package com.voicecontrol.application.nlp
 
 /**
- * Understands spoken numbers in English, Hindi (Devanagari) and Hinglish (romanized Hindi).
+ * Understands spoken numbers in English, Hindi (Devanagari), Hinglish (romanized Hindi), and digits,
+ * tens and multipliers in Marathi, Tamil, Telugu, Bengali and Gujarati (native digits are converted too).
  *
  * Two modes:
  * - [digitString]: phone / OTP / PIN-code style, read digit by digit
@@ -23,6 +24,17 @@ object NumberParser {
         // Devanagari
         put("शून्य", 0); put("ज़ीरो", 0); put("जीरो", 0); put("एक", 1); put("दो", 2); put("तीन", 3); put("चार", 4)
         put("पांच", 5); put("पाँच", 5); put("छह", 6); put("छः", 6); put("छे", 6); put("सात", 7); put("आठ", 8); put("नौ", 9)
+        // Marathi
+        put("दोन", 2); put("पाच", 5); put("सहा", 6); put("नऊ", 9)
+        // Tamil
+        listOf("பூஜ்ஜியம்", "பூஜ்யம்", "சுழியம்").forEach { put(it, 0) }
+        listOf("ஒன்று", "இரண்டு", "மூன்று", "நான்கு", "ஐந்து", "ஆறு", "ஏழு", "எட்டு", "ஒன்பது").forEachIndexed { i, w -> put(w, i + 1) }
+        // Telugu
+        listOf("సున్నా", "ఒకటి", "రెండు", "మూడు", "నాలుగు", "ఐదు", "ఆరు", "ఏడు", "ఎనిమిది", "తొమ్మిది").forEachIndexed { i, w -> put(w, i) }
+        // Bengali
+        listOf("শূন্য", "এক", "দুই", "তিন", "চার", "পাঁচ", "ছয়", "সাত", "আট", "নয়").forEachIndexed { i, w -> put(w, i) }
+        // Gujarati
+        listOf("શૂન્ય", "એક", "બે", "ત્રણ", "ચાર", "પાંચ", "છ", "સાત", "આઠ", "નવ").forEachIndexed { i, w -> put(w, i) }
     }.filterValues { it >= 0 }
 
     private val repeaters = mapOf(
@@ -44,13 +56,17 @@ object NumberParser {
             "tees" to 30, "तीस" to 30, "chalis" to 40, "chaalis" to 40, "चालीस" to 40, "pachaas" to 50, "pachas" to 50,
             "पचास" to 50, "saath" to 60, "साठ" to 60, "sattar" to 70, "सत्तर" to 70, "assi" to 80, "अस्सी" to 80,
             "nabbe" to 90, "नब्बे" to 90,
+            // ten / twenty in Marathi, Tamil, Telugu, Bengali, Gujarati
+            "दहा" to 10, "वीस" to 20, "பத்து" to 10, "இருபது" to 20, "పది" to 10, "ఇరవై" to 20,
+            "দশ" to 10, "কুড়ি" to 20, "বিশ" to 20, "દસ" to 10, "વીસ" to 20,
         ).forEach { (w, v) -> put(w, v.toLong()) }
     }
 
     private val multipliers = mapOf(
-        "hundred" to 100L, "sau" to 100L, "सौ" to 100L,
+        "hundred" to 100L, "sau" to 100L, "सौ" to 100L, "शंभर" to 100L, "நூறு" to 100L, "వంద" to 100L, "একশো" to 100L, "শো" to 100L, "સો" to 100L,
         "thousand" to 1_000L, "hazaar" to 1_000L, "hazar" to 1_000L, "हज़ार" to 1_000L, "हजार" to 1_000L,
-        "lakh" to 100_000L, "lac" to 100_000L, "लाख" to 100_000L,
+        "ஆயிரம்" to 1_000L, "వేయి" to 1_000L, "వెయ్యి" to 1_000L, "হাজার" to 1_000L, "હજાર" to 1_000L,
+        "lakh" to 100_000L, "lac" to 100_000L, "लाख" to 100_000L, "லட்சம்" to 100_000L, "లక్ష" to 100_000L, "লাখ" to 100_000L, "লক্ষ" to 100_000L, "લાખ" to 100_000L,
         "million" to 1_000_000L,
         "crore" to 10_000_000L, "karod" to 10_000_000L, "करोड़" to 10_000_000L,
     )

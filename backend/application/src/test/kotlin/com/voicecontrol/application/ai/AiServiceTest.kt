@@ -19,6 +19,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class AiServiceTest {
     private val screen = ScreenContext(
@@ -95,5 +96,20 @@ class AiServiceTest {
     @Test
     fun `invalid requests are rejected`() = runTest {
         assertFailsWith<DomainException.Validation> { AiService(RulesProvider()).interpret(cmd("   ")) }
+    }
+
+    @Test
+    fun `session memory reaches the model without secrets, in any supported language`() = runTest {
+        val provider = FakeProvider { Interpretation(IntentKind.FILL, "name", "Suresh") }
+        val service = AiService(provider)
+        val memory = listOf(
+            com.voicecontrol.domain.ai.MemoryItem("Father name", "Suresh"),
+            com.voicecontrol.domain.ai.MemoryItem("Password", "hunter2"),
+            com.voicecontrol.domain.ai.MemoryItem("Card number", "4111"),
+        )
+        service.interpret(InterpretCommand(screen, "name", "அதே பெயர்", Language.TAMIL, memory = memory))
+        assertEquals(listOf("Father name"), provider.lastCommand!!.memory.map { it.label })
+        val prompt = Prompts.interpretUserMessage(provider.lastCommand!!)
+        assertTrue("Suresh" in prompt && "hunter2" !in prompt && "TAMIL" in prompt)
     }
 }

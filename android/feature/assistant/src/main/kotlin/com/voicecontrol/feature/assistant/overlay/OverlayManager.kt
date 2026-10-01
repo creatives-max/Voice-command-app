@@ -13,7 +13,7 @@ import com.voicecontrol.core.engine.port.ScreenGateway
 import com.voicecontrol.core.ui.theme.VoiceControlTheme
 import com.voicecontrol.feature.assistant.AssistantController
 import com.voicecontrol.feature.assistant.OverlayEffect
-import com.voicecontrol.feature.assistant.VoiceSessionService
+import com.voicecontrol.feature.assistant.MicrophoneForeground
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -39,6 +39,7 @@ class OverlayManager @Inject constructor(
     private val screen: ScreenGateway,
     private val flows: FlowSource,
     private val remoteRuns: RemoteRunRepository,
+    private val microphone: MicrophoneForeground,
 ) : ServiceListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -62,8 +63,9 @@ class OverlayManager @Inject constructor(
             }
         }.launchIn(scope)
 
+        microphone.attach(service)
         controller.state.map { it.sessionActive }.distinctUntilChanged().onEach { active ->
-            if (active) VoiceSessionService.start(service) else VoiceSessionService.stop(service)
+            microphone.setSessionActive(active)
         }.launchIn(scope)
 
         controller.effects.onEach { effect ->
@@ -97,7 +99,7 @@ class OverlayManager @Inject constructor(
         scope.coroutineContext.cancelChildren()
         window?.hide()
         window = null
-        service?.let { VoiceSessionService.stop(it) }
+        microphone.detach()
         service = null
     }
 

@@ -2,6 +2,8 @@ package com.voicecontrol.feature.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -63,6 +65,9 @@ private val toggles = listOf(
     Triple(Option.SKIP_FILLED, "Skip fields that already have a value", "Otherwise VoiceControl asks whether to keep them."),
     Triple(Option.TRANSLITERATE, "Type Hindi names in English letters", "राहुल → Rahul for name, email and address fields."),
     Triple(Option.AUTO_START, "Start automatically on saved screens", "Begin asking when an app with a saved flow opens."),
+    Triple(Option.BARGE_IN, "Interrupt by speaking", "Start answering while VoiceControl is still talking; it stops and listens."),
+    Triple(Option.CONFIRM_LOW_CONFIDENCE, "Check unclear answers", "Ask \"Did you say …?\" when speech recognition is unsure."),
+    Triple(Option.WAKE_WORD, "Wake phrase", "Start a session by saying your wake phrase while VoiceControl is on. Uses the microphone in the background."),
     Triple(Option.USE_TEMPLATES, "Use starter templates", "On new screens, use the sign-up, login or address template that fits."),
     Triple(Option.REMOTE_RUNS, "Allow runs from the dashboard", "\"Run now\" and schedules can start flows on this phone. Needs sign-in."),
     Triple(Option.SAVE_HISTORY, "Keep session history", "What happened to each field, never the values."),
@@ -70,7 +75,7 @@ private val toggles = listOf(
     Triple(Option.VISION_FALLBACK, "Screenshot fallback", "For apps with no readable fields, send a screenshot to find fields and buttons."),
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     state: SettingsState,
@@ -98,12 +103,12 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("Language", style = MaterialTheme.typography.titleMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Language.entries.forEach { lang ->
                     FilterChip(
                         selected = s.language == lang,
                         onClick = { onIntent(SettingsIntent.SetLanguage(lang)) },
-                        label = { Text(lang.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                        label = { Text(lang.nativeName) },
                     )
                 }
             }
@@ -123,6 +128,17 @@ fun SettingsScreen(
                     }
                     Switch(checked = s.isOn(option), onCheckedChange = { onIntent(SettingsIntent.Toggle(option, it)) })
                 }
+            }
+            if (s.wakeWordEnabled) {
+                OutlinedTextField(
+                    value = state.wakeWordDraft,
+                    onValueChange = { onIntent(SettingsIntent.EditWakeWord(it)) },
+                    label = { Text("Wake phrase") },
+                    placeholder = { Text("hey voice control") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedButton(onClick = { onIntent(SettingsIntent.SaveWakeWord) }) { Text("Save wake phrase") }
             }
             OutlinedTextField(
                 value = state.deviceNameDraft,

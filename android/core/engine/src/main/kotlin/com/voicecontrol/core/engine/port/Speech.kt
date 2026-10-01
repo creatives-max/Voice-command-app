@@ -14,6 +14,17 @@ interface SpeechToText {
     ): ListenResult
 
     fun cancel()
+
+    /** Stops listening and delivers what was heard so far (used when a command is recognized early). */
+    fun stopListening() = cancel()
+}
+
+/**
+ * Detects the user starting to speak while the assistant is talking (barge-in).
+ * [awaitSpeech] suspends until speech is detected; it is cancelled when the assistant finishes talking.
+ */
+fun interface SpeechDetector {
+    suspend fun awaitSpeech()
 }
 
 data class ListenRequest(

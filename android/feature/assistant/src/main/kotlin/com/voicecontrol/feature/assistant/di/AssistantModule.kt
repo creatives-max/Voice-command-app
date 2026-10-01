@@ -12,6 +12,7 @@ import com.voicecontrol.core.engine.port.ProfileSource
 import com.voicecontrol.core.engine.port.ScreenGateway
 import com.voicecontrol.core.engine.port.SessionConfigProvider
 import com.voicecontrol.core.engine.port.SessionRecorder
+import com.voicecontrol.core.engine.port.SpeechDetector
 import com.voicecontrol.core.engine.port.SpeechToText
 import com.voicecontrol.core.engine.port.TextToSpeech
 import com.voicecontrol.core.engine.port.VisionDetector
@@ -19,6 +20,7 @@ import com.voicecontrol.core.engine.port.FlowLauncher
 import com.voicecontrol.feature.assistant.AssistantController
 import com.voicecontrol.feature.assistant.MicPermission
 import com.voicecontrol.feature.assistant.remote.RemoteRunCoordinator
+import com.voicecontrol.feature.assistant.wake.WakeWordListener
 import com.voicecontrol.feature.assistant.overlay.OverlayManager
 import dagger.Binds
 import dagger.Module
@@ -44,6 +46,10 @@ abstract class AssistantModule {
     abstract fun remoteRunListener(coordinator: RemoteRunCoordinator): ServiceListener
 
     @Binds
+    @IntoSet
+    abstract fun wakeWordListener(listener: WakeWordListener): ServiceListener
+
+    @Binds
     abstract fun flowLauncher(controller: AssistantController): FlowLauncher
 
     companion object {
@@ -59,6 +65,7 @@ abstract class AssistantModule {
             recorder: SessionRecorder,
             config: SessionConfigProvider,
             vision: VisionDetector,
+            speechDetector: SpeechDetector,
         ): AssistantEngine = AssistantEngine(
             screen = screen,
             stt = stt,
@@ -70,6 +77,7 @@ abstract class AssistantModule {
             config = config,
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
             vision = vision,
+            speechDetector = speechDetector,
         )
 
         @Provides

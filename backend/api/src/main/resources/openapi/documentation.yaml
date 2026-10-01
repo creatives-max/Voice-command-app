@@ -332,7 +332,7 @@ paths:
                 imageBase64: { type: string }
                 width: { type: integer }
                 height: { type: integer }
-                language: { type: string, enum: [ENGLISH, HINDI, HINGLISH] }
+                language: { type: string, enum: [ENGLISH, HINDI, HINGLISH, MARATHI, TAMIL, TELUGU, BENGALI, GUJARATI] }
       responses:
         "200":
           description: Detected elements
@@ -842,9 +842,14 @@ components:
         screen: { $ref: "#/components/schemas/ScreenContext" }
         currentFieldId: { type: string }
         utterance: { type: string, maxLength: 500 }
-        language: { type: string, enum: [ENGLISH, HINDI, HINGLISH] }
+        language: { type: string, enum: [ENGLISH, HINDI, HINGLISH, MARATHI, TAMIL, TELUGU, BENGALI, GUJARATI] }
         question: { type: string }
         transliterate: { type: boolean }
+        memory:
+          type: array
+          maxItems: 12
+          description: Earlier answers in this session (never sensitive values), to resolve "same as above", "his name", etc.
+          items: { type: object, properties: { label: { type: string }, value: { type: string } } }
     Run:
       type: object
       required: [sessionId, appPackage, startedAtMillis, endedAtMillis, status, language, screens]
@@ -854,7 +859,7 @@ components:
         startedAtMillis: { type: integer, format: int64 }
         endedAtMillis: { type: integer, format: int64 }
         status: { type: string, enum: [COMPLETED, STOPPED, FAILED] }
-        language: { type: string, enum: [ENGLISH, HINDI, HINGLISH] }
+        language: { type: string, enum: [ENGLISH, HINDI, HINGLISH, MARATHI, TAMIL, TELUGU, BENGALI, GUJARATI] }
         filledCount: { type: integer, readOnly: true }
         stepCount: { type: integer, readOnly: true }
         screens:

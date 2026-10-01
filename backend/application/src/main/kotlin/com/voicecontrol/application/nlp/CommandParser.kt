@@ -2,7 +2,7 @@
 package com.voicecontrol.application.nlp
 
 /**
- * Recognizes control commands in English, Hindi and Hinglish.
+ * Recognizes control commands in English, Hindi, Hinglish, Marathi, Tamil, Telugu, Bengali and Gujarati.
  *
  * A command must be (almost) the whole utterance, so answers that merely contain a command word
  * ("Next Generation School", "Back office") are not mistaken for commands.
@@ -12,26 +12,32 @@ object CommandParser {
     private val politeness = setOf(
         "please", "plz", "now", "karo", "kar", "do", "kariye", "kijiye", "karna", "करो", "कर", "दो", "करें",
         "कीजिए", "करिए", "ji", "जी", "na", "ना", "ab", "अब", "jao", "जाओ", "chalo", "चलो", "go", "the", "to", "par", "pe", "पर", "पे",
+        // Marathi, Tamil, Telugu, Bengali, Gujarati
+        "करा", "द्या", "kara", "செய்", "செய்யுங்கள்", "பண்ணு", "చేయి", "చేయండి", "cheyi", "cheyandi",
+        "করো", "করুন", "দাও", "koro", "કરો", "દો", "આપો",
     )
 
     private val phrases: List<Pair<VoiceCommand, Set<String>>> = listOf(
-        VoiceCommand.Next to setOf("next", "next field", "go next", "move on", "aage", "aage badho", "agla", "agle", "आगे", "अगला", "आगे बढ़ो", "अगले"),
-        VoiceCommand.Previous to setOf("previous", "previous field", "last field", "pichla", "pichhla", "पिछला", "पिछले"),
-        VoiceCommand.Skip to setOf("skip", "skip it", "skip this", "leave it", "chhodo", "chodo", "chhod", "rehne", "rehne do", "rahne do", "छोड़ो", "छोड़", "रहने", "रहने दो"),
-        VoiceCommand.Submit to setOf("submit", "send", "done", "finish", "save", "confirm", "jama", "submit karo", "bhejo", "bhej", "जमा", "सबमिट", "भेजो", "भेज", "सेव"),
-        VoiceCommand.Back to setOf("back", "go back", "wapas", "vapas", "peeche", "piche", "पीछे", "वापस", "बैक"),
-        VoiceCommand.ScrollDown to setOf("scroll", "scroll down", "down", "neeche", "niche", "neeche scroll", "नीचे", "स्क्रॉल", "नीचे स्क्रॉल"),
-        VoiceCommand.ScrollUp to setOf("scroll up", "up", "upar", "oopar", "upar scroll", "ऊपर", "ऊपर स्क्रॉल"),
-        VoiceCommand.Repeat to setOf("repeat", "again", "say again", "what", "pardon", "phir se", "fir se", "dobara", "dubara", "फिर से", "दोबारा", "क्या"),
-        VoiceCommand.Stop to setOf("stop", "cancel", "exit", "quit", "band", "ruko", "ruk", "bas", "बंद", "रुको", "रुक", "बस"),
-        VoiceCommand.Yes to setOf("yes", "ok", "okay", "yeah", "yep", "yup", "sure", "correct", "right", "haan", "han", "ha", "haa", "hanji", "haanji", "theek", "theek hai", "thik hai", "sahi", "हाँ", "हां", "हा", "ठीक", "ठीक है", "सही", "हांजी"),
-        VoiceCommand.No to setOf("no", "nope", "wrong", "nahi", "nahin", "nai", "mat", "galat", "नहीं", "नही", "मत", "गलत"),
-        VoiceCommand.Clear to setOf("clear", "erase", "delete", "clear it", "mitao", "hatao", "मिटाओ", "हटाओ", "साफ"),
-        VoiceCommand.Help to setOf("help", "madad", "sahayata", "मदद", "सहायता"),
+        VoiceCommand.Next to setOf("next", "next field", "go next", "move on", "aage", "aage badho", "agla", "agle", "आगे", "अगला", "आगे बढ़ो", "अगले", "पुढे", "पुढील", "पुढचा", "pudhe", "அடுத்து", "அடுத்தது", "adutthu", "aduthu", "తరువాత", "తర్వాత", "ముందుకు", "tharuvatha", "tarvata", "পরের", "পরবর্তী", "এগিয়ে যাও", "porer", "આગળ", "આગળનું", "agal"),
+        VoiceCommand.Previous to setOf("previous", "previous field", "last field", "pichla", "pichhla", "पिछला", "पिछले", "मागील", "मागचा", "magcha", "முந்தையது", "முந்தைய", "మునుపటి", "వెనుకటి", "আগের", "ager", "પાછલું", "અગાઉનું", "pachhlu"),
+        VoiceCommand.Skip to setOf("skip", "skip it", "skip this", "leave it", "chhodo", "chodo", "chhod", "rehne", "rehne do", "rahne do", "छोड़ो", "छोड़", "रहने", "रहने दो", "वगळा", "सोडा", "राहू द्या", "vagla", "தவிர்", "விடு", "விட்டுவிடு", "వదిలేయి", "దాటవేయి", "বাদ দাও", "এড়িয়ে যাও", "বাদ", "bad dao", "છોડો", "રહેવા દો"),
+        VoiceCommand.Submit to setOf("submit", "send", "done", "finish", "save", "confirm", "jama", "submit karo", "bhejo", "bhej", "जमा", "सबमिट", "भेजो", "भेज", "सेव", "जमा करा", "पाठवा", "pathva", "சமர்ப்பி", "அனுப்பு", "சேமி", "సమర్పించు", "పంపు", "సేవ్", "জমা দাও", "জমা", "পাঠাও", "সেভ", "સબમિટ", "જમા કરો", "મોકલો", "mokalo"),
+        VoiceCommand.Back to setOf("back", "go back", "wapas", "vapas", "peeche", "piche", "पीछे", "वापस", "बैक", "मागे", "परत", "mage", "பின்னால்", "திரும்ப", "pinnal", "వెనక్కి", "వెనుకకు", "venakki", "পিছনে", "ফিরে যাও", "pichone", "પાછળ", "પાછા", "pachhal"),
+        VoiceCommand.ScrollDown to setOf("scroll", "scroll down", "down", "neeche", "niche", "neeche scroll", "नीचे", "स्क्रॉल", "नीचे स्क्रॉल", "खाली", "khali", "கீழே", "keezhe", "కిందకి", "క్రిందకు", "kindaki", "নিচে", "નીચે"),
+        VoiceCommand.ScrollUp to setOf("scroll up", "up", "upar", "oopar", "upar scroll", "ऊपर", "ऊपर स्क्रॉल", "वर", "மேலே", "mele", "పైకి", "paiki", "উপরে", "upore", "ઉપર"),
+        VoiceCommand.Repeat to setOf("repeat", "again", "say again", "what", "pardon", "phir se", "fir se", "dobara", "dubara", "फिर से", "दोबारा", "क्या", "पुन्हा", "परत सांगा", "punha", "மீண்டும்", "திரும்ப சொல்", "meendum", "మళ్ళీ", "మళ్లీ", "మళ్లీ చెప్పు", "malli", "আবার", "আবার বলো", "abar", "ફરીથી", "ફરી", "farithi"),
+        VoiceCommand.Stop to setOf("stop", "cancel", "exit", "quit", "band", "ruko", "ruk", "bas", "बंद", "रुको", "रुक", "बस", "थांबा", "बंद करा", "thamba", "நிறுத்து", "நிறுத்துங்கள்", "niruthu", "ఆపు", "ఆపండి", "aapu", "থামো", "থামুন", "বন্ধ করো", "thamo", "બંધ", "રોકો", "અટકો", "roko"),
+        VoiceCommand.Yes to setOf("yes", "ok", "okay", "yeah", "yep", "yup", "sure", "correct", "right", "haan", "han", "ha", "haa", "hanji", "haanji", "theek", "theek hai", "thik hai", "sahi", "हाँ", "हां", "हा", "ठीक", "ठीक है", "सही", "हांजी", "होय", "हो", "ho", "hoy", "ஆம்", "ஆமாம்", "சரி", "aamaa", "aam", "sari", "అవును", "సరే", "avunu", "sare", "হ্যাঁ", "হ্যা", "হাঁ", "ঠিক আছে", "hyan", "thik ache", "હા", "હાં", "બરાબર"),
+        VoiceCommand.No to setOf("no", "nope", "wrong", "nahi", "nahin", "nai", "mat", "galat", "नहीं", "नही", "मत", "गलत", "नाही", "இல்லை", "வேண்டாம்", "illai", "vendam", "కాదు", "వద్దు", "లేదు", "kaadu", "vaddu", "না", "ના", "નહીં"),
+        VoiceCommand.Clear to setOf("clear", "erase", "delete", "clear it", "mitao", "hatao", "मिटाओ", "हटाओ", "साफ", "पुसा", "काढा", "அழி", "நீக்கு", "తుడిచివేయి", "తొలగించు", "মুছে ফেলো", "মোছো", "ભૂંસો", "કાઢી નાખો"),
+        VoiceCommand.Help to setOf("help", "madad", "sahayata", "मदद", "सहायता", "मदत", "உதவி", "udhavi", "సహాయం", "sahayam", "সাহায্য", "sahajjo", "મદદ"),
     )
 
     private val pressVerbsBefore = listOf("press", "click", "click on", "tap", "tap on", "hit", "select", "open", "choose")
-    private val pressVerbsAfter = listOf("dabao", "dabaao", "daba do", "dabaiye", "click karo", "click", "pe click", "par click", "दबाओ", "दबाइए", "दबा", "क्लिक", "पर क्लिक", "चुनो", "खोलो", "kholo", "chuno")
+    private val pressVerbsAfter = listOf(
+        "dabao", "dabaao", "daba do", "dabaiye", "click karo", "click", "pe click", "par click", "दबाओ", "दबाइए", "दबा", "क्लिक", "पर क्लिक", "चुनो", "खोलो", "kholo", "chuno",
+        "दाबा", "उघडा", "அழுத்து", "அழுத்துங்கள்", "திற", "నొక్కు", "నొక్కండి", "తెరువు", "চাপো", "চাপুন", "খোলো", "દબાવો", "ખોલો",
+    )
 
     fun parse(utterance: String): VoiceCommand? {
         val simple = TextCleanup.simplify(utterance)

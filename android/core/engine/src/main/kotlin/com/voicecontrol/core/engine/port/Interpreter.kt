@@ -19,4 +19,6 @@ data class InterpretRequest(
     val question: String?,
     /** Convert Devanagari answers to Latin letters for name/email/address fields. */
     val transliterate: Boolean = true,
+    /** Earlier answers in this session (label → value, never sensitive), to resolve "same as above", pronouns, etc. */
+    val memory: List<com.voicecontrol.core.engine.MemoryItem> = emptyList(),
 )

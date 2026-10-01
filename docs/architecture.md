@@ -155,6 +155,26 @@ Flows are more than an ordered list of questions:
   the screen (`TemplateMatcher`), and the dashboard can apply a template to an existing flow. Both matchers share
   `docs/spec/template-matching.json`.
 
+## Voice upgrades
+
+- **Streaming partials + early commands**: the overlay shows partial transcripts live; when a partial is a control
+  command (stop, next, skip, haan…) and stays unchanged for 500 ms, listening ends right away instead of waiting for
+  the recognizer's end-of-speech timeout.
+- **Barge-in** (setting): while a question is spoken, `AndroidSpeechDetector` listens through the voice-communication
+  source with platform echo cancellation; `SpeechOnset` calibrates on the assistant's own echo and declares speech
+  after ~240 ms clearly above it. TTS stops and the answer is heard immediately. Audio is analysed for loudness only.
+- **Wake phrase** (setting): while idle, `WakeWordListener` runs on-device-preferred recognition in a loop and matches
+  the user's phrase approximately and across scripts (`WakeWord`), then starts a session. It runs under the
+  microphone foreground service (with its own notification) and yields the recognizer to tap-started sessions.
+- **Confidence re-ask**: when the recognizer's confidence is below 0.5, the assistant asks "Did you say …?" first.
+- **Context memory**: answers given earlier in the session (never sensitive values) are remembered; `ContextResolver`
+  resolves "same as above", "same as permanent address", "my email", "वही", "அதே", "అదే", "একই", "એ જ" on the
+  device, and the last 12 answers are sent to the backend LLM (secrets filtered again server-side) for harder references.
+- **Languages**: English, Hindi, Hinglish, Marathi, Tamil, Telugu, Bengali and Gujarati. Each has its phrases,
+  command words, number words and native digits; names/emails/addresses dictated in any of these scripts can be
+  transliterated to Latin letters (Bengali/Gujarati/Tamil/Telugu map onto Devanagari by Unicode block, keeping
+  Telugu/Tamil final vowels).
+
 ## Observability
 
 - OpenTelemetry SDK (autoconfigured) with Ktor server instrumentation; spans for every request and for each event

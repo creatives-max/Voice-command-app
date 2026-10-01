@@ -2,18 +2,20 @@ package com.voicecontrol.core.nlp
 
 /** Low-level helpers shared by the normalizers. */
 internal object TextCleanup {
-    private val devanagariDigits = mapOf(
-        '०' to '0', '१' to '1', '२' to '2', '३' to '3', '४' to '4',
-        '५' to '5', '६' to '6', '७' to '7', '८' to '8', '९' to '9',
-    )
     private val punctuation = Regex("[\\p{P}&&[^@._\\-+/']]")
     private val spaces = Regex("\\s+")
 
-    fun asciiDigits(s: String): String = buildString(s.length) { s.forEach { append(devanagariDigits[it] ?: it) } }
+    /** Any decimal digit (Devanagari, Bengali, Gujarati, Tamil, Telugu, …) → ASCII. */
+    fun asciiDigits(s: String): String = buildString(s.length) {
+        s.forEach { c ->
+            val d = if (c in '0'..'9') -1 else Character.digit(c, 10)
+            append(if (d >= 0) ('0' + d) else c)
+        }
+    }
 
     /** Lowercase, ASCII digits, drop sentence punctuation (keeps @ . _ - + / '), collapse spaces. */
     fun simplify(s: String): String =
-        asciiDigits(s).lowercase().replace('।', ' ').replace(punctuation, " ").replace(spaces, " ").trim()
+        asciiDigits(s).lowercase().replace('।', ' ').replace('॥', ' ').replace(punctuation, " ").replace(spaces, " ").trim()
 
     fun tokens(s: String): List<String> = simplify(s).split(' ').filter { it.isNotEmpty() }
 }

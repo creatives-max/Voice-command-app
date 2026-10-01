@@ -25,6 +25,13 @@ data class AppSettings(
     val deviceName: String = "",
     /** On screens without a saved flow, use a matching starter template (sign-up, login, address…). */
     val useTemplates: Boolean = true,
+    /** Stop talking as soon as the user starts speaking. */
+    val bargeIn: Boolean = false,
+    /** Ask "Did you say …?" when speech recognition is unsure. */
+    val confirmLowConfidence: Boolean = true,
+    /** Listen for [wakeWord] while idle and start a session when it is heard. */
+    val wakeWordEnabled: Boolean = false,
+    val wakeWord: String = "hey voice control",
     val backendUrl: String = "",
     /** Web dashboard where flows are edited; blank = the default for this build. */
     val dashboardUrl: String = "",
@@ -38,5 +45,7 @@ data class AppSettings(
         localOnly = localOnly,
         skipFilledFields = skipFilledFields,
         visionFallback = visionFallback,
+        bargeIn = bargeIn,
+        confirmLowConfidence = confirmLowConfidence,
     )
 }

@@ -76,6 +76,10 @@ class AndroidSpeechToText @Inject constructor(
         }
     }
 
+    override fun stopListening() {
+        recognizer?.let { sr -> android.os.Handler(context.mainLooper).post { runCatching { sr.stopListening() } } }
+    }
+
     override fun cancel() {
         recognizer?.let { sr -> android.os.Handler(context.mainLooper).post { runCatching { sr.cancel() } } }
     }

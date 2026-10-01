@@ -1,7 +1,9 @@
 package com.voicecontrol.core.voice.di
 
+import com.voicecontrol.core.engine.port.SpeechDetector
 import com.voicecontrol.core.engine.port.SpeechToText
 import com.voicecontrol.core.engine.port.TextToSpeech
+import com.voicecontrol.core.voice.AndroidSpeechDetector
 import com.voicecontrol.core.voice.AndroidSpeechToText
 import com.voicecontrol.core.voice.AndroidTextToSpeech
 import dagger.Binds
@@ -21,4 +23,7 @@ abstract class VoiceModule {
 
     @Binds
     abstract fun textToSpeech(impl: AndroidTextToSpeech): TextToSpeech
+
+    @Binds
+    abstract fun speechDetector(impl: AndroidSpeechDetector): SpeechDetector
 }

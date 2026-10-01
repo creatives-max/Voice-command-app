@@ -3,6 +3,7 @@ package com.voicecontrol.feature.settings
 import androidx.lifecycle.viewModelScope
 import com.voicecontrol.core.data.settings.SettingsRepository
 import com.voicecontrol.core.engine.port.TextToSpeech
+import com.voicecontrol.core.nlp.WakeWord
 import com.voicecontrol.core.ui.mvi.MviViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.launchIn
@@ -24,6 +25,7 @@ class SettingsViewModel @Inject constructor(
                     backendUrlDraft = if (loaded) backendUrlDraft else s.backendUrl,
                     dashboardUrlDraft = if (loaded) dashboardUrlDraft else s.dashboardUrl,
                     deviceNameDraft = if (loaded) deviceNameDraft else s.deviceName,
+                    wakeWordDraft = if (loaded) wakeWordDraft else s.wakeWord,
                 )
             }
         }.launchIn(viewModelScope)
@@ -50,6 +52,16 @@ class SettingsViewModel @Inject constructor(
             SettingsIntent.SaveDeviceName -> {
                 repository.update { it.copy(deviceName = currentState.deviceNameDraft) }
                 sendEffect(SettingsEffect.Message("Phone name saved. The dashboard shows it after the next sync."))
+            }
+            is SettingsIntent.EditWakeWord -> setState { copy(wakeWordDraft = intent.value.take(60)) }
+            SettingsIntent.SaveWakeWord -> {
+                val phrase = currentState.wakeWordDraft.trim()
+                if (!WakeWord.isValidPhrase(phrase)) {
+                    sendEffect(SettingsEffect.Message("Choose a longer wake phrase, like “Hey VoiceControl”"))
+                    return
+                }
+                repository.update { it.copy(wakeWord = phrase) }
+                sendEffect(SettingsEffect.Message("Wake phrase saved"))
             }
             SettingsIntent.TestVoice -> {
                 val s = currentState.settings

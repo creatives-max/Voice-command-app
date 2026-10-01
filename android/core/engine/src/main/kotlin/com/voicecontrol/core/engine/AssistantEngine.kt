@@ -122,7 +122,7 @@ class AssistantEngine(
     private val answers: com.voicecontrol.core.engine.port.AnswerMemory? = null,
     /** AI-written questions for screens without saved ones (not in on-device only mode). */
     private val questionWriter: com.voicecontrol.core.engine.port.QuestionWriter? = null,
-    private val questionTimeoutMillis: Long = 10_000L,
+    private val questionTimeoutMillis: Long = 30_000L,
 ) {
     private val _state = MutableStateFlow(EngineState())
     val state: StateFlow<EngineState> = _state.asStateFlow()
@@ -225,6 +225,9 @@ class AssistantEngine(
         val hybrid = HashMap<String, HybridVision.Result>()
         /** Signature of the screen as last seen (loops can change it by adding rows). */
         var currentSignature: String = ""
+        /** AI-written questions for the current screen, arriving while the first questions are asked. */
+        var written: kotlinx.coroutines.Deferred<Map<String, com.voicecontrol.core.engine.port.WrittenQuestion>>? = null
+        var writtenIds: Set<String> = emptySet()
         /** Flow chosen by a voice shortcut, run next ([ScreenOutcome.SWITCHED]). */
         var switchTo: FlowDefinition? = null
         /** The internet dropped: keep listening with on-device speech for the rest of the session. */
@@ -331,7 +334,8 @@ class AssistantEngine(
                 session.profile = profile
                 session.screenVars = screenVariables(snapshot)
                 session.currentSignature = snapshot.signature
-                val plan = withWrittenQuestions(session, snapshot, PlanBuilder(session.phrases).build(snapshot, flow, profile))
+                val plan = PlanBuilder(session.phrases).build(snapshot, flow, profile)
+                startWrittenQuestions(session, snapshot, plan)
                 emit(EngineEvent.SCREEN, "Screen: ${snapshot.title ?: snapshot.activityName?.substringAfterLast('.') ?: snapshot.packageName}")
                 val log = ScreenLog(snapshot, plan.flowId, plan.flowVersion) { record ->
                     val verb = when (record.outcome) {
@@ -1078,10 +1082,11 @@ class AssistantEngine(
     private suspend fun handleStep(
         session: Session,
         snapshot: ScreenSnapshot,
-        step: PlanStep,
+        planned: PlanStep,
         log: ScreenLog,
         filledByExtras: MutableSet<String>,
     ): StepResult {
+        val step = withWritten(session, planned)
         val phrases = session.phrases
         val element = step.element
 
@@ -1472,31 +1477,46 @@ class AssistantEngine(
     }
 
     /** AI-written questions by screen and language, so a screen is asked about once per session. */
-    private val writtenQuestions = mutableMapOf<String, Map<String, com.voicecontrol.core.engine.port.WrittenQuestion>>()
+    private val writtenQuestions = java.util.concurrent.ConcurrentHashMap<String, Map<String, com.voicecontrol.core.engine.port.WrittenQuestion>>()
 
     /**
-     * Replaces the built-in questions of fields that have no saved question with AI-written ones (and adds
-     * their hints). Saved questions always win; on-device only mode, a slow or failing server keep the
-     * built-in ones.
+     * Starts fetching AI-written questions for fields that have no saved question. A screen seen before
+     * (or cached on the server) is ready almost at once and used from the first field; otherwise the first
+     * questions use the built-in wording and later fields switch over as soon as the AI's arrive. Saved
+     * questions always win; on-device only mode, a slow or failing server keep the built-in ones.
      */
-    private suspend fun withWrittenQuestions(session: Session, snapshot: ScreenSnapshot, plan: ScreenPlan): ScreenPlan {
-        val writer = questionWriter ?: return plan
-        if (session.cfg.localOnly) return plan
+    private suspend fun startWrittenQuestions(session: Session, snapshot: ScreenSnapshot, plan: ScreenPlan) {
+        session.written = null
+        session.writtenIds = emptySet()
+        val writer = questionWriter ?: return
+        if (session.cfg.localOnly) return
         val open = plan.steps.filter { !it.virtual && !it.customQuestion && !it.isSensitive && it.action != StepAction.CLICK && it.action != StepAction.READ }
-        if (open.isEmpty()) return plan
+        if (open.isEmpty()) return
+        session.writtenIds = open.map { it.elementId }.toSet()
         val key = "${snapshot.packageName}|${snapshot.signature}|${session.cfg.language}"
-        if (key !in writtenQuestions) setStatus(EngineStatus.THINKING)
-        val written = writtenQuestions[key]
-            ?: withTimeoutOrNull(questionTimeoutMillis) { runCatching { writer.write(snapshot.redacted(), session.cfg.language) }.getOrNull() }
-                ?.also { if (it.isNotEmpty()) writtenQuestions[key] = it }
-            ?: return plan
-        val ids = open.map { it.elementId }.toSet()
-        return plan.copy(
-            steps = plan.steps.map { step ->
-                val w = written[step.elementId]?.takeIf { step.elementId in ids && it.question.isNotBlank() } ?: return@map step
-                step.copy(question = w.question.trim().take(MAX_WRITTEN_CHARS), hint = w.hint?.trim()?.take(MAX_WRITTEN_CHARS)?.takeIf { it.isNotEmpty() })
-            },
-        )
+        writtenQuestions[key]?.let {
+            session.written = kotlinx.coroutines.CompletableDeferred(it)
+            return
+        }
+        val redacted = snapshot.redacted()
+        val language = session.cfg.language
+        val pending = scope.async {
+            val result = withTimeoutOrNull(questionTimeoutMillis) { runCatching { writer.write(redacted, language) }.getOrNull() }.orEmpty()
+            if (result.isNotEmpty()) writtenQuestions[key] = result
+            result
+        }
+        session.written = pending
+        // Give a cached answer a moment, so even the first field gets the friendlier question.
+        withTimeoutOrNull(FIRST_QUESTION_WAIT_MS) { pending.join() }
+    }
+
+    /** [step] with the AI-written question and hint, when they have arrived. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private fun withWritten(session: Session, step: PlanStep): PlanStep {
+        val pending = session.written ?: return step
+        if (!pending.isCompleted || pending.isCancelled || step.elementId !in session.writtenIds || step.customQuestion) return step
+        val w = runCatching { pending.getCompleted() }.getOrNull()?.get(step.elementId)?.takeIf { it.question.isNotBlank() } ?: return step
+        return step.copy(question = w.question.trim().take(MAX_WRITTEN_CHARS), hint = w.hint?.trim()?.take(MAX_WRITTEN_CHARS)?.takeIf { it.isNotEmpty() })
     }
 
     private fun request(session: Session, snapshot: ScreenSnapshot, heard: String) =
@@ -1582,6 +1602,8 @@ class AssistantEngine(
         const val MAX_SCREENS = 12
         const val MAX_BUTTONS_SPOKEN = 6
         private const val MAX_WRITTEN_CHARS = 200
+        /** How long the first question waits for AI-written ones (enough for a cached answer). */
+        const val FIRST_QUESTION_WAIT_MS = 2_500L
         /** Commands that are also common button labels. */
         private val BUTTON_WORDS = setOf(
             IntentKind.NEXT, IntentKind.SUBMIT, IntentKind.YES, IntentKind.NO, IntentKind.BACK, IntentKind.SKIP,

@@ -88,6 +88,38 @@ class AiQuestionsTest {
     }
 
     @Test
+    fun `questions that arrive late are used for the fields after them`() = runTest {
+        val name = ScreenElement("vid:name", ElementKind.TEXT_FIELD, "Name", FieldType.NAME)
+        val twoFields = ScreenSnapshot("com.bank", elements = listOf(name, mobile), signature = "two")
+        val writer = CountingWriter(delayMs = 5_000, answer = mapOf("vid:name" to WrittenQuestion("Aapka naam?"), "vid:mobile" to WrittenQuestion(question, hint)))
+        val tts = RecordingTts()
+        // The first answer takes a while (the user thinks), so the AI's questions are in by the second field.
+        val stt = object : com.voicecontrol.core.engine.port.SpeechToText {
+            private val answers = ArrayDeque(listOf("Asha", "9876543210"))
+            override suspend fun listen(
+                request: com.voicecontrol.core.engine.port.ListenRequest,
+                onPartial: (String) -> Unit,
+                onLevel: (Float) -> Unit,
+            ): com.voicecontrol.core.engine.port.ListenResult {
+                delay(4_000)
+                return answers.removeFirstOrNull()?.let { com.voicecontrol.core.engine.port.ListenResult.Heard(it) }
+                    ?: com.voicecontrol.core.engine.port.ListenResult.NoMatch
+            }
+            override fun cancel() = Unit
+        }
+        val screen = FakeScreen(twoFields)
+        AssistantEngine(
+            screen = screen, stt = stt, tts = tts, interpreter = LocalInterpreter(), flows = { null }, profiles = { null },
+            recorder = { }, config = { SessionConfig(language = Language.HINGLISH, confirmValues = false) }, scope = this,
+            screenSettleMillis = 10, questionWriter = writer,
+        ).start()
+        advanceUntilIdle()
+        assertFalse(tts.spoken.any { it == "Aapka naam?" }, "the first field didn't wait for the AI")
+        assertTrue(tts.spoken.any { it == question })
+        assertEquals("9876543210", screen.valueOf("vid:mobile"))
+    }
+
+    @Test
     fun `a screen is asked about once per language`() = runTest {
         val writer = CountingWriter(answer = mapOf("vid:mobile" to WrittenQuestion(question, hint)))
         val screen = FakeScreen(form)

@@ -13,8 +13,15 @@ import com.voicecontrol.domain.ai.VisionCommand
 import com.voicecontrol.domain.ai.VisionResult
 import com.voicecontrol.domain.common.DomainException
 import com.voicecontrol.domain.event.Cache
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.slf4j.LoggerFactory
 
 /**
@@ -33,6 +40,8 @@ class AiService(
     private val cache: Cache? = null,
 ) {
     private val log = LoggerFactory.getLogger(AiService::class.java)
+    private val background = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val inFlight = java.util.concurrent.ConcurrentHashMap<String, Deferred<List<FieldQuestion>>>()
 
     val providerName: String get() = provider.name
 
@@ -86,24 +95,33 @@ class AiService(
         cache?.get(key)?.let { cached ->
             runCatching { cacheJson.decodeFromString<List<FieldQuestion>>(cached) }.getOrNull()?.let { return QuestionsResult(it, provider.name) }
         }
-        val written = try {
-            withTimeout(timeoutMillis * 2) { provider.writeQuestions(safe) }
-        } catch (e: TimeoutCancellationException) {
-            log.warn("LLM provider {} timed out writing questions", provider.name)
-            return QuestionsResult(emptyList(), provider.name)
-        } catch (e: Exception) {
-            log.warn("LLM provider {} failed writing questions: {}", provider.name, e.message)
-            return QuestionsResult(emptyList(), provider.name)
-        }
+        // Writing can take longer than a phone waits: it finishes in the background and is cached, so the
+        // next visit to this screen gets the questions at once. Identical requests share one model call.
         val ids = fields.map { it.id }.toSet()
-        val clean = written
-            .filter { it.elementId in ids && it.question.isNotBlank() }
-            .distinctBy { it.elementId }
-            .map { q ->
-                FieldQuestion(q.elementId, q.question.trim().take(MAX_QUESTION_CHARS), q.hint?.trim()?.take(MAX_QUESTION_CHARS)?.takeIf { it.isNotEmpty() })
+        val job = inFlight.computeIfAbsent(key) {
+            background.async(start = CoroutineStart.LAZY) {
+                try {
+                    val written = withTimeout(QUESTIONS_GENERATION_MS) { provider.writeQuestions(safe) }
+                    val clean = written
+                        .filter { it.elementId in ids && it.question.isNotBlank() }
+                        .distinctBy { it.elementId }
+                        .map { q ->
+                            FieldQuestion(q.elementId, q.question.trim().take(MAX_QUESTION_CHARS), q.hint?.trim()?.take(MAX_QUESTION_CHARS)?.takeIf { it.isNotEmpty() })
+                        }
+                    if (clean.isNotEmpty()) cache?.put(key, cacheJson.encodeToString(clean), QUESTIONS_TTL_SECONDS)
+                    clean
+                } catch (e: Exception) {
+                    log.warn("LLM provider {} failed writing questions: {}", provider.name, e.message)
+                    emptyList()
+                } finally {
+                    inFlight.remove(key)
+                }
             }
-        if (clean.isNotEmpty()) cache?.put(key, cacheJson.encodeToString(clean), QUESTIONS_TTL_SECONDS)
-        return QuestionsResult(clean, provider.name)
+        }
+        job.start()
+        val questions = withTimeoutOrNull(timeoutMillis * 3) { job.await() }
+        if (questions == null) log.info("Questions for {} still being written; served next time", command.screen.packageName)
+        return QuestionsResult(questions.orEmpty(), provider.name)
     }
 
     private fun questionsKey(c: QuestionsCommand): String {
@@ -152,6 +170,7 @@ class AiService(
         const val MAX_QUESTION_FIELDS = 40
         const val MAX_QUESTION_CHARS = 200
         const val QUESTIONS_TTL_SECONDS = 30L * 24 * 3600
+        const val QUESTIONS_GENERATION_MS = 60_000L
         private val cacheJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
         private val sensitiveLabel = Regex("(?i)pass|otp|\\bpin\\b|cvv|cvc|card number|पासवर्ड|ओटीपी")
     }

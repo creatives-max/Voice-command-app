@@ -15,7 +15,9 @@ import com.voicecontrol.core.model.SessionSummary
 import com.voicecontrol.core.model.StepAction
 import com.voicecontrol.core.model.StepOutcome
 import com.voicecontrol.core.model.UserProfile
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -239,5 +241,27 @@ class FlowLogicTest {
         engine(screen, ScriptedStt(), RecordingTts(), null).start(f)
         advanceUntilIdle()
         assertEquals("hello", screen.valueOf("pay:note"))
+    }
+
+    @Test
+    fun `a flow run on demand opens its app and emits a value-free log`() = runTest {
+        val screen = FakeScreen(ScreenSnapshot("com.launcher", elements = listOf(submit), signature = "home"))
+            .apply { onLaunch["com.form"] = ScreenSnapshot("com.form", title = "Signup", elements = listOf(first, submit), signature = "s1") }
+        val events = mutableListOf<EngineEvent>()
+        val engine = engine(screen, ScriptedStt("Meera"), RecordingTts(), null)
+        val collector = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { engine.events.collect { events += it } }
+        val f = flow("s1", step("a", 0, first), step("c", 1, submit, StepAction.CLICK).copy(skip = true))
+        engine.start(f)
+        advanceUntilIdle()
+        collector.cancel()
+        assertTrue(ScreenAction.LaunchApp("com.form") in screen.actions)
+        assertEquals("Meera", screen.valueOf("vid:first"))
+        val messages = events.map { it.message }
+        assertEquals("Started “Form”", messages.first())
+        assertTrue("Asking: First name" in messages)
+        assertTrue("Filled: First name" in messages)
+        assertTrue("Pressed: Submit" in messages)
+        assertEquals(RunStatus.COMPLETED, events.last().status, messages.toString())
+        assertTrue(messages.none { "Meera" in it })
     }
 }

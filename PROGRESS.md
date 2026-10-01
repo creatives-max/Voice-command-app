@@ -70,11 +70,11 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Tests, commit + push
 
 ## Phase 10 — Triggers & scheduling
-- [ ] Per-flow triggers: on app open, schedules (cron + timezone), manual
-- [ ] Backend scheduler (multi-replica safe), devices, run requests, device command stream
-- [ ] Phone executes remote run requests and streams a live run log
-- [ ] Dashboard: triggers editor, devices, "Run now" with live log
-- [ ] Tests, commit + push
+- [x] Per-flow triggers: on app open, schedules (cron + timezone), manual
+- [x] Backend scheduler (multi-replica safe), devices, run requests, device command stream
+- [x] Phone executes remote run requests and streams a live run log
+- [x] Dashboard: triggers editor, devices, "Run now" with live log
+- [x] Tests, commit + push
 
 ## Phase 11 — Flow marketplace
 - [ ] Publish / browse / search / import (version-aware, update from source), ratings

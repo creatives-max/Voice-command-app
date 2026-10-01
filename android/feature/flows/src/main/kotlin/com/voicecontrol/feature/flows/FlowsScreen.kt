@@ -21,10 +21,12 @@ import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -97,7 +99,7 @@ fun FlowsScreen(state: FlowsState, snackbar: SnackbarHostState, onBack: () -> Un
     ) { padding ->
         when {
             state.loading -> LoadingBox(Modifier.padding(padding))
-            selected != null -> FlowDetail(selected, Modifier.padding(padding), onIntent)
+            selected != null -> FlowDetail(selected, selected.id in state.appOpenFlowIds, Modifier.padding(padding), onIntent)
             state.apps.isEmpty() -> EmptyState(
                 "No flows yet. Run VoiceControl on any app; each form you fill is saved here and can be edited on the dashboard.",
                 Modifier.padding(padding),
@@ -141,7 +143,7 @@ private fun FlowCard(flow: FlowDefinition, onClick: () -> Unit) {
 }
 
 @Composable
-private fun FlowDetail(flow: FlowDefinition, modifier: Modifier, onIntent: (FlowsIntent) -> Unit) {
+private fun FlowDetail(flow: FlowDefinition, startsOnAppOpen: Boolean, modifier: Modifier, onIntent: (FlowsIntent) -> Unit) {
     var confirmDelete by remember { mutableStateOf(false) }
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
@@ -151,6 +153,19 @@ private fun FlowDetail(flow: FlowDefinition, modifier: Modifier, onIntent: (Flow
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = { onIntent(FlowsIntent.Run(flow)) }) {
+                    Icon(Icons.Filled.PlayArrow, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Run now")
+                }
+                if (startsOnAppOpen) {
+                    Spacer(Modifier.width(8.dp))
+                    AssistChip(onClick = {}, label = { Text("Starts when the app opens") })
+                }
+            }
         }
         items(flow.orderedSteps, key = { it.id }) { step -> StepCard(step) }
         item {

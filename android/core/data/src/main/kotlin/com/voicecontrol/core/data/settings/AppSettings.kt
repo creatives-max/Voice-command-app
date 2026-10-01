@@ -19,6 +19,10 @@ data class AppSettings(
     val visionFallback: Boolean = false,
     /** Start the voice session automatically when an app with a saved flow opens. */
     val autoStartWithFlow: Boolean = false,
+    /** Let the dashboard ("Run now") and schedules start flows on this phone. */
+    val remoteRuns: Boolean = true,
+    /** Name shown for this phone in the dashboard; blank = the device model. */
+    val deviceName: String = "",
     val backendUrl: String = "",
     /** Web dashboard where flows are edited; blank = the default for this build. */
     val dashboardUrl: String = "",

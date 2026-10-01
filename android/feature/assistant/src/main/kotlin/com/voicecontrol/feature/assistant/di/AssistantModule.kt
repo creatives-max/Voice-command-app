@@ -15,7 +15,10 @@ import com.voicecontrol.core.engine.port.SessionRecorder
 import com.voicecontrol.core.engine.port.SpeechToText
 import com.voicecontrol.core.engine.port.TextToSpeech
 import com.voicecontrol.core.engine.port.VisionDetector
+import com.voicecontrol.core.engine.port.FlowLauncher
+import com.voicecontrol.feature.assistant.AssistantController
 import com.voicecontrol.feature.assistant.MicPermission
+import com.voicecontrol.feature.assistant.remote.RemoteRunCoordinator
 import com.voicecontrol.feature.assistant.overlay.OverlayManager
 import dagger.Binds
 import dagger.Module
@@ -35,6 +38,13 @@ abstract class AssistantModule {
     @Binds
     @IntoSet
     abstract fun overlayListener(manager: OverlayManager): ServiceListener
+
+    @Binds
+    @IntoSet
+    abstract fun remoteRunListener(coordinator: RemoteRunCoordinator): ServiceListener
+
+    @Binds
+    abstract fun flowLauncher(controller: AssistantController): FlowLauncher
 
     companion object {
         @Provides

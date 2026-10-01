@@ -150,3 +150,51 @@ export const runStatsSchema = z.object({
   topApps: z.array(z.object({ appPackage: z.string(), runs: z.number() })),
 });
 export type RunStats = z.infer<typeof runStatsSchema>;
+
+export const deviceSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  platform: z.string(),
+  appVersion: z.string().nullish(),
+  remoteRuns: z.boolean(),
+  lastSeenAt: z.string(),
+  online: z.boolean(),
+  createdAt: z.string(),
+});
+export type Device = z.infer<typeof deviceSchema>;
+
+export const triggerTypes = ["APP_OPEN", "SCHEDULE"] as const;
+export const triggerSchema = z.object({
+  id: z.string(),
+  flowId: z.string(),
+  type: z.enum(triggerTypes),
+  enabled: z.boolean(),
+  cron: z.string().nullish(),
+  timezone: z.string().nullish(),
+  deviceId: z.string().nullish(),
+  nextRunAt: z.string().nullish(),
+  lastRunAt: z.string().nullish(),
+  upcoming: z.array(z.string()).default([]),
+});
+export type Trigger = z.infer<typeof triggerSchema>;
+
+export const runRequestStatuses = [
+  "PENDING", "DELIVERED", "RUNNING", "COMPLETED", "FAILED", "STOPPED", "CANCEL_REQUESTED", "CANCELLED", "EXPIRED",
+] as const;
+export const finalRunStatuses = new Set<string>(["COMPLETED", "FAILED", "STOPPED", "CANCELLED", "EXPIRED"]);
+export const runRequestSchema = z.object({
+  id: z.string(),
+  flowId: z.string().nullish(),
+  flowName: z.string(),
+  appPackage: z.string(),
+  deviceId: z.string().nullish(),
+  triggerId: z.string().nullish(),
+  source: z.enum(["MANUAL", "SCHEDULE", "APP_OPEN"]),
+  status: z.enum(runRequestStatuses),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type RunRequest = z.infer<typeof runRequestSchema>;
+export const runEventSchema = z.object({ id: z.number(), at: z.string(), kind: z.string(), message: z.string() });
+export type RunEvent = z.infer<typeof runEventSchema>;
+export const runEventsSchema = z.object({ request: runRequestSchema, events: z.array(runEventSchema) });

@@ -3,7 +3,10 @@ package com.voicecontrol.feature.assistant
 import com.voicecontrol.core.engine.AssistantEngine
 import com.voicecontrol.core.engine.EngineState
 import com.voicecontrol.core.engine.EngineStatus
+import com.voicecontrol.core.engine.port.FlowLauncher
+import com.voicecontrol.core.engine.port.LaunchResult
 import com.voicecontrol.core.engine.port.ScreenGateway
+import com.voicecontrol.core.model.FlowDefinition
 import com.voicecontrol.core.model.ActionResult
 import com.voicecontrol.core.model.ElementKind
 import com.voicecontrol.core.model.ScreenAction
@@ -51,7 +54,7 @@ class AssistantController @Inject constructor(
     private val screen: ScreenGateway,
     private val engine: AssistantEngine,
     private val micPermission: MicPermission,
-) : OverlayActions {
+) : OverlayActions, FlowLauncher {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -95,6 +98,20 @@ class AssistantController @Inject constructor(
     /** Starts a session without a tap (auto-start when an app with a saved flow opens). */
     fun startSession() {
         if (!engine.isActive && micPermission.granted()) engine.start()
+    }
+
+    /** Runs [flow] now (opening its app first). */
+    override fun launch(flow: FlowDefinition): LaunchResult {
+        if (engine.isActive) return LaunchResult.BUSY
+        if (!screen.isAvailable.value) return LaunchResult.SERVICE_OFF
+        if (!micPermission.granted()) {
+            flashCaption(MIC_PERMISSION_TEXT, BubbleMode.ERROR)
+            _effects.tryEmit(OverlayEffect.RequestMicPermission)
+            return LaunchResult.NO_MIC_PERMISSION
+        }
+        local.update { it.copy(panelOpen = false, flashCaption = null, flashMode = null) }
+        engine.start(flow)
+        return LaunchResult.STARTED
     }
 
     override fun onMicLongPress() {

@@ -9,6 +9,8 @@ data:
   DATABASE_POOL_SIZE: "10"
   REDIS_URL: redis://redis:6379
   LLM_PROVIDER: anthropic
+  # How often each replica checks schedule triggers (claims are exclusive across replicas).
+  SCHEDULER_INTERVAL_SECONDS: "15"
   ANTHROPIC_MODEL: claude-opus-5-5
   EMBEDDING_PROVIDER: hashing
   LLM_TIMEOUT_MS: "8000"

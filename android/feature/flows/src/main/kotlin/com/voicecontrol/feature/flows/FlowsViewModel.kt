@@ -1,7 +1,9 @@
 package com.voicecontrol.feature.flows
 
 import androidx.lifecycle.viewModelScope
+import com.voicecontrol.core.data.automation.RemoteRunRepository
 import com.voicecontrol.core.data.flows.FlowLibrary
+import com.voicecontrol.core.engine.port.FlowLauncher
 import com.voicecontrol.core.data.settings.SettingsRepository
 import com.voicecontrol.core.ui.mvi.MviViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,6 +15,8 @@ import javax.inject.Inject
 class FlowsViewModel @Inject constructor(
     private val library: FlowLibrary,
     private val settings: SettingsRepository,
+    private val launcher: FlowLauncher,
+    remoteRuns: RemoteRunRepository,
 ) : MviViewModel<FlowsState, FlowsIntent, FlowsEffect>(FlowsState()) {
 
     init {
@@ -24,6 +28,9 @@ class FlowsViewModel @Inject constructor(
                     selected = selected?.let { s -> flows.firstOrNull { it.id == s.id } },
                 )
             }
+        }.launchIn(viewModelScope)
+        remoteRuns.appOpenTriggers.onEach { triggers ->
+            setState { copy(appOpenFlowIds = triggers.map { it.flowId }.toSet()) }
         }.launchIn(viewModelScope)
     }
 
@@ -45,6 +52,7 @@ class FlowsViewModel @Inject constructor(
                 sendEffect(FlowsEffect.Message("Syncing with your account…"))
             }
             FlowsIntent.OpenDashboard -> sendEffect(FlowsEffect.OpenUrl(settings.dashboardUrl()))
+            is FlowsIntent.Run -> launchMessage(launcher.launch(intent.flow))?.let { sendEffect(FlowsEffect.Message(it)) }
         }
     }
 }

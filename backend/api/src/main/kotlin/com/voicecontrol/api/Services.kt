@@ -1,6 +1,21 @@
 package com.voicecontrol.api
 
 import com.voicecontrol.application.ai.AiService
+import com.voicecontrol.application.automation.DeviceService
+import com.voicecontrol.application.automation.RunRequestService
+import com.voicecontrol.application.automation.TriggerScheduler
+import com.voicecontrol.application.automation.TriggerService
+import com.voicecontrol.infrastructure.persistence.JdbcDeviceRepository
+import com.voicecontrol.infrastructure.persistence.JdbcRunRequestRepository
+import com.voicecontrol.infrastructure.persistence.JdbcTriggerRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import org.slf4j.LoggerFactory
 import com.voicecontrol.application.auth.AuthService
 import com.voicecontrol.application.flow.FlowCacheInvalidator
 import com.voicecontrol.application.flow.FlowService
@@ -41,6 +56,10 @@ class Services(
     val flows: FlowService,
     val matcher: FlowMatchService,
     val history: HistoryService,
+    val devices: DeviceService,
+    val triggers: TriggerService,
+    val runRequests: RunRequestService,
+    val scheduler: TriggerScheduler,
     val rateLimiter: RateLimiter,
     val eventBus: RedisStreamEventBus,
     private val database: Database,
@@ -54,7 +73,27 @@ class Services(
         return Readiness(db && cache, db, cache)
     }
 
+    private val schedulerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Fires due schedule triggers every [intervalMillis] (every replica runs it; claims are exclusive). */
+    fun startScheduler(intervalMillis: Long) {
+        val log = LoggerFactory.getLogger(TriggerScheduler::class.java)
+        schedulerScope.launch {
+            while (isActive) {
+                runCatching { scheduler.tick() }
+                    .onSuccess { if (it > 0) log.info("Fired {} scheduled flow(s)", it) }
+                    .onFailure { log.warn("Scheduler tick failed", it) }
+                delay(intervalMillis)
+            }
+        }
+    }
+
+    /** App package of a user's flow (for app-open triggers sent to the phone). */
+    suspend fun flowApp(userId: java.util.UUID, flowId: java.util.UUID): String? =
+        runCatching { flows.get(userId, flowId).flow.appPackage }.getOrNull()
+
     override fun close() {
+        schedulerScope.cancel()
         eventBus.close()
         redis.close()
         http.close()
@@ -88,6 +127,9 @@ object Bootstrap {
             FlowCacheInvalidator(cache),
         ) + extraHandlers
         val bus = RedisStreamEventBus(redis, handlers).also { it.start() }
+        val deviceRepository = JdbcDeviceRepository(database)
+        val triggerRepository = JdbcTriggerRepository(database)
+        val runRequestRepository = JdbcRunRequestRepository(database)
         return Services(
             config = config,
             ai = AiService(LlmProviderFactory.create(config.llm, http), timeoutMillis = config.llm.timeoutMillis),
@@ -101,6 +143,10 @@ object Bootstrap {
             flows = FlowService(flowRepository, bus),
             matcher = FlowMatchService(flowRepository, embeddingRepository, embedder, cache),
             history = HistoryService(JdbcRunRepository(database)),
+            devices = DeviceService(deviceRepository),
+            triggers = TriggerService(triggerRepository, flowRepository, deviceRepository),
+            runRequests = RunRequestService(runRequestRepository, deviceRepository, flowRepository),
+            scheduler = TriggerScheduler(triggerRepository, runRequestRepository),
             rateLimiter = RedisRateLimiter(redis),
             eventBus = bus,
             database = database,

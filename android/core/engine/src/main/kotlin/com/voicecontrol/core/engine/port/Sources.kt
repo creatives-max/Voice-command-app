@@ -35,3 +35,11 @@ fun interface VisionDetector {
         const val VISION_ID_PREFIX = "vision:"
     }
 }
+
+/** Why starting a flow on demand did or didn't work. */
+enum class LaunchResult { STARTED, BUSY, SERVICE_OFF, NO_MIC_PERMISSION }
+
+/** Starts a specific flow on this phone (from the app, the dashboard or a trigger). */
+fun interface FlowLauncher {
+    fun launch(flow: com.voicecontrol.core.model.FlowDefinition): LaunchResult
+}

@@ -63,6 +63,7 @@ private val toggles = listOf(
     Triple(Option.SKIP_FILLED, "Skip fields that already have a value", "Otherwise VoiceControl asks whether to keep them."),
     Triple(Option.TRANSLITERATE, "Type Hindi names in English letters", "राहुल → Rahul for name, email and address fields."),
     Triple(Option.AUTO_START, "Start automatically on saved screens", "Begin asking when an app with a saved flow opens."),
+    Triple(Option.REMOTE_RUNS, "Allow runs from the dashboard", "\"Run now\" and schedules can start flows on this phone. Needs sign-in."),
     Triple(Option.SAVE_HISTORY, "Keep session history", "What happened to each field, never the values."),
     Triple(Option.LOCAL_ONLY, "Local-only mode", "Never contact the server: on-device understanding only, no sync."),
     Triple(Option.VISION_FALLBACK, "Screenshot fallback", "For apps with no readable fields, send a screenshot to find fields and buttons."),
@@ -122,6 +123,15 @@ fun SettingsScreen(
                     Switch(checked = s.isOn(option), onCheckedChange = { onIntent(SettingsIntent.Toggle(option, it)) })
                 }
             }
+            OutlinedTextField(
+                value = state.deviceNameDraft,
+                onValueChange = { onIntent(SettingsIntent.EditDeviceName(it)) },
+                label = { Text("Phone name in the dashboard") },
+                placeholder = { Text(android.os.Build.MODEL) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedButton(onClick = { onIntent(SettingsIntent.SaveDeviceName) }) { Text("Save phone name") }
             HorizontalDivider()
             Text("Servers", style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(

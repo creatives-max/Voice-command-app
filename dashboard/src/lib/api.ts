@@ -1,5 +1,9 @@
 import type { z } from "zod";
 import {
+  deviceSchema,
+  runEventsSchema,
+  runRequestSchema,
+  triggerSchema,
   apiErrorSchema,
   appSummarySchema,
   flowPageSchema,
@@ -13,6 +17,14 @@ import {
   type FlowStep,
   type Profile,
 } from "./types";
+
+export interface TriggerInput {
+  type: "APP_OPEN" | "SCHEDULE";
+  enabled: boolean;
+  cron?: string | null;
+  timezone?: string | null;
+  deviceId?: string | null;
+}
 
 /** Error from the backend (or the proxy) with its machine-readable code. */
 export class ApiError extends Error {
@@ -73,6 +85,22 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args)) {
     runStats: () => request(runStatsSchema, "/runs/stats"),
     deleteRun: (id: string) => request(null, `/runs/${id}`, { method: "DELETE" }),
     clearRuns: () => request(null, "/runs", { method: "DELETE" }),
+
+    devices: () => request(deviceSchema.array(), "/devices"),
+    updateDevice: (id: string, patch: { name?: string; remoteRuns?: boolean }) =>
+      request(deviceSchema, `/devices/${id}`, { method: "PATCH", body: json(patch) }),
+    deleteDevice: (id: string) => request(null, `/devices/${id}`, { method: "DELETE" }),
+
+    triggers: (flowId: string) => request(triggerSchema.array(), `/flows/${flowId}/triggers`),
+    createTrigger: (flowId: string, input: TriggerInput) => request(triggerSchema, `/flows/${flowId}/triggers`, { method: "POST", body: json(input) }),
+    updateTrigger: (id: string, input: TriggerInput) => request(triggerSchema, `/triggers/${id}`, { method: "PUT", body: json(input) }),
+    deleteTrigger: (id: string) => request(null, `/triggers/${id}`, { method: "DELETE" }),
+
+    runNow: (flowId: string, deviceId?: string) => request(runRequestSchema, "/run-requests", { method: "POST", body: json({ flowId, deviceId: deviceId || undefined }) }),
+    runRequests: (flowId?: string) => request(runRequestSchema.array(), `/run-requests?limit=50${flowId ? `&flowId=${flowId}` : ""}`),
+    runEvents: (id: string, after: number, wait: number, signal?: AbortSignal) =>
+      request(runEventsSchema, `/run-requests/${id}/events?after=${after}&wait=${wait}`, { signal }),
+    cancelRun: (id: string) => request(runRequestSchema, `/run-requests/${id}/cancel`, { method: "POST", body: json({}) }),
 
     profile: () => request(profileSchema, "/profile"),
     saveProfile: (profile: Profile) => request(profileSchema, "/profile", { method: "PUT", body: json(profile) }),

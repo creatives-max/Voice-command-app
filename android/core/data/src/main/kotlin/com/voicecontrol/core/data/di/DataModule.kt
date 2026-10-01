@@ -1,6 +1,8 @@
 package com.voicecontrol.core.data.di
 
 import android.content.Context
+import android.os.Build
+import com.voicecontrol.core.data.automation.DeviceInfo
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
@@ -44,6 +46,13 @@ abstract class DataModule {
     @Binds abstract fun visionDetector(impl: RemoteVisionDetector): VisionDetector
 
     companion object {
+        @Provides
+        fun deviceInfo(@ApplicationContext context: Context): DeviceInfo = object : DeviceInfo {
+            override val model: String =
+                if (Build.MODEL.startsWith(Build.MANUFACTURER, ignoreCase = true)) Build.MODEL else "${Build.MANUFACTURER} ${Build.MODEL}"
+            override val appVersion: String? = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull()
+        }
+
         @Provides
         @Singleton
         fun database(@ApplicationContext context: Context): AppDatabase =

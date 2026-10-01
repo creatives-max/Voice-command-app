@@ -8,6 +8,7 @@ data class SettingsState(
     val settings: AppSettings = AppSettings(),
     val backendUrlDraft: String = "",
     val dashboardUrlDraft: String = "",
+    val deviceNameDraft: String = "",
 )
 
 sealed interface SettingsIntent {
@@ -17,10 +18,12 @@ sealed interface SettingsIntent {
     data class EditBackendUrl(val value: String) : SettingsIntent
     data class EditDashboardUrl(val value: String) : SettingsIntent
     data object SaveUrls : SettingsIntent
+    data class EditDeviceName(val value: String) : SettingsIntent
+    data object SaveDeviceName : SettingsIntent
     data object TestVoice : SettingsIntent
 }
 
-enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START }
+enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START, REMOTE_RUNS }
 
 sealed interface SettingsEffect {
     data class Message(val text: String) : SettingsEffect
@@ -37,6 +40,7 @@ fun AppSettings.with(option: Option, enabled: Boolean): AppSettings = when (opti
     Option.SHOW_OVERLAY -> copy(showOverlay = enabled)
     Option.VISION_FALLBACK -> copy(visionFallback = enabled, localOnly = if (enabled) false else localOnly)
     Option.AUTO_START -> copy(autoStartWithFlow = enabled)
+    Option.REMOTE_RUNS -> copy(remoteRuns = enabled)
 }
 
 fun AppSettings.isOn(option: Option): Boolean = when (option) {
@@ -49,6 +53,7 @@ fun AppSettings.isOn(option: Option): Boolean = when (option) {
     Option.SHOW_OVERLAY -> showOverlay
     Option.VISION_FALLBACK -> visionFallback
     Option.AUTO_START -> autoStartWithFlow
+    Option.REMOTE_RUNS -> remoteRuns
 }
 
 /** Accepts http(s) URLs only; blank means "use the build default". */

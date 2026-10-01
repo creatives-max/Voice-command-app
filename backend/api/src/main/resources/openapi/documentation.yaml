@@ -357,6 +357,147 @@ paths:
                         height: { type: integer }
         "400": { $ref: "#/components/responses/Error" }
         "429": { $ref: "#/components/responses/Error" }
+  /v1/devices:
+    post:
+      tags: [Automation]
+      summary: Register (or update) this phone for remote runs
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/RegisterDevice" } } } }
+      responses:
+        "200": { description: Device, content: { application/json: { schema: { $ref: "#/components/schemas/Device" } } } }
+        "409": { description: Device id belongs to another account }
+    get:
+      tags: [Automation]
+      summary: Phones signed in to this account
+      responses:
+        "200": { description: Devices, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Device" } } } } }
+  /v1/devices/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Automation]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { name: { type: string }, remoteRuns: { type: boolean } } } } } }
+      responses:
+        "200": { description: Device, content: { application/json: { schema: { $ref: "#/components/schemas/Device" } } } }
+    delete:
+      tags: [Automation]
+      responses:
+        "204": { description: Removed }
+  /v1/devices/{id}/commands:
+    get:
+      tags: [Automation]
+      summary: Long-poll used by the phone for flows to run and runs to stop
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: wait, in: query, schema: { type: integer, minimum: 0, maximum: 30, default: 25 } }
+      responses:
+        "200":
+          description: Pending run requests (now DELIVERED) and run ids to cancel
+          content: { application/json: { schema: { type: object, properties: { run: { type: array, items: { $ref: "#/components/schemas/RunRequest" } }, cancel: { type: array, items: { type: string } } } } } }
+  /v1/devices/{id}/triggers:
+    get:
+      tags: [Automation]
+      summary: Enabled app-open triggers that apply to this phone
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Triggers, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Trigger" } } } } }
+  /v1/devices/{id}/app-open-runs:
+    post:
+      tags: [Automation]
+      summary: The phone started a flow because its app opened
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [flowId], properties: { flowId: { type: string }, triggerId: { type: string } } } } } }
+      responses:
+        "201": { description: Run request, content: { application/json: { schema: { $ref: "#/components/schemas/RunRequest" } } } }
+  /v1/flows/{id}/triggers:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Automation]
+      responses:
+        "200": { description: Triggers, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Trigger" } } } } }
+    post:
+      tags: [Automation]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/TriggerInput" } } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Trigger" } } } }
+        "400": { description: Invalid schedule or time zone }
+  /v1/triggers/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      tags: [Automation]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/TriggerInput" } } } }
+      responses:
+        "200": { description: Updated, content: { application/json: { schema: { $ref: "#/components/schemas/Trigger" } } } }
+    delete:
+      tags: [Automation]
+      responses:
+        "204": { description: Deleted }
+  /v1/run-requests:
+    post:
+      tags: [Automation]
+      summary: Run a flow now on a phone (default the most recently seen one)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [flowId], properties: { flowId: { type: string }, deviceId: { type: string } } } } } }
+      responses:
+        "201": { description: Run request, content: { application/json: { schema: { $ref: "#/components/schemas/RunRequest" } } } }
+        "400": { description: No phone, or remote runs are off on it }
+    get:
+      tags: [Automation]
+      parameters:
+        - { name: flowId, in: query, schema: { type: string, format: uuid } }
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+      responses:
+        "200": { description: Run requests, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/RunRequest" } } } } }
+  /v1/run-requests/{id}:
+    get:
+      tags: [Automation]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Run request, content: { application/json: { schema: { $ref: "#/components/schemas/RunRequest" } } } }
+  /v1/run-requests/{id}/events:
+    get:
+      tags: [Automation]
+      summary: Live log (long-poll) — events after `after`, waiting up to `wait` seconds for new ones
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: after, in: query, schema: { type: integer, format: int64, default: 0 } }
+        - { name: wait, in: query, schema: { type: integer, minimum: 0, maximum: 30, default: 0 } }
+      responses:
+        "200":
+          description: Current request and new events
+          content: { application/json: { schema: { type: object, properties: { request: { $ref: "#/components/schemas/RunRequest" }, events: { type: array, items: { $ref: "#/components/schemas/RunEvent" } } } } } }
+  /v1/run-requests/{id}/cancel:
+    post:
+      tags: [Automation]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Cancelled (or stop requested), content: { application/json: { schema: { $ref: "#/components/schemas/RunRequest" } } } }
+        "409": { description: Already finished }
+  /v1/run-requests/{id}/report:
+    post:
+      tags: [Automation]
+      summary: Status and value-free log lines from the phone running the request
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deviceId]
+              properties:
+                deviceId: { type: string }
+                status: { $ref: "#/components/schemas/RunRequestStatus" }
+                events: { type: array, maxItems: 50, items: { type: object, properties: { kind: { type: string }, message: { type: string, maxLength: 300 } } } }
+      responses:
+        "200": { description: Updated, content: { application/json: { schema: { $ref: "#/components/schemas/RunRequest" } } } }
+        "403": { description: Run belongs to another device }
+        "409": { description: Already finished }
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
@@ -371,6 +512,69 @@ components:
               error: { type: string, example: validation_error }
               message: { type: string }
   schemas:
+    RegisterDevice:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid, description: Generated once per installation }
+        name: { type: string, maxLength: 60 }
+        platform: { type: string, default: android }
+        appVersion: { type: string, nullable: true }
+        remoteRuns: { type: boolean, nullable: true }
+    Device:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        platform: { type: string }
+        appVersion: { type: string, nullable: true }
+        remoteRuns: { type: boolean }
+        lastSeenAt: { type: string, format: date-time }
+        online: { type: boolean, description: Polled in the last 90 seconds }
+        createdAt: { type: string, format: date-time }
+    TriggerInput:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string, enum: [APP_OPEN, SCHEDULE] }
+        enabled: { type: boolean, default: true }
+        cron: { type: string, nullable: true, description: "5-field cron (minute hour day month weekday), SCHEDULE only" }
+        timezone: { type: string, nullable: true, description: IANA zone, SCHEDULE only }
+        deviceId: { type: string, nullable: true, description: Phone to run on; null = most recently seen }
+    Trigger:
+      allOf:
+        - $ref: "#/components/schemas/TriggerInput"
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            flowId: { type: string, format: uuid }
+            nextRunAt: { type: string, format: date-time, nullable: true }
+            lastRunAt: { type: string, format: date-time, nullable: true }
+            upcoming: { type: array, items: { type: string, format: date-time } }
+            appPackage: { type: string, nullable: true }
+    RunRequestStatus:
+      type: string
+      enum: [PENDING, DELIVERED, RUNNING, COMPLETED, FAILED, STOPPED, CANCEL_REQUESTED, CANCELLED, EXPIRED]
+    RunRequest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        flowId: { type: string, format: uuid, nullable: true }
+        flowName: { type: string }
+        appPackage: { type: string }
+        deviceId: { type: string, nullable: true }
+        triggerId: { type: string, nullable: true }
+        source: { type: string, enum: [MANUAL, SCHEDULE, APP_OPEN] }
+        status: { $ref: "#/components/schemas/RunRequestStatus" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    RunEvent:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        at: { type: string, format: date-time }
+        kind: { type: string }
+        message: { type: string, description: Labels and outcomes only, never values }
     RegisterRequest:
       type: object
       required: [email, password]

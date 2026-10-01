@@ -13,6 +13,8 @@ data class AppConfig(
     val serviceName: String,
     /** Max register/login attempts per client IP per minute. */
     val authRateLimitPerMinute: Int = 10,
+    /** How often schedule triggers are checked; 0 turns the scheduler off on this replica. */
+    val schedulerIntervalSeconds: Int = 15,
 ) {
     data class DatabaseConfig(val url: String, val user: String, val password: String, val maxPoolSize: Int)
     data class JwtConfig(val secret: String, val issuer: String, val audience: String, val accessTtlSeconds: Long, val refreshTtlSeconds: Long)
@@ -61,6 +63,7 @@ data class AppConfig(
                 otlpEndpoint = env["OTEL_EXPORTER_OTLP_ENDPOINT"]?.takeIf { it.isNotBlank() },
                 serviceName = get("OTEL_SERVICE_NAME", "voicecontrol-backend"),
                 authRateLimitPerMinute = get("AUTH_RATE_LIMIT_PER_MINUTE", "10").toInt(),
+                schedulerIntervalSeconds = get("SCHEDULER_INTERVAL_SECONDS", "15").toInt(),
             )
         }
     }

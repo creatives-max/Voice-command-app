@@ -1,6 +1,6 @@
 import { Link, Outlet, useNavigate } from "@tanstack/react-router";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { History, LogOut, Mic, UserRound, Workflow } from "lucide-react";
+import { History, LogOut, Mic, Smartphone, UserRound, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { sessionQuery } from "@/lib/queries";
@@ -31,6 +31,9 @@ export function AppShell() {
         </Link>
         <Link to="/history" className={nav} activeProps={{ className: "bg-secondary !text-foreground" }}>
           <History className="size-4" /> History
+        </Link>
+        <Link to="/devices" className={nav} activeProps={{ className: "bg-secondary !text-foreground" }}>
+          <Smartphone className="size-4" /> Devices
         </Link>
         <Link to="/profile" className={nav} activeProps={{ className: "bg-secondary !text-foreground" }}>
           <UserRound className="size-4" /> Profile

@@ -1,5 +1,5 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "./api";
+import { api, type TriggerInput } from "./api";
 import type { FlowStep, Profile } from "./types";
 
 export const keys = {
@@ -11,7 +11,49 @@ export const keys = {
   profile: ["profile"] as const,
   runs: (appPackage?: string) => ["runs", appPackage ?? "all"] as const,
   runStats: ["runs", "stats"] as const,
+  devices: ["devices"] as const,
+  triggers: (flowId: string) => ["flow", flowId, "triggers"] as const,
+  runRequests: (flowId?: string) => ["run-requests", flowId ?? "all"] as const,
 };
+
+export const devicesQuery = queryOptions({ queryKey: keys.devices, queryFn: api.devices, refetchInterval: 30_000 });
+export const triggersQuery = (flowId: string) => queryOptions({ queryKey: keys.triggers(flowId), queryFn: () => api.triggers(flowId) });
+export const runRequestsQuery = (flowId?: string) =>
+  queryOptions({ queryKey: keys.runRequests(flowId), queryFn: () => api.runRequests(flowId), refetchInterval: 10_000 });
+
+export function useRunNow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ flowId, deviceId }: { flowId: string; deviceId?: string }) => api.runNow(flowId, deviceId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["run-requests"] }),
+  });
+}
+
+export function useSaveTrigger(flowId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: TriggerInput }) => (id ? api.updateTrigger(id, input) : api.createTrigger(flowId, input)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.triggers(flowId) }),
+  });
+}
+
+export function useDeleteTrigger(flowId: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => api.deleteTrigger(id), onSuccess: () => qc.invalidateQueries({ queryKey: keys.triggers(flowId) }) });
+}
+
+export function useUpdateDevice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: { name?: string; remoteRuns?: boolean } }) => api.updateDevice(id, patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.devices }),
+  });
+}
+
+export function useDeleteDevice() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => api.deleteDevice(id), onSuccess: () => qc.invalidateQueries({ queryKey: keys.devices }) });
+}
 
 export const sessionQuery = queryOptions({ queryKey: keys.session, queryFn: api.session, retry: false, staleTime: 60_000 });
 export const appsQuery = queryOptions({ queryKey: keys.apps, queryFn: api.apps });

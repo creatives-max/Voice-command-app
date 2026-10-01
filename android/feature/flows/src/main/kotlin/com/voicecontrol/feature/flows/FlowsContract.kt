@@ -8,6 +8,8 @@ data class FlowsState(
     val loading: Boolean = true,
     val apps: List<AppFlows> = emptyList(),
     val selected: FlowDefinition? = null,
+    /** Flows that start by themselves when their app opens (set on the dashboard). */
+    val appOpenFlowIds: Set<String> = emptySet(),
 )
 
 sealed interface FlowsIntent {
@@ -16,11 +18,21 @@ sealed interface FlowsIntent {
     data class Delete(val flow: FlowDefinition) : FlowsIntent
     data object Sync : FlowsIntent
     data object OpenDashboard : FlowsIntent
+    /** Run this flow now: opens its app and starts the voice session. */
+    data class Run(val flow: FlowDefinition) : FlowsIntent
 }
 
 sealed interface FlowsEffect {
     data class Message(val text: String) : FlowsEffect
     data class OpenUrl(val url: String) : FlowsEffect
+}
+
+/** What to tell the user after asking to run a flow. */
+fun launchMessage(result: com.voicecontrol.core.engine.port.LaunchResult): String? = when (result) {
+    com.voicecontrol.core.engine.port.LaunchResult.STARTED -> null
+    com.voicecontrol.core.engine.port.LaunchResult.BUSY -> "A voice session is already running"
+    com.voicecontrol.core.engine.port.LaunchResult.SERVICE_OFF -> "Turn on the VoiceControl accessibility service first"
+    com.voicecontrol.core.engine.port.LaunchResult.NO_MIC_PERMISSION -> "Allow microphone access to run flows"
 }
 
 /** Groups flows by app, apps ordered by most recent change. */

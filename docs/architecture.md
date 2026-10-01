@@ -126,6 +126,20 @@ Flows are more than an ordered list of questions:
   to change (or launches the app via `ScreenAction.LaunchApp`) and continues; variables carry across screens.
 - **Dry run**: the dashboard's *Test run* panel simulates the edited flow without a phone, from typed answers.
 
+## Triggers, schedules and remote runs
+
+- **Devices**: a signed-in phone registers itself (`POST /v1/devices`, a random id per installation) and, while its
+  accessibility service runs, long-polls `GET /v1/devices/{id}/commands?wait=25` for flows to run or stop. Long polling
+  works through proxies and across backend replicas (state is in Postgres).
+- **Run requests** (`run_requests` + `run_request_events`): created by "Run now" in the dashboard, by schedules, or by
+  the phone when an app-open trigger fires. The phone reports status and value-free log lines (labels and outcomes —
+  never spoken, typed or profile values); the dashboard follows them with a long-polled live log. Undelivered requests
+  expire after 10 minutes.
+- **Triggers** (`flow_triggers`): `APP_OPEN` triggers are sent to the phone (cached for offline use) and evaluated there
+  on every foreground-app change; `SCHEDULE` triggers are 5-field cron expressions in an IANA time zone. Every replica
+  runs the scheduler; each tick claims due rows with `SELECT … FOR UPDATE SKIP LOCKED`, creates the run request and
+  advances `next_run_at` in one transaction, so each due time fires exactly once.
+
 ## Observability
 
 - OpenTelemetry SDK (autoconfigured) with Ktor server instrumentation; spans for every request and for each event

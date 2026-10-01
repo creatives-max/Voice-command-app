@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.voicecontrol.core.accessibility.ServiceListener
+import com.voicecontrol.core.data.automation.RemoteRunRepository
 import com.voicecontrol.core.data.settings.SettingsRepository
 import com.voicecontrol.core.engine.port.FlowSource
 import com.voicecontrol.core.engine.port.ScreenGateway
@@ -37,6 +38,7 @@ class OverlayManager @Inject constructor(
     private val settings: SettingsRepository,
     private val screen: ScreenGateway,
     private val flows: FlowSource,
+    private val remoteRuns: RemoteRunRepository,
 ) : ServiceListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -83,6 +85,8 @@ class OverlayManager @Inject constructor(
         autoStartJob = scope.launch {
             val prefs = settings.appSettings()
             if (!prefs.autoStartWithFlow || controller.sessionActive) return@launch
+            // An app-open trigger runs its own flow for this app (see RemoteRunCoordinator).
+            if (remoteRuns.triggerFor(packageName) != null) return@launch
             delay(AUTO_START_SETTLE_MS)
             val snapshot = screen.capture() ?: return@launch
             if (snapshot.packageName == packageName && flows.flowFor(snapshot) != null) controller.startSession()

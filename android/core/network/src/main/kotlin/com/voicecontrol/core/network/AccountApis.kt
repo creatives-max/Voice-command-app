@@ -12,6 +12,7 @@ import com.voicecontrol.core.network.dto.MatchResponseDto
 import com.voicecontrol.core.network.dto.PageDto
 import com.voicecontrol.core.network.dto.RegisterRequestDto
 import com.voicecontrol.core.network.dto.UserDto
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.setBody
 import io.ktor.http.HttpMethod
 import javax.inject.Inject
@@ -69,4 +70,32 @@ class HistoryApi @Inject constructor(private val api: ApiClient) {
         ).inserted
 
     suspend fun clear() = api.delete("/v1/runs")
+}
+
+/** Remote runs: device registration, the command long-poll, app-open triggers and run reports. */
+@Singleton
+class AutomationApi @Inject constructor(private val api: ApiClient) {
+    suspend fun register(device: com.voicecontrol.core.network.dto.RegisterDeviceDto): com.voicecontrol.core.network.dto.DeviceDto =
+        api.post<com.voicecontrol.core.network.dto.RegisterDeviceDto, com.voicecontrol.core.network.dto.DeviceDto>("/v1/devices", device)
+
+    /** Waits up to [waitSeconds] for flows to run or runs to stop on this phone. */
+    suspend fun commands(deviceId: String, waitSeconds: Int): com.voicecontrol.core.network.dto.DeviceCommandsDto =
+        api.get("/v1/devices/$deviceId/commands") {
+            url.parameters.append("wait", waitSeconds.toString())
+            timeout {
+                requestTimeoutMillis = (waitSeconds + 15) * 1_000L
+                socketTimeoutMillis = (waitSeconds + 15) * 1_000L
+            }
+        }
+
+    suspend fun triggers(deviceId: String): List<com.voicecontrol.core.network.dto.TriggerDto> = api.get("/v1/devices/$deviceId/triggers")
+
+    suspend fun appOpenRun(deviceId: String, flowId: String, triggerId: String?): com.voicecontrol.core.network.dto.RunRequestDto =
+        api.post<com.voicecontrol.core.network.dto.AppOpenRunDto, com.voicecontrol.core.network.dto.RunRequestDto>(
+            "/v1/devices/$deviceId/app-open-runs",
+            com.voicecontrol.core.network.dto.AppOpenRunDto(flowId, triggerId),
+        )
+
+    suspend fun report(requestId: String, report: com.voicecontrol.core.network.dto.RunReportDto): com.voicecontrol.core.network.dto.RunRequestDto =
+        api.post<com.voicecontrol.core.network.dto.RunReportDto, com.voicecontrol.core.network.dto.RunRequestDto>("/v1/run-requests/$requestId/report", report)
 }

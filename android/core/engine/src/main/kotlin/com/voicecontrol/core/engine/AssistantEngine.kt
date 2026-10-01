@@ -39,7 +39,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -51,6 +54,21 @@ import java.time.ZoneId
 import java.util.UUID
 
 enum class EngineStatus { IDLE, STARTING, SPEAKING, LISTENING, THINKING, ACTING, PAUSED, FINISHED, ERROR }
+
+/**
+ * A line for the live run log (dashboard "Run now"). Never contains spoken, typed or profile values:
+ * only labels, step outcomes and session status.
+ */
+data class EngineEvent(val kind: String, val message: String, val status: RunStatus? = null) {
+    companion object {
+        const val STATUS = "status"
+        const val SCREEN = "screen"
+        const val ASK = "ask"
+        const val STEP = "step"
+        const val PRESS = "press"
+        const val ERROR = "error"
+    }
+}
 
 /** Observable state of a voice session, rendered by the overlay. */
 data class EngineState(
@@ -94,6 +112,14 @@ class AssistantEngine(
 ) {
     private val _state = MutableStateFlow(EngineState())
     val state: StateFlow<EngineState> = _state.asStateFlow()
+
+    private val _events = MutableSharedFlow<EngineEvent>(extraBufferCapacity = 256)
+    /** Value-free progress events of the current session, for remote run logs. */
+    val events: SharedFlow<EngineEvent> = _events.asSharedFlow()
+
+    private fun emit(kind: String, message: String, status: RunStatus? = null) {
+        _events.tryEmit(EngineEvent(kind, message, status))
+    }
 
     private var job: Job? = null
     private val localCommands = LocalInterpreter()
@@ -157,16 +183,25 @@ class AssistantEngine(
     }
 
     /** Per-screen recording. */
-    private class ScreenLog(val snapshot: ScreenSnapshot, val flowId: String?, val flowVersion: Int?) {
+    private class ScreenLog(
+        val snapshot: ScreenSnapshot,
+        val flowId: String?,
+        val flowVersion: Int?,
+        val onRecord: (StepRecord) -> Unit = {},
+    ) {
         val steps = LinkedHashMap<String, StepRecord>()
         /** Set while a REPEAT item runs, so each item's steps are recorded separately. */
         var keySuffix = ""
         fun put(step: PlanStep, outcome: StepOutcome, question: String?, by: String? = null) {
             if (step.virtual) return
-            steps[step.elementId + keySuffix] = StepRecord(step.elementId, step.label, step.kind, step.fieldType, question, outcome, by)
+            val record = StepRecord(step.elementId, step.label, step.kind, step.fieldType, question, outcome, by)
+            steps[step.elementId + keySuffix] = record
+            onRecord(record)
         }
         fun putClick(element: ScreenElement) {
-            steps[element.id + keySuffix] = StepRecord(element.id, element.label, element.kind, null, null, StepOutcome.CLICKED)
+            val record = StepRecord(element.id, element.label, element.kind, null, null, StepOutcome.CLICKED)
+            steps[element.id + keySuffix] = record
+            onRecord(record)
         }
         fun toRecord() = ScreenRecord(
             appPackage = snapshot.packageName,
@@ -183,8 +218,10 @@ class AssistantEngine(
         val cfg = config.current()
         val session = Session(cfg)
         _state.value = EngineState(status = EngineStatus.STARTING, active = true)
+        emit(EngineEvent.STATUS, if (preselected != null) "Started “${preselected.name}”" else "Session started")
         try {
             if (!screen.isAvailable.value) {
+                emit(EngineEvent.ERROR, "The accessibility service is off")
                 say(session, session.phrases.serviceOff())
                 session.status = RunStatus.FAILED
                 return
@@ -194,8 +231,14 @@ class AssistantEngine(
             // A multi-screen (or preselected) flow in progress, and which of its screens is next.
             var active: FlowDefinition? = preselected
             var segment = 0
-            preselected?.segments?.firstOrNull()?.firstOrNull()?.takeIf { it.action.isScreenBoundary }?.let { boundary ->
+            val opening = preselected?.let { flow ->
+                flow.segments.firstOrNull()?.firstOrNull()?.takeIf { it.action.isScreenBoundary }
+                    // A flow started on demand runs in its own app: open it unless it is already in front.
+                    ?: FlowStep("open", -1, "", flow.name, ElementKind.BUTTON, action = StepAction.OPEN_APP, appPackage = flow.appPackage)
+            }
+            opening?.let { boundary ->
                 if (!enterSegment(session, boundary, previousSignature = null)) {
+                    emit(EngineEvent.ERROR, "Could not open ${boundary.appPackage ?: "the app"}")
                     say(session, session.phrases.screenNotReached())
                     session.status = RunStatus.FAILED
                     return
@@ -205,6 +248,7 @@ class AssistantEngine(
                 visited++
                 val snapshot = readScreen(session)
                 if (snapshot == null || !snapshot.hasReadableElements) {
+                    emit(EngineEvent.ERROR, "Could not read the screen")
                     say(session, session.phrases.cannotRead())
                     session.status = RunStatus.FAILED
                     return
@@ -230,7 +274,20 @@ class AssistantEngine(
                 session.screenVars = screenVariables(snapshot)
                 session.currentSignature = snapshot.signature
                 val plan = PlanBuilder(session.phrases).build(snapshot, flow, profile)
-                val log = ScreenLog(snapshot, plan.flowId, plan.flowVersion)
+                emit(EngineEvent.SCREEN, "Screen: ${snapshot.title ?: snapshot.activityName?.substringAfterLast('.') ?: snapshot.packageName}")
+                val log = ScreenLog(snapshot, plan.flowId, plan.flowVersion) { record ->
+                    val verb = when (record.outcome) {
+                        StepOutcome.FILLED -> "Filled"
+                        StepOutcome.DEFAULT_FILLED -> "Filled automatically"
+                        StepOutcome.KEPT -> "Kept"
+                        StepOutcome.SKIPPED -> "Skipped"
+                        StepOutcome.MANUAL -> "Typed by the user"
+                        StepOutcome.CLICKED -> "Pressed"
+                        StepOutcome.TOGGLED -> "Set"
+                        StepOutcome.FAILED -> "Could not fill"
+                    }
+                    emit(if (record.outcome == StepOutcome.CLICKED) EngineEvent.PRESS else EngineEvent.STEP, "$verb: ${record.label}")
+                }
                 val outcome = try {
                     runScreen(session, snapshot, plan, log, announce = first)
                 } finally {
@@ -247,6 +304,7 @@ class AssistantEngine(
                     // Continue the same flow on its next screen (possibly in another app).
                     segment++
                     if (!enterSegment(session, multi.segments[segment].first(), previousSignature = session.currentSignature)) {
+                        emit(EngineEvent.ERROR, "The next screen did not appear")
                         say(session, session.phrases.screenNotReached())
                         session.status = RunStatus.FAILED
                         return
@@ -272,6 +330,7 @@ class AssistantEngine(
             throw e
         } catch (e: Exception) {
             session.status = RunStatus.FAILED
+            emit(EngineEvent.ERROR, e.message ?: "Unexpected error")
             _state.update { it.copy(status = EngineStatus.ERROR, caption = e.message ?: session.phrases.actionFailed()) }
         } finally {
             withContext(NonCancellable) {
@@ -314,6 +373,7 @@ class AssistantEngine(
                 if (pkg == null) return false
                 if (screen.capture()?.packageName == pkg) return true
                 say(session, session.phrases.openingApp(boundary.label.ifBlank { pkg }))
+                emit(EngineEvent.SCREEN, "Opening $pkg")
                 setStatus(EngineStatus.ACTING)
                 if (!perform(ScreenAction.LaunchApp(pkg)).isSuccess) return false
                 waitForScreen(timeoutMs) { it.packageName == pkg }
@@ -321,6 +381,7 @@ class AssistantEngine(
             StepAction.NEXT_SCREEN -> {
                 if (previousSignature == null) return true
                 setStatus(EngineStatus.THINKING, caption = session.phrases.waitingForScreen())
+                emit(EngineEvent.SCREEN, "Waiting for the next screen")
                 waitForScreen(timeoutMs) { snap ->
                     (pkg == null || snap.packageName == pkg) && snap.signature != previousSignature
                 }
@@ -393,6 +454,12 @@ class AssistantEngine(
             screens = session.screens.toList(),
         )
         if (summary.screens.isNotEmpty()) runCatching { recorder.record(summary) }
+        val ending = when (session.status) {
+            RunStatus.COMPLETED -> "Finished"
+            RunStatus.STOPPED -> "Stopped"
+            RunStatus.FAILED -> "Failed"
+        }
+        emit(EngineEvent.STATUS, ending, session.status)
         _state.update {
             it.copy(
                 status = if (session.status == RunStatus.FAILED) EngineStatus.ERROR else EngineStatus.FINISHED,
@@ -572,6 +639,7 @@ class AssistantEngine(
             }
         }
         val templated = if ('{' in step.question) step.copy(question = template(session, step.question)) else step
+        if (!step.skip) emit(EngineEvent.ASK, "Asking: ${step.label}")
         return handleStep(session, snapshot, templated, log, filledByExtras)
     }
 

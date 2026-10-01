@@ -34,6 +34,7 @@ Only when you are **signed in** and **local-only mode is off**:
 | Flows: labels, questions, rules, defaults you add | Flow library and dashboard editing |
 | History: what happened to each field (filled, skipped, typed by you), no values | Your history page |
 | Profile details you enter (name, email, phone, address…) | Offer them when a form asks |
+| Phone name, app version and last-seen time; remote-run logs (step labels and outcomes, no values) | Run flows from the dashboard, on schedules or when an app opens |
 
 ## AI providers
 

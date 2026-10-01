@@ -17,7 +17,8 @@ data class SyncReport(val uploadedFlows: Int = 0, val failures: Int = 0, val una
  * Keeps the phone and the backend in step:
  * - pushes local profile edits (or pulls the server profile),
  * - uploads flows recorded on the phone (the server copy then replaces the local draft),
- * - refreshes cached server flows so dashboard edits reach the phone.
+ * - refreshes cached server flows so dashboard edits reach the phone,
+ * - registers the phone for remote runs and refreshes its app-open triggers.
  */
 @Singleton
 class SyncManager @Inject constructor(
@@ -27,6 +28,7 @@ class SyncManager @Inject constructor(
     private val flowApi: FlowApi,
     private val history: HistoryRepository,
     private val historyApi: HistoryApi,
+    private val remoteRuns: com.voicecontrol.core.data.automation.RemoteRunRepository,
 ) {
     suspend fun syncAll(pullProfile: Boolean): SyncReport {
         var failures = 0
@@ -53,6 +55,14 @@ class SyncManager @Inject constructor(
         failures += refreshServerFlows()
         try {
             uploadHistory()
+        } catch (e: ApiException) {
+            if (e.isUnauthorized) return SyncReport(uploaded, failures, unauthorized = true)
+            failures++
+        }
+        try {
+            // Keeps this phone listed in the dashboard and its app-open triggers current.
+            remoteRuns.register()
+            remoteRuns.refreshTriggers()
         } catch (e: ApiException) {
             if (e.isUnauthorized) return SyncReport(uploaded, failures, unauthorized = true)
             failures++

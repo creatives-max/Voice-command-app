@@ -6,6 +6,7 @@ import com.voicecontrol.api.plugins.configureSecurity
 import com.voicecontrol.api.plugins.configureTelemetry
 import com.voicecontrol.api.routes.historyRoutes
 import com.voicecontrol.api.routes.aiRoutes
+import com.voicecontrol.api.routes.automationRoutes
 import com.voicecontrol.api.routes.authRoutes
 import com.voicecontrol.api.routes.flowRoutes
 import com.voicecontrol.api.routes.profileRoutes
@@ -26,6 +27,7 @@ fun main() {
     val config = AppConfig.fromEnv()
     val telemetry = Telemetry.init(config.serviceName, config.otlpEndpoint)
     val services = Bootstrap.create(config)
+    if (config.schedulerIntervalSeconds > 0) services.startScheduler(config.schedulerIntervalSeconds * 1_000L)
     embeddedServer(Netty, port = config.port, host = "0.0.0.0") {
         configureTelemetry(telemetry)
         voiceControl(services)
@@ -49,6 +51,7 @@ fun Application.voiceControl(services: Services) {
         flowRoutes(services.flows, services.matcher)
         aiRoutes(services.ai, services.rateLimiter)
         historyRoutes(services.history)
+        automationRoutes(services.devices, services.triggers, services.runRequests, services::flowApp)
     }
 }
 

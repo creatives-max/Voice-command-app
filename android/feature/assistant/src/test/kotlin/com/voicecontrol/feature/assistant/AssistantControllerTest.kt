@@ -104,4 +104,15 @@ class AssistantControllerTest {
         runCurrent()
         assertEquals(BubbleMode.ERROR, controller.state.value.mode)
     }
+
+    @Test
+    fun `launching a flow reports why it can't start`() = runTest(dispatcher) {
+        val flow = com.voicecontrol.core.model.FlowDefinition("f1", 1, "com.app", "Signup", "sig", emptyList())
+        micGranted = false
+        val controller = controller()
+        assertEquals(com.voicecontrol.core.engine.port.LaunchResult.NO_MIC_PERMISSION, controller.launch(flow))
+        micGranted = true
+        assertEquals(com.voicecontrol.core.engine.port.LaunchResult.STARTED, controller.launch(flow))
+        assertEquals(com.voicecontrol.core.engine.port.LaunchResult.BUSY, controller.launch(flow))
+    }
 }

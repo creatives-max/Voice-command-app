@@ -2,6 +2,9 @@ import { createRootRouteWithContext, createRoute, createRouter, Outlet, redirect
 import type { QueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/app-shell";
 import { LoginPage } from "@/features/auth/login-page";
+import { AutomationPage } from "@/features/automation/automation-page";
+import { DevicesPage } from "@/features/automation/devices-page";
+import { LiveRunPage } from "@/features/automation/live-run-page";
 import { FlowEditorPage } from "@/features/flows/flow-editor-page";
 import { FlowsPage } from "@/features/flows/flows-page";
 import { VersionsPage } from "@/features/flows/versions-page";
@@ -47,8 +50,20 @@ const flowRoute = createRoute({ getParentRoute: () => appRoute, path: "flows/$fl
 const versionsRoute = createRoute({ getParentRoute: () => appRoute, path: "flows/$flowId/versions", component: VersionsPage });
 const profileRoute = createRoute({ getParentRoute: () => appRoute, path: "profile", component: ProfilePage });
 const historyRoute = createRoute({ getParentRoute: () => appRoute, path: "history", component: HistoryPage });
+const automationRoute = createRoute({ getParentRoute: () => appRoute, path: "flows/$flowId/automation", component: AutomationPage });
+const devicesRoute = createRoute({ getParentRoute: () => appRoute, path: "devices", component: DevicesPage });
+const liveRunRoute = createRoute({ getParentRoute: () => appRoute, path: "runs/$requestId", component: LiveRunPage });
 
-export const routeTree = rootRoute.addChildren([loginRoute, privacyRoute, appRoute.addChildren([flowsRoute, flowRoute, versionsRoute, profileRoute, historyRoute])]);
+export const routeTree = rootRoute.addChildren([loginRoute, privacyRoute, appRoute.addChildren([
+    flowsRoute,
+    flowRoute,
+    versionsRoute,
+    automationRoute,
+    profileRoute,
+    historyRoute,
+    devicesRoute,
+    liveRunRoute,
+  ])]);
 
 export const router = createRouter({ routeTree, context: { queryClient }, defaultPreload: "intent" });
 

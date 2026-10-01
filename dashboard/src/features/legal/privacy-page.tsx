@@ -19,7 +19,7 @@ const SECTIONS: [string, string][] = [
   ],
   [
     "What is stored",
-    "Saved flows store field labels, questions and your edits, never the values you typed unless you add a default yourself. History stores what happened to each field (filled, skipped, typed by you) without values. Your profile stores only the details you enter. Passwords are stored as bcrypt hashes.",
+    "Saved flows store field labels, questions and your edits, never the values you typed unless you add a default yourself. History stores what happened to each field (filled, skipped, typed by you) without values. Your profile stores only the details you enter. Signed-in phones are listed with their name, app version and last-seen time; remote-run logs record step labels and outcomes, never values. Passwords are stored as bcrypt hashes.",
   ],
   [
     "Retention and deletion",

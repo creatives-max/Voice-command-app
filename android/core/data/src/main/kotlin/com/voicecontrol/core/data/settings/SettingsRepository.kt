@@ -35,6 +35,10 @@ class SettingsRepository @Inject constructor(
         val autoStart = booleanPreferencesKey("auto_start_with_flow")
         val backendUrl = stringPreferencesKey("backend_url")
         val dashboardUrl = stringPreferencesKey("dashboard_url")
+        val remoteRuns = booleanPreferencesKey("remote_runs")
+        val deviceName = stringPreferencesKey("device_name")
+        val deviceId = stringPreferencesKey("device_id")
+        val appOpenTriggers = stringPreferencesKey("app_open_triggers")
     }
 
     val settings: Flow<AppSettings> = store.data.map(::read)
@@ -47,6 +51,23 @@ class SettingsRepository @Inject constructor(
     /** Dashboard address to open from the app. */
     suspend fun dashboardUrl(): String =
         appSettings().dashboardUrl.ifBlank { com.voicecontrol.core.network.BuildConfig.DEFAULT_DASHBOARD_URL }
+
+    /** Stable random id of this installation, used to register the phone for remote runs. */
+    suspend fun deviceId(): String {
+        store.data.first()[Keys.deviceId]?.let { return it }
+        var id = ""
+        store.edit { p ->
+            id = p[Keys.deviceId] ?: java.util.UUID.randomUUID().toString().also { p[Keys.deviceId] = it }
+        }
+        return id
+    }
+
+    /** App-open triggers last fetched from the server (JSON), so they work right after a restart. */
+    suspend fun appOpenTriggersJson(): String? = store.data.first()[Keys.appOpenTriggers]
+
+    suspend fun saveAppOpenTriggersJson(json: String) {
+        store.edit { it[Keys.appOpenTriggers] = json }
+    }
 
     suspend fun update(transform: (AppSettings) -> AppSettings) {
         store.edit { p ->
@@ -64,6 +85,8 @@ class SettingsRepository @Inject constructor(
             p[Keys.autoStart] = next.autoStartWithFlow
             p[Keys.backendUrl] = next.backendUrl.trim().trimEnd('/')
             p[Keys.dashboardUrl] = next.dashboardUrl.trim().trimEnd('/')
+            p[Keys.remoteRuns] = next.remoteRuns
+            p[Keys.deviceName] = next.deviceName.trim().take(60)
         }
     }
 
@@ -83,6 +106,8 @@ class SettingsRepository @Inject constructor(
             autoStartWithFlow = p[Keys.autoStart] ?: d.autoStartWithFlow,
             backendUrl = p[Keys.backendUrl] ?: d.backendUrl,
             dashboardUrl = p[Keys.dashboardUrl] ?: d.dashboardUrl,
+            remoteRuns = p[Keys.remoteRuns] ?: d.remoteRuns,
+            deviceName = p[Keys.deviceName] ?: d.deviceName,
         )
     }
 }

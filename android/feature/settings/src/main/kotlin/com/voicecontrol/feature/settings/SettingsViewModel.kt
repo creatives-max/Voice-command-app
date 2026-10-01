@@ -23,6 +23,7 @@ class SettingsViewModel @Inject constructor(
                     settings = s,
                     backendUrlDraft = if (loaded) backendUrlDraft else s.backendUrl,
                     dashboardUrlDraft = if (loaded) dashboardUrlDraft else s.dashboardUrl,
+                    deviceNameDraft = if (loaded) deviceNameDraft else s.deviceName,
                 )
             }
         }.launchIn(viewModelScope)
@@ -44,6 +45,11 @@ class SettingsViewModel @Inject constructor(
                 }
                 repository.update { it.copy(backendUrl = backend, dashboardUrl = dashboard) }
                 sendEffect(SettingsEffect.Message("Server addresses saved"))
+            }
+            is SettingsIntent.EditDeviceName -> setState { copy(deviceNameDraft = intent.value.take(60)) }
+            SettingsIntent.SaveDeviceName -> {
+                repository.update { it.copy(deviceName = currentState.deviceNameDraft) }
+                sendEffect(SettingsEffect.Message("Phone name saved. The dashboard shows it after the next sync."))
             }
             SettingsIntent.TestVoice -> {
                 val s = currentState.settings

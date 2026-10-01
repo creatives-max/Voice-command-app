@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { FlaskConical, History, Layers, Save, Trash2, Undo2 } from "lucide-react";
+import { CalendarClock, FlaskConical, History, Layers, Save, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -93,6 +93,11 @@ function FlowEditor({ flow }: { flow: Flow }) {
             <Button variant="outline" asChild>
               <Link to="/flows/$flowId/versions" params={{ flowId: flow.id }}>
                 <History /> History
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/flows/$flowId/automation" params={{ flowId: flow.id }}>
+                <CalendarClock /> Run &amp; triggers
               </Link>
             </Button>
             <Button variant={testing ? "default" : "outline"} onClick={() => setTesting((t) => !t)} aria-pressed={testing}>

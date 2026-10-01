@@ -22,6 +22,10 @@ const SECTIONS: [string, string][] = [
     "Saved flows store field labels, questions and your edits, never the values you typed unless you add a default yourself. History stores what happened to each field (filled, skipped, typed by you) without values. Your profile stores only the details you enter. Signed-in phones are listed with their name, app version and last-seen time; remote-run logs record step labels and outcomes, never values. Passwords are stored as bcrypt hashes.",
   ],
   [
+    "Organizations",
+    "Flows you move into an organization are visible to all its members; editors and admins can change them and members' phones use them. Organizations store their name, members' email, name and role, pending invitations, and an audit log of who changed which flow, member, API key or webhook. Admins can create API keys (only a hash is stored) and webhooks that send flow and run events — ids, names, app and status, never spoken or typed values — to an address they choose.",
+  ],
+  [
     "Retention and deletion",
     "You can delete flows, history and your profile at any time in the app or this dashboard. Signing out removes tokens from the phone. Deleting your account removes all of your data from our servers within 30 days, including backups.",
   ],

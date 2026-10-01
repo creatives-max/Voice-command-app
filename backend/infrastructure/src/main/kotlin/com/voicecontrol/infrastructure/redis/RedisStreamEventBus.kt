@@ -44,7 +44,7 @@ class RedisStreamEventBus(
 ) : EventPublisher, AutoCloseable {
 
     private val log = LoggerFactory.getLogger(RedisStreamEventBus::class.java)
-    private val json = Json { ignoreUnknownKeys = true; classDiscriminator = "kind" }
+    private val json = Json { ignoreUnknownKeys = true; classDiscriminator = "kind"; encodeDefaults = true }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var loop: Job? = null
     private val attempts = mutableMapOf<String, Int>()

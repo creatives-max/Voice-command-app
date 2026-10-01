@@ -49,6 +49,8 @@ fun Application.configureHttp(corsOrigins: List<String>) {
         }
         allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.ContentType)
+        allowHeader(ORG_HEADER)
+        allowHeader("X-Api-Key")
         allowMethod(HttpMethod.Put)
         allowMethod(HttpMethod.Patch)
         allowMethod(HttpMethod.Delete)

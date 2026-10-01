@@ -1,5 +1,14 @@
 import { z } from "zod";
+import { getOrgId } from "./org";
 import {
+  apiKeySchema,
+  auditEntrySchema,
+  deliverySchema,
+  invitationPreviewSchema,
+  invitationSchema,
+  memberSchema,
+  orgSchema,
+  webhookSchema,
   listingDetailSchema,
   listingPageSchema,
   listingSchema,
@@ -21,6 +30,7 @@ import {
   type FlowStep,
   type Profile,
 } from "./types";
+import type { Role } from "./org";
 
 export interface MarketplaceParams {
   q?: string;
@@ -69,12 +79,13 @@ export class ApiError extends Error {
 type Fetcher = typeof fetch;
 
 /** Calls the same-origin `/api` proxy (which holds the tokens in httpOnly cookies). */
-export function createApi(fetcher: Fetcher = (...args) => fetch(...args)) {
+export function createApi(fetcher: Fetcher = (...args) => fetch(...args), orgId: () => string | null = getOrgId) {
   async function request<S extends z.ZodTypeAny>(schema: S | null, path: string, init?: RequestInit): Promise<z.output<S>> {
+    const org = orgId();
     const response = await fetcher(`/api${path}`, {
       ...init,
       credentials: "same-origin",
-      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+      headers: { "Content-Type": "application/json", ...(org ? { "X-Org-Id": org } : {}), ...(init?.headers ?? {}) },
     });
     if (!response.ok) {
       const body = await response.json().catch(() => null);
@@ -144,6 +155,45 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args)) {
     unpublish: (id: string) => request(null, `/marketplace/${id}`, { method: "DELETE" }),
     publishFlow: (flowId: string, input: PublishInput) => request(listingSchema, `/flows/${flowId}/publish`, { method: "POST", body: json(input) }),
     updateFromSource: (flowId: string) => request(flowSchema, `/flows/${flowId}/update-from-source`, { method: "POST", body: json({}) }),
+
+    transferFlow: (id: string, orgId: string | null) => request(flowSchema, `/flows/${id}/transfer`, { method: "POST", body: json({ orgId }) }),
+
+    orgs: () => request(orgSchema.array(), "/orgs"),
+    createOrg: (name: string) => request(orgSchema, "/orgs", { method: "POST", body: json({ name }) }),
+    renameOrg: (orgId: string, name: string) => request(null, `/orgs/${orgId}`, { method: "PATCH", body: json({ name }) }),
+    deleteOrg: (orgId: string) => request(null, `/orgs/${orgId}`, { method: "DELETE" }),
+    members: (orgId: string) => request(memberSchema.array(), `/orgs/${orgId}/members`),
+    setRole: (orgId: string, userId: string, role: Role) => request(null, `/orgs/${orgId}/members/${userId}`, { method: "PATCH", body: json({ role }) }),
+    removeMember: (orgId: string, userId: string) => request(null, `/orgs/${orgId}/members/${userId}`, { method: "DELETE" }),
+    invitations: (orgId: string) => request(invitationSchema.array(), `/orgs/${orgId}/invitations`),
+    invite: (orgId: string, email: string, role: Role) => request(invitationSchema, `/orgs/${orgId}/invitations`, { method: "POST", body: json({ email, role }) }),
+    revokeInvitation: (orgId: string, id: string) => request(null, `/orgs/${orgId}/invitations/${id}`, { method: "DELETE" }),
+    invitationPreview: (token: string) => request(invitationPreviewSchema, `/invitations/${encodeURIComponent(token)}`),
+    acceptInvitation: (token: string) => request(orgSchema, `/invitations/${encodeURIComponent(token)}/accept`, { method: "POST", body: json({}) }),
+
+    apiKeys: (orgId: string) => request(apiKeySchema.array(), `/orgs/${orgId}/api-keys`),
+    createApiKey: (orgId: string, input: { name: string; scopes: string[]; rateLimitPerMinute: number }) =>
+      request(apiKeySchema, `/orgs/${orgId}/api-keys`, { method: "POST", body: json(input) }),
+    revokeApiKey: (orgId: string, id: string) => request(null, `/orgs/${orgId}/api-keys/${id}`, { method: "DELETE" }),
+
+    webhooks: (orgId: string) => request(webhookSchema.array(), `/orgs/${orgId}/webhooks`),
+    createWebhook: (orgId: string, input: { url: string; events: string[] }) =>
+      request(webhookSchema, `/orgs/${orgId}/webhooks`, { method: "POST", body: json(input) }),
+    updateWebhook: (orgId: string, id: string, patch: { url?: string; events?: string[]; active?: boolean }) =>
+      request(webhookSchema, `/orgs/${orgId}/webhooks/${id}`, { method: "PATCH", body: json(patch) }),
+    deleteWebhook: (orgId: string, id: string) => request(null, `/orgs/${orgId}/webhooks/${id}`, { method: "DELETE" }),
+    rotateWebhookSecret: (orgId: string, id: string) => request(webhookSchema, `/orgs/${orgId}/webhooks/${id}/rotate-secret`, { method: "POST", body: json({}) }),
+    pingWebhook: (orgId: string, id: string) => request(deliverySchema, `/orgs/${orgId}/webhooks/${id}/ping`, { method: "POST", body: json({}) }),
+    deliveries: (orgId: string, id: string) => request(deliverySchema.array(), `/orgs/${orgId}/webhooks/${id}/deliveries?limit=50`),
+    redeliver: (orgId: string, deliveryId: string) =>
+      request(deliverySchema, `/orgs/${orgId}/webhooks/deliveries/${deliveryId}/redeliver`, { method: "POST", body: json({}) }),
+
+    audit: (orgId: string, params: { action?: string; before?: number }) => {
+      const qs = new URLSearchParams({ limit: "50" });
+      if (params.action) qs.set("action", params.action);
+      if (params.before) qs.set("before", String(params.before));
+      return request(auditEntrySchema.array(), `/orgs/${orgId}/audit?${qs.toString()}`);
+    },
 
     profile: () => request(profileSchema, "/profile"),
     saveProfile: (profile: Profile) => request(profileSchema, "/profile", { method: "PUT", body: json(profile) }),

@@ -73,6 +73,10 @@ npm run dev                      # BACKEND_URL defaults to http://localhost:8080
 | `LOG_FORMAT` | `TEXT` | `JSON` for structured logs with trace ids |
 | `AUTH_RATE_LIMIT_PER_MINUTE` | `10` | Register attempts per IP per minute (login: 2×) |
 | `CORS_ORIGINS` | `http://localhost:3000` | Allowed browser origins |
+| `SCHEDULER_INTERVAL_SECONDS` | `15` | Schedule-trigger check interval (0 = off on this replica) |
+| `KAFKA_BOOTSTRAP_SERVERS` / `KAFKA_TOPIC` | unset / `vc.events` | Flow events on Kafka; unset = Redis Streams only. Redis stays the fallback queue |
+| `WEBHOOK_INTERVAL_SECONDS` | `5` | Webhook delivery interval (0 = off on this replica) |
+| `WEBHOOK_ALLOW_HTTP` / `WEBHOOK_ALLOW_PRIVATE` | `false` | Development only: allow `http://` and private/loopback webhook URLs |
 
 The phone **never** calls an LLM directly. Only the backend holds provider keys.
 
@@ -91,6 +95,19 @@ images.
    Long-press the mic for a touch panel of every field and button.
 4. Each completed screen is saved as a flow. Edit it on the dashboard (questions, rules, defaults, skips, order,
    help videos). The next time that screen opens, VoiceControl runs the edited flow.
+
+## Teams, API keys and webhooks
+
+- **Organizations**: create one on the dashboard's *Organization* page and invite people by email (one-time link,
+  7 days). Roles: *admin* (members, API keys, webhooks, audit log, publish), *editor* (change flows), *viewer*
+  (read and run). Pick the organization in the sidebar's workspace switcher; move a flow in with *Move*. Members'
+  phones match the organization's flows too.
+- **API keys** (`X-Api-Key: vck_…`): scoped (`flows:read`, `flows:write`, `runs:write`), limited to their
+  organization, rate limited per key, revocable. A key acts as its creator and stops working if they leave.
+- **Webhooks**: `flow.version_saved`, `flow.deleted`, `run.finished` POSTed as JSON, signed with
+  `X-VoiceControl-Signature: t=<unix>,v1=<HMAC-SHA256(secret, "t.body")>`, retried with backoff; the dashboard shows
+  each delivery and can redeliver. Details in the OpenAPI docs at `/docs`.
+- **Audit log** of member, flow, key and webhook changes for admins.
 
 ## Kubernetes
 

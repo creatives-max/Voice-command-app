@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ export function LoginPage() {
   const [busy, setBusy] = useState(false);
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { next } = useSearch({ from: "/login" });
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -26,7 +27,7 @@ export function LoginPage() {
     try {
       const user = mode === "login" ? await api.login(email, password) : await api.register(email, password, name);
       qc.setQueryData(keys.session, user);
-      await navigate({ to: "/" });
+      await (next ? navigate({ href: next }) : navigate({ to: "/" }));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong");
     } finally {

@@ -38,9 +38,12 @@ import kotlinx.serialization.Serializable
     val currentVersion: Int,
     val createdAt: String,
     val updatedAt: String,
+    /** Owning organization; null for a personal flow. */
+    val orgId: String? = null,
 ) {
     companion object {
-        fun from(f: Flow) = FlowSummaryDto(f.id.toString(), f.appPackage, f.name, f.currentVersion, f.createdAt.toString(), f.updatedAt.toString())
+        fun from(f: Flow) =
+            FlowSummaryDto(f.id.toString(), f.appPackage, f.name, f.currentVersion, f.createdAt.toString(), f.updatedAt.toString(), f.orgId?.toString())
     }
 }
 
@@ -58,6 +61,8 @@ import kotlinx.serialization.Serializable
     /** Marketplace listing this flow was imported from, and which version. */
     val sourcePublishedId: String? = null,
     val sourceVersion: Int? = null,
+    /** Owning organization; null for a personal flow. */
+    val orgId: String? = null,
 ) {
     companion object {
         fun from(fv: FlowWithVersion) = FlowDto(
@@ -72,6 +77,7 @@ import kotlinx.serialization.Serializable
             updatedAt = fv.flow.updatedAt.toString(),
             sourcePublishedId = fv.flow.sourcePublishedId?.toString(),
             sourceVersion = fv.flow.sourceVersion,
+            orgId = fv.flow.orgId?.toString(),
         )
     }
 }

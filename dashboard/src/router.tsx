@@ -13,6 +13,11 @@ import { ListingPage } from "@/features/marketplace/listing-page";
 import { MarketplacePage } from "@/features/marketplace/marketplace-page";
 import { PrivacyPage } from "@/features/legal/privacy-page";
 import { ProfilePage } from "@/features/profile/profile-page";
+import { AcceptInvitePage } from "@/features/org/accept-invite-page";
+import { ApiKeysPage } from "@/features/org/api-keys-page";
+import { AuditPage } from "@/features/org/audit-page";
+import { OrgPage } from "@/features/org/org-page";
+import { WebhooksPage } from "@/features/org/webhooks-page";
 import { queryClient } from "@/lib/query-client";
 import { sessionQuery } from "@/lib/queries";
 
@@ -25,9 +30,13 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
   notFoundComponent: () => <p className="p-8 text-muted-foreground">Page not found.</p>,
 });
 
+/** Only same-site paths are accepted as the page to return to after signing in. */
+export const safeNext = (next: unknown) => (typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : undefined);
+
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
+  validateSearch: (search: Record<string, unknown>): { next?: string } => ({ next: safeNext(search.next) }),
   component: LoginPage,
 });
 
@@ -37,11 +46,11 @@ const privacyRoute = createRoute({ getParentRoute: () => rootRoute, path: "/priv
 const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "app",
-  beforeLoad: async ({ context }) => {
+  beforeLoad: async ({ context, location }) => {
     try {
       await context.queryClient.ensureQueryData(sessionQuery);
     } catch {
-      throw redirect({ to: "/login" });
+      throw redirect({ to: "/login", search: { next: location.href === "/" ? undefined : location.href } });
     }
   },
   component: AppShell,
@@ -56,6 +65,11 @@ const automationRoute = createRoute({ getParentRoute: () => appRoute, path: "flo
 const devicesRoute = createRoute({ getParentRoute: () => appRoute, path: "devices", component: DevicesPage });
 const marketplaceRoute = createRoute({ getParentRoute: () => appRoute, path: "marketplace", component: MarketplacePage });
 const listingRoute = createRoute({ getParentRoute: () => appRoute, path: "marketplace/$listingId", component: ListingPage });
+const orgRoute = createRoute({ getParentRoute: () => appRoute, path: "org", component: OrgPage });
+const apiKeysRoute = createRoute({ getParentRoute: () => appRoute, path: "org/api-keys", component: ApiKeysPage });
+const webhooksRoute = createRoute({ getParentRoute: () => appRoute, path: "org/webhooks", component: WebhooksPage });
+const auditRoute = createRoute({ getParentRoute: () => appRoute, path: "org/audit", component: AuditPage });
+const inviteRoute = createRoute({ getParentRoute: () => appRoute, path: "invite/$token", component: AcceptInvitePage });
 const liveRunRoute = createRoute({ getParentRoute: () => appRoute, path: "runs/$requestId", component: LiveRunPage });
 
 export const routeTree = rootRoute.addChildren([loginRoute, privacyRoute, appRoute.addChildren([
@@ -69,6 +83,11 @@ export const routeTree = rootRoute.addChildren([loginRoute, privacyRoute, appRou
     liveRunRoute,
     marketplaceRoute,
     listingRoute,
+    orgRoute,
+    apiKeysRoute,
+    webhooksRoute,
+    auditRoute,
+    inviteRoute,
   ])]);
 
 export const router = createRouter({ routeTree, context: { queryClient }, defaultPreload: "intent" });

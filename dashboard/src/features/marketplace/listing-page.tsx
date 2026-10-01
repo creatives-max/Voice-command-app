@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useCurrentOrg } from "@/features/org/use-org";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, RefreshCw, Star, Trash2, Wand2 } from "lucide-react";
@@ -33,11 +34,16 @@ function ListingView({ detail }: { detail: ListingDetail }) {
   const updateFromSource = useUpdateFromSource(detail.importedFlowId ?? "");
   const unpublish = useUnpublish();
   const [applyOpen, setApplyOpen] = useState(false);
+  const { org } = useCurrentOrg();
 
   async function doImport() {
     try {
       const flow = await importListing.mutateAsync({ id: listing.id });
-      toast.success(`Imported “${listing.name}”. Your phone uses it on ${listing.appPackage}.`);
+      toast.success(
+        org
+          ? `Imported “${listing.name}” into ${org.name}. Members' phones use it on ${listing.appPackage}.`
+          : `Imported “${listing.name}”. Your phone uses it on ${listing.appPackage}.`,
+      );
       await navigate({ to: "/flows/$flowId", params: { flowId: flow.id } });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Import failed");
@@ -112,8 +118,8 @@ function ListingView({ detail }: { detail: ListingDetail }) {
               )}
             </>
           ) : (
-            <Button onClick={doImport} disabled={importListing.isPending}>
-              <Download /> Import to my flows
+            <Button onClick={doImport} disabled={importListing.isPending || org?.role === "VIEWER"}>
+              <Download /> {org ? `Import to ${org.name}` : "Import to my flows"}
             </Button>
           )}
         </CardContent>

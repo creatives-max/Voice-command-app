@@ -17,6 +17,7 @@ otelLogback = "2.15.0-alpha"
 junit = "5.12.2"
 shadow = "8.3.6"
 anthropic = "2.34.0"
+kafka = "3.9.1"
 
 [libraries]
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
@@ -51,6 +52,7 @@ hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
 postgres = { module = "org.postgresql:postgresql", version.ref = "postgres" }
 flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
 flyway-postgres = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
+kafka-clients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka" }
 lettuce = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
 bcrypt = { module = "at.favre.lib:bcrypt", version.ref = "bcrypt" }
 otel-api = { module = "io.opentelemetry:opentelemetry-api", version.ref = "otel" }
@@ -61,6 +63,7 @@ otel-sdk-autoconfigure = { module = "io.opentelemetry:opentelemetry-sdk-extensio
 otel-ktor = { module = "io.opentelemetry.instrumentation:opentelemetry-ktor-3.0", version.ref = "otelInstrumentation" }
 otel-logback-mdc = { module = "io.opentelemetry.instrumentation:opentelemetry-logback-mdc-1.0", version.ref = "otelLogback" }
 testcontainers-postgres = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
+testcontainers-kafka = { module = "org.testcontainers:kafka", version.ref = "testcontainers" }
 testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }

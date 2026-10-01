@@ -7,6 +7,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { flowsQuery } from "@/lib/queries";
+import { useCurrentOrg } from "@/features/org/use-org";
 import type { FlowSummary } from "@/lib/types";
 
 export function groupFlows(flows: FlowSummary[], filter: string) {
@@ -19,6 +20,7 @@ export function groupFlows(flows: FlowSummary[], filter: string) {
 
 export function FlowsPage() {
   const { data, isPending, error } = useQuery(flowsQuery());
+  const { org } = useCurrentOrg();
   const [filter, setFilter] = useState("");
   const groups = useMemo(() => groupFlows(data?.items ?? [], filter), [data, filter]);
 
@@ -26,8 +28,12 @@ export function FlowsPage() {
     <div className="mx-auto max-w-5xl">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Flows</h1>
-          <p className="text-sm text-muted-foreground">Recorded on your phone. Edit a flow and the next run on that screen uses it.</p>
+          <h1 className="text-2xl font-semibold">{org ? `${org.name} flows` : "Flows"}</h1>
+          <p className="text-sm text-muted-foreground">
+            {org
+              ? "Shared with everyone in the organization; their phones use these flows too. Move your own flows here from the flow editor."
+              : "Recorded on your phone. Edit a flow and the next run on that screen uses it."}
+          </p>
         </div>
         <div className="relative sm:w-72">
           <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
@@ -41,7 +47,9 @@ export function FlowsPage() {
           <CardHeader>
             <CardTitle>No flows yet</CardTitle>
             <CardDescription>
-              Sign in on the VoiceControl app and fill any form by voice. Each screen you complete is saved here automatically.
+              {org
+                ? "Open one of your flows (switch to Personal) and choose “Move” to share it with the organization, or import one from the Marketplace."
+                : "Sign in on the VoiceControl app and fill any form by voice. Each screen you complete is saved here automatically."}
             </CardDescription>
           </CardHeader>
         </Card>

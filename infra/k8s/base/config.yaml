@@ -11,6 +11,11 @@ data:
   LLM_PROVIDER: anthropic
   # How often each replica checks schedule triggers (claims are exclusive across replicas).
   SCHEDULER_INTERVAL_SECONDS: "15"
+  # Flow events go to Kafka; the Redis stream stays as the fallback queue.
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  KAFKA_TOPIC: vc.events
+  # How often each replica sends due webhook deliveries (claims are exclusive across replicas).
+  WEBHOOK_INTERVAL_SECONDS: "5"
   ANTHROPIC_MODEL: claude-opus-5-5
   EMBEDDING_PROVIDER: hashing
   LLM_TIMEOUT_MS: "8000"

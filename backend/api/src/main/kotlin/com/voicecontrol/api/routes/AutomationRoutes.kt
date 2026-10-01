@@ -1,6 +1,11 @@
 package com.voicecontrol.api.routes
 
+import com.voicecontrol.api.plugins.API_KEY_AUTH
 import com.voicecontrol.api.plugins.JWT_AUTH
+import com.voicecontrol.api.plugins.keyContext
+import com.voicecontrol.api.plugins.requireScope
+import com.voicecontrol.application.flow.FlowService
+import com.voicecontrol.domain.org.ApiScope
 import com.voicecontrol.api.plugins.userId
 import com.voicecontrol.application.automation.CronSchedule
 import com.voicecontrol.application.automation.DeviceService
@@ -136,7 +141,25 @@ private fun ApplicationCall.idParam(name: String = "id"): UUID = parseUuid(param
 
 private fun ApplicationCall.intQuery(name: String, default: Int): Int = request.queryParameters[name]?.toIntOrNull() ?: default
 
-fun Route.automationRoutes(devices: DeviceService, triggers: TriggerService, runs: RunRequestService, flowApp: suspend (UUID, UUID) -> String?) {
+fun Route.automationRoutes(
+    devices: DeviceService,
+    triggers: TriggerService,
+    runs: RunRequestService,
+    flowApp: suspend (UUID, UUID) -> String?,
+    flows: FlowService,
+) {
+    // "Run now" is also available to organization API keys with runs:write: the run goes to the key
+    // creator's phone, and only for the organization's flows.
+    authenticate(JWT_AUTH, API_KEY_AUTH) {
+        post("/v1/run-requests") {
+            call.requireScope(ApiScope.RUNS_WRITE)
+            val body = call.receive<RunNowRequest>()
+            val flowId = parseUuid(body.flowId, "flowId")
+            call.keyContext?.let { flows.get(call.userId, flowId, it) }
+            val request = runs.runNow(call.userId, flowId, body.deviceId?.takeIf { it.isNotBlank() }?.let { parseUuid(it, "deviceId") })
+            call.respond(HttpStatusCode.Created, RunRequestDto.from(request))
+        }
+    }
     authenticate(JWT_AUTH) {
         route("/v1/devices") {
             post {
@@ -194,11 +217,6 @@ fun Route.automationRoutes(devices: DeviceService, triggers: TriggerService, run
         }
 
         route("/v1/run-requests") {
-            post {
-                val body = call.receive<RunNowRequest>()
-                val request = runs.runNow(call.userId, parseUuid(body.flowId, "flowId"), body.deviceId?.takeIf { it.isNotBlank() }?.let { parseUuid(it, "deviceId") })
-                call.respond(HttpStatusCode.Created, RunRequestDto.from(request))
-            }
             get {
                 val flowId = call.request.queryParameters["flowId"]?.let { parseUuid(it, "flowId") }
                 call.respond(runs.list(call.userId, flowId, call.intQuery("limit", 50)).map(RunRequestDto::from))

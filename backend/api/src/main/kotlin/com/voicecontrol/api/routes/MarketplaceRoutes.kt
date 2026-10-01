@@ -1,6 +1,7 @@
 package com.voicecontrol.api.routes
 
 import com.voicecontrol.api.plugins.JWT_AUTH
+import com.voicecontrol.api.plugins.orgContext
 import com.voicecontrol.api.plugins.userId
 import com.voicecontrol.application.marketplace.MarketplaceService
 import com.voicecontrol.application.marketplace.PublishInput
@@ -122,7 +123,7 @@ fun Route.marketplaceRoutes(market: MarketplaceService) {
             route("/{id}") {
                 get {
                     val userId = call.userId
-                    val view = market.view(userId, call.uuidParam("id"))
+                    val view = market.view(userId, call.uuidParam("id"), call.orgContext)
                     call.respond(
                         ListingDetailDto(
                             listing = ListingDto.from(view.listing, userId),
@@ -143,7 +144,7 @@ fun Route.marketplaceRoutes(market: MarketplaceService) {
                 }
                 post("/import") {
                     val body = call.receive<ImportRequest>()
-                    call.respond(HttpStatusCode.Created, FlowDto.from(market.import(call.userId, call.uuidParam("id"), body.version)))
+                    call.respond(HttpStatusCode.Created, FlowDto.from(market.import(call.userId, call.uuidParam("id"), body.version, call.orgContext)))
                 }
                 put("/rating") {
                     val body = call.receive<RateRequest>()

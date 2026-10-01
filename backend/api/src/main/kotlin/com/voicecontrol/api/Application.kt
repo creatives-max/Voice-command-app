@@ -10,6 +10,7 @@ import com.voicecontrol.api.routes.automationRoutes
 import com.voicecontrol.api.routes.authRoutes
 import com.voicecontrol.api.routes.flowRoutes
 import com.voicecontrol.api.routes.marketplaceRoutes
+import com.voicecontrol.api.routes.orgRoutes
 import com.voicecontrol.api.routes.profileRoutes
 import com.voicecontrol.infrastructure.config.AppConfig
 import io.ktor.http.HttpStatusCode
@@ -29,6 +30,7 @@ fun main() {
     val telemetry = Telemetry.init(config.serviceName, config.otlpEndpoint)
     val services = Bootstrap.create(config)
     if (config.schedulerIntervalSeconds > 0) services.startScheduler(config.schedulerIntervalSeconds * 1_000L)
+    if (config.webhookIntervalSeconds > 0) services.startWebhookWorker(config.webhookIntervalSeconds * 1_000L)
     embeddedServer(Netty, port = config.port, host = "0.0.0.0") {
         configureTelemetry(telemetry)
         voiceControl(services)
@@ -38,7 +40,7 @@ fun main() {
 
 fun Application.voiceControl(services: Services) {
     configureHttp(services.config.corsOrigins)
-    configureSecurity(services.config.jwt)
+    configureSecurity(services.config.jwt, services::apiKeyPrincipal)
     routing {
         get("/health") { call.respond(HttpStatusCode.OK, Health("ok", services.ai.providerName)) }
         get("/ready") {
@@ -53,7 +55,8 @@ fun Application.voiceControl(services: Services) {
         aiRoutes(services.ai, services.rateLimiter)
         historyRoutes(services.history)
         marketplaceRoutes(services.marketplace)
-        automationRoutes(services.devices, services.triggers, services.runRequests, services::flowApp)
+        automationRoutes(services.devices, services.triggers, services.runRequests, services::flowApp, services.flows)
+        orgRoutes(services.orgs, services.apiKeys, services.webhooks, services.audit)
     }
 }
 

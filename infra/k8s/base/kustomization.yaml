@@ -10,6 +10,7 @@ resources:
   - config.yaml
   - postgres.yaml
   - redis.yaml
+  - kafka.yaml
   - otel-collector.yaml
   - backend.yaml
   - dashboard.yaml

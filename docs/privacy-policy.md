@@ -40,6 +40,16 @@ Only when you are **signed in** and **local-only mode is off**:
 | Profile details you enter (name, email, phone, address…) | Offer them when a form asks |
 | Flows you publish to the marketplace: name, description, app, steps (never default values) and your display name; ratings you give | Flow marketplace |
 | Phone name, app version and last-seen time; remote-run logs (step labels and outcomes, no values) | Run flows from the dashboard, on schedules or when an app opens |
+| Organizations you create or join: name, members' email, name and role, invitations (email, role) | Share flows with a team |
+| Audit log of organization changes (who changed which flow, member, API key or webhook, and when) | Accountability for organization admins |
+
+## Organizations, API keys and webhooks
+
+Flows you move into an organization are visible to all its members, and editors and admins can change them;
+their phones use those flows too. Organization admins can create **API keys** for other services (only a hash of
+each key is stored) and **webhooks** that send flow and run events (ids, names, app, status — never spoken or typed
+values) to an address the admin chooses. Leaving an organization removes your access to its flows; deleting it
+removes its flows, keys, webhooks and audit log.
 
 ## AI providers
 

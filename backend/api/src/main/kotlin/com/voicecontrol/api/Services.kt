@@ -1,6 +1,25 @@
 package com.voicecontrol.api
 
+import com.voicecontrol.api.plugins.ApiKeyPrincipal
 import com.voicecontrol.application.ai.AiService
+import com.voicecontrol.application.org.ApiKeyService
+import com.voicecontrol.application.org.AuditService
+import com.voicecontrol.application.org.OrgAccess
+import com.voicecontrol.application.org.OrgService
+import com.voicecontrol.application.org.WebhookDispatcher
+import com.voicecontrol.application.org.WebhookService
+import com.voicecontrol.application.org.WebhookUrlPolicy
+import com.voicecontrol.application.org.WebhookWorker
+import com.voicecontrol.domain.common.DomainException
+import com.voicecontrol.domain.event.EventPublisher
+import com.voicecontrol.domain.org.OrgRepository
+import com.voicecontrol.infrastructure.kafka.FallbackEventPublisher
+import com.voicecontrol.infrastructure.kafka.KafkaEventBus
+import com.voicecontrol.infrastructure.persistence.JdbcApiKeyRepository
+import com.voicecontrol.infrastructure.persistence.JdbcAuditRepository
+import com.voicecontrol.infrastructure.persistence.JdbcOrgRepository
+import com.voicecontrol.infrastructure.persistence.JdbcWebhookRepository
+import com.voicecontrol.infrastructure.webhook.HttpWebhookSender
 import com.voicecontrol.application.marketplace.MarketplaceService
 import com.voicecontrol.application.marketplace.StarterTemplates
 import com.voicecontrol.infrastructure.persistence.JdbcMarketplaceRepository
@@ -65,10 +84,19 @@ class Services(
     val scheduler: TriggerScheduler,
     val marketplace: MarketplaceService,
     val rateLimiter: RateLimiter,
+    val orgs: OrgService,
+    val apiKeys: ApiKeyService,
+    val webhooks: WebhookService,
+    val webhookWorker: WebhookWorker,
+    val audit: AuditService,
+    val orgRepository: OrgRepository,
     val eventBus: RedisStreamEventBus,
+    /** Kafka bus when KAFKA_BOOTSTRAP_SERVERS is set; Redis Streams stays the fallback queue. */
+    val kafkaBus: KafkaEventBus?,
     internal val database: Database,
     private val redis: RedisConnections,
     private val http: HttpClient,
+    private val webhookSender: HttpWebhookSender,
 ) : AutoCloseable {
 
     suspend fun readiness(): Readiness {
@@ -92,13 +120,40 @@ class Services(
         }
     }
 
+    /** Sends due webhook deliveries every [intervalMillis] (every replica runs it; claims are exclusive). */
+    fun startWebhookWorker(intervalMillis: Long) {
+        val log = LoggerFactory.getLogger(WebhookWorker::class.java)
+        schedulerScope.launch {
+            while (isActive) {
+                runCatching { webhookWorker.tick() }.onFailure { log.warn("Webhook delivery tick failed", it) }
+                delay(intervalMillis)
+            }
+        }
+    }
+
+    /**
+     * Resolves an API key for the API-key authentication provider: the key must be active, its creator must
+     * still belong to the key's organization, and calls are limited per key per minute.
+     */
+    suspend fun apiKeyPrincipal(secret: String): ApiKeyPrincipal? {
+        val key = apiKeys.authenticate(secret) ?: return null
+        val creator = key.createdBy ?: return null
+        orgRepository.role(key.orgId, creator) ?: return null
+        if (!rateLimiter.tryAcquire("apikey:${key.id}", key.rateLimitPerMinute, 60)) {
+            throw DomainException.RateLimited("This API key is limited to ${key.rateLimitPerMinute} requests per minute")
+        }
+        return ApiKeyPrincipal(key, creator)
+    }
+
     /** App package of a user's flow (for app-open triggers sent to the phone). */
     suspend fun flowApp(userId: java.util.UUID, flowId: java.util.UUID): String? =
         runCatching { flows.get(userId, flowId).flow.appPackage }.getOrNull()
 
     override fun close() {
         schedulerScope.cancel()
+        kafkaBus?.close()
         eventBus.close()
+        webhookSender.close()
         redis.close()
         http.close()
         (database.dataSource as? AutoCloseable)?.close()
@@ -126,17 +181,32 @@ object Bootstrap {
         val embedder = embeddingProvider(config, http)
         // Order matters: store the new embedding first, then drop cached match results,
         // so a concurrent match can't cache a miss computed without the new embedding.
+        val webhookRepository = JdbcWebhookRepository(database)
         val handlers = listOf(
             FlowEmbeddingHandler(flowRepository, embeddingRepository, embedder),
             FlowCacheInvalidator(cache),
+            WebhookDispatcher(webhookRepository),
         ) + extraHandlers
         val bus = RedisStreamEventBus(redis, handlers).also { it.start() }
+        // Kafka carries flow events when configured; the Redis stream remains consumed as the fallback queue.
+        val kafka = config.kafkaBootstrapServers?.let { servers ->
+            KafkaEventBus(servers, handlers, topic = config.kafkaTopic).also {
+                runCatching { it.ensureTopics() }.onFailure { e -> LoggerFactory.getLogger(Bootstrap::class.java).warn("Could not create Kafka topics: {}", e.message) }
+                it.start()
+            }
+        }
+        val publisher: EventPublisher = if (kafka != null) FallbackEventPublisher(kafka, bus) else bus
+        val orgRepository = JdbcOrgRepository(database)
+        val access = OrgAccess(orgRepository)
+        val audit = AuditService(JdbcAuditRepository(database), access)
+        val urlPolicy = WebhookUrlPolicy(config.webhookAllowHttp, config.webhookAllowPrivate)
+        val webhookSender = HttpWebhookSender()
         val deviceRepository = JdbcDeviceRepository(database)
         val triggerRepository = JdbcTriggerRepository(database)
         val runRequestRepository = JdbcRunRequestRepository(database)
         val marketplaceRepository = JdbcMarketplaceRepository(database)
         kotlinx.coroutines.runBlocking { StarterTemplates.seed(marketplaceRepository) }
-        val flowService = FlowService(flowRepository, bus)
+        val flowService = FlowService(flowRepository, publisher, orgs = orgRepository, audit = audit)
         return Services(
             config = config,
             ai = AiService(LlmProviderFactory.create(config.llm, http), timeoutMillis = config.llm.timeoutMillis),
@@ -152,14 +222,25 @@ object Bootstrap {
             history = HistoryService(JdbcRunRepository(database)),
             devices = DeviceService(deviceRepository),
             triggers = TriggerService(triggerRepository, flowRepository, deviceRepository),
-            runRequests = RunRequestService(runRequestRepository, deviceRepository, flowRepository),
+            runRequests = RunRequestService(runRequestRepository, deviceRepository, flowRepository, events = publisher),
             scheduler = TriggerScheduler(triggerRepository, runRequestRepository),
             marketplace = MarketplaceService(marketplaceRepository, flowRepository, flowService),
             rateLimiter = RedisRateLimiter(redis),
+            orgs = OrgService(
+                orgRepository, JdbcUserRepository(database), access, audit,
+                membershipChanged = { userId -> cache.deleteByPrefix(FlowCacheInvalidator.userCachePattern(userId.toString())) },
+            ),
+            apiKeys = ApiKeyService(JdbcApiKeyRepository(database), access, audit),
+            webhooks = WebhookService(webhookRepository, access, audit, urlPolicy),
+            webhookWorker = WebhookWorker(webhookRepository, webhookSender, urlPolicy),
+            audit = audit,
+            orgRepository = orgRepository,
             eventBus = bus,
+            kafkaBus = kafka,
             database = database,
             redis = redis,
             http = http,
+            webhookSender = webhookSender,
         )
     }
 }

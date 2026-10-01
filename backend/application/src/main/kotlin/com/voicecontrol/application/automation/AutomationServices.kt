@@ -1,5 +1,7 @@
 package com.voicecontrol.application.automation
 
+import com.voicecontrol.domain.event.EventPublisher
+import com.voicecontrol.domain.event.RunFinished
 import com.voicecontrol.domain.automation.Device
 import com.voicecontrol.domain.automation.DeviceCommands
 import com.voicecontrol.domain.automation.DeviceRepository
@@ -134,6 +136,7 @@ class RunRequestService(
     private val now: () -> Instant = Instant::now,
     private val pollIntervalMillis: Long = 1_000,
     private val ttl: Duration = DEFAULT_TTL,
+    private val events: EventPublisher? = null,
 ) {
     suspend fun runNow(userId: UUID, flowId: UUID, deviceId: UUID?): RunRequest {
         val flow = flows.find(userId, flowId) ?: throw DomainException.NotFound("Flow not found")
@@ -193,6 +196,7 @@ class RunRequestService(
             current = requests.setStatus(userId, id, status, now()) ?: current
         }
         if (clean.isNotEmpty()) requests.addEvents(id, clean, now())
+        if (current.status.isFinal && !request.status.isFinal) finished(current)
         return current
     }
 
@@ -206,6 +210,7 @@ class RunRequestService(
         }
         val updated = requests.setStatus(userId, id, next, now()) ?: request
         requests.addEvents(id, listOf("status" to if (next == RunRequestStatus.CANCELLED) "Cancelled before the phone picked it up" else "Stop requested from the dashboard"), now())
+        if (updated.status.isFinal) finished(updated)
         return updated
     }
 
@@ -220,6 +225,23 @@ class RunRequestService(
             delay(pollIntervalMillis)
             waited += pollIntervalMillis
         }
+    }
+
+    /** Publishes [RunFinished] (webhooks); the flow's organization is looked up so org webhooks receive it. */
+    private suspend fun finished(request: RunRequest) {
+        val bus = events ?: return
+        val orgId = request.flowId?.let { flows.find(request.userId, it)?.flow?.orgId }
+        bus.publish(
+            RunFinished(
+                requestId = request.id.toString(),
+                userId = request.userId.toString(),
+                flowId = request.flowId?.toString(),
+                flowName = request.flowName,
+                status = request.status.name,
+                source = request.source.name,
+                orgId = orgId?.toString(),
+            ),
+        )
     }
 
     private fun allowedFromDevice(from: RunRequestStatus, to: RunRequestStatus): Boolean = when (from) {

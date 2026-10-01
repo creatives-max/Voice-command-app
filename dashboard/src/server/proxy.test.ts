@@ -45,6 +45,19 @@ describe("handleProxy", () => {
     expect(blocked.status).toBe(404);
   });
 
+  it("passes a valid organization id through and drops anything else", async () => {
+    const seen: (string | undefined)[] = [];
+    const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      seen.push(((init?.headers ?? {}) as Record<string, string>)["X-Org-Id"]);
+      return new Response("[]", { status: 200 });
+    });
+    const org = "0b6c3a3e-9d7f-4f43-a1d5-0c1f2a3b4c5d";
+    await handleProxy(req({ path: ["orgs"], orgId: org, cookies: { get: () => "A" } }), "http://b", fetcher as typeof fetch);
+    await handleProxy(req({ path: ["flows"], orgId: "x\r\nEvil: 1", cookies: { get: () => "A" } }), "http://b", fetcher as typeof fetch);
+    await handleProxy(req({ path: ["invitations", "tok"], cookies: { get: () => "A" } }), "http://b", fetcher as typeof fetch);
+    expect(seen).toEqual([org, undefined, undefined]);
+  });
+
   it("returns 502 when the backend is down", async () => {
     const fetcher = vi.fn(async () => {
       throw new Error("ECONNREFUSED");

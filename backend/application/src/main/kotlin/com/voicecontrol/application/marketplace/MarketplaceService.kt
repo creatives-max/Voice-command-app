@@ -6,6 +6,7 @@ import com.voicecontrol.domain.flow.FlowRepository
 import com.voicecontrol.domain.flow.FlowStep
 import com.voicecontrol.domain.flow.FlowWithVersion
 import com.voicecontrol.domain.flow.VersionSource
+import com.voicecontrol.domain.org.Role
 import com.voicecontrol.domain.marketplace.Listing
 import com.voicecontrol.domain.marketplace.MarketplaceQuery
 import com.voicecontrol.domain.marketplace.MarketplaceRepository
@@ -46,6 +47,9 @@ class MarketplaceService(
 ) {
     suspend fun publish(userId: UUID, flowId: UUID, input: PublishInput): PublishedFlow {
         val flow = flows.find(userId, flowId) ?: throw DomainException.NotFound("Flow not found")
+        if (flow.flow.orgId != null && flowService.roleFor(userId, flow.flow) != Role.ADMIN) {
+            throw DomainException.Forbidden("Only organization admins can publish the organization's flows")
+        }
         if (flow.flow.sourcePublishedId != null) {
             repo.get(flow.flow.sourcePublishedId!!, includeUnpublished = true)?.let { source ->
                 if (source.ownerId != userId) throw DomainException.Validation("Imported flows can't be republished; publish your own flows")
@@ -83,9 +87,10 @@ class MarketplaceService(
         repo.search(MarketplaceQuery(null, null, null, templates = true, ownerId = null, sort = MarketplaceSort.RECENT, limit = 100, offset = 0))
             .mapNotNull { t -> repo.version(t.id, t.latestVersion)?.let { t to it } }
 
-    suspend fun view(userId: UUID, id: UUID): ListingView {
+    /** A listing, with the copy imported into the user's flows (or organization [orgId]'s flows). */
+    suspend fun view(userId: UUID, id: UUID, orgId: UUID? = null): ListingView {
         val listing = repo.get(id, includeUnpublished = true) ?: throw DomainException.NotFound("Listing not found")
-        val mine = importedCopy(userId, id)
+        val mine = importedCopy(userId, id, orgId)
         // Unpublished listings stay visible to their owner and to people who imported them.
         if (repo.get(id) == null && listing.ownerId != userId && mine == null) throw DomainException.NotFound("Listing not found")
         val versions = repo.versions(id)
@@ -94,14 +99,14 @@ class MarketplaceService(
     }
 
     /**
-     * Imports a listing as a flow in the user's account. If they already have a flow for the same screen,
-     * the listing's steps become a new version of it (their history keeps the old steps).
+     * Imports a listing as a flow in the user's account (or organization [orgId], as an editor). If there is
+     * already a flow for the same screen, the listing's steps become a new version of it (history keeps the old steps).
      */
-    suspend fun import(userId: UUID, id: UUID, version: Int?): FlowWithVersion {
+    suspend fun import(userId: UUID, id: UUID, version: Int?, orgId: UUID? = null): FlowWithVersion {
         val listing = repo.get(id) ?: throw DomainException.NotFound("Listing not found")
         if (listing.isTemplate) throw DomainException.Validation("Templates are applied to one of your flows instead of imported")
         val v = repo.version(id, version ?: listing.latestVersion) ?: throw DomainException.NotFound("Version not found")
-        val saved = flowService.importFlow(userId, listing.appPackage, listing.name, v.screenSignature, v.steps, "Imported “${listing.name}” v${v.version}")
+        val saved = flowService.importFlow(userId, listing.appPackage, listing.name, v.screenSignature, v.steps, "Imported “${listing.name}” v${v.version}", orgId)
         flows.linkSource(userId, saved.flow.id, id, v.version)
         if (saved.flow.sourcePublishedId != id) repo.recordInstall(id)
         return flowService.get(userId, saved.flow.id)
@@ -130,8 +135,8 @@ class MarketplaceService(
         return repo.rate(id, userId, stars, text, clock.instant())
     }
 
-    private suspend fun importedCopy(userId: UUID, publishedId: UUID): FlowWithVersion? =
-        flows.list(userId, null, 500, 0).firstOrNull { it.sourcePublishedId == publishedId }?.let { flows.find(userId, it.id) }
+    private suspend fun importedCopy(userId: UUID, publishedId: UUID, orgId: UUID?): FlowWithVersion? =
+        flowService.list(userId, null, 200, 0, orgId).firstOrNull { it.sourcePublishedId == publishedId }?.let { flows.find(userId, it.id) }
 
     private fun listing(input: PublishInput, name: String): Listing {
         val n = name.trim()

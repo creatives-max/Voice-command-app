@@ -69,6 +69,7 @@ export const flowSchema = z.object({
   updatedAt: z.string(),
   sourcePublishedId: z.string().nullish(),
   sourceVersion: z.number().nullish(),
+  orgId: z.string().nullish(),
 });
 export type Flow = z.infer<typeof flowSchema>;
 
@@ -79,6 +80,7 @@ export const flowSummarySchema = z.object({
   currentVersion: z.number(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  orgId: z.string().nullish(),
 });
 export type FlowSummary = z.infer<typeof flowSummarySchema>;
 
@@ -248,3 +250,81 @@ export const listingDetailSchema = z.object({
 export type ListingDetail = z.infer<typeof listingDetailSchema>;
 export const templateSchema = z.object({ listing: listingSchema, steps: z.array(flowStepSchema), keywords: z.record(z.array(z.string())) });
 export type Template = z.infer<typeof templateSchema>;
+
+export const roles = ["ADMIN", "EDITOR", "VIEWER"] as const;
+export const ROLE_LABELS: Record<(typeof roles)[number], string> = { ADMIN: "Admin", EDITOR: "Editor", VIEWER: "Viewer" };
+export const orgSchema = z.object({ id: z.string(), name: z.string(), role: z.enum(roles), memberCount: z.number(), createdAt: z.string() });
+export type Org = z.infer<typeof orgSchema>;
+export const memberSchema = z.object({ userId: z.string(), email: z.string(), name: z.string().nullish(), role: z.enum(roles), joinedAt: z.string() });
+export type Member = z.infer<typeof memberSchema>;
+export const invitationSchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  role: z.enum(roles),
+  createdAt: z.string(),
+  expiresAt: z.string(),
+  token: z.string().nullish(),
+});
+export type Invitation = z.infer<typeof invitationSchema>;
+export const invitationPreviewSchema = z.object({ orgName: z.string(), email: z.string(), role: z.enum(roles), expiresAt: z.string() });
+
+export const apiScopes = ["flows:read", "flows:write", "runs:write"] as const;
+export const SCOPE_LABELS: Record<(typeof apiScopes)[number], string> = {
+  "flows:read": "Read flows",
+  "flows:write": "Edit and delete flows",
+  "runs:write": "Start runs on your phone",
+};
+export const apiKeySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  prefix: z.string(),
+  scopes: z.array(z.string()),
+  rateLimitPerMinute: z.number(),
+  createdAt: z.string(),
+  lastUsedAt: z.string().nullish(),
+  revokedAt: z.string().nullish(),
+  secret: z.string().nullish(),
+});
+export type ApiKey = z.infer<typeof apiKeySchema>;
+
+export const webhookEvents = ["flow.version_saved", "flow.deleted", "run.finished"] as const;
+export const WEBHOOK_EVENT_LABELS: Record<(typeof webhookEvents)[number], string> = {
+  "flow.version_saved": "Flow saved (new version)",
+  "flow.deleted": "Flow deleted",
+  "run.finished": "Remote run finished",
+};
+export const webhookSchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  events: z.array(z.string()),
+  active: z.boolean(),
+  createdAt: z.string(),
+  secret: z.string().nullish(),
+});
+export type Webhook = z.infer<typeof webhookSchema>;
+export const deliverySchema = z.object({
+  id: z.string(),
+  eventId: z.string(),
+  eventType: z.string(),
+  status: z.enum(["PENDING", "SUCCEEDED", "FAILED"]),
+  attempts: z.number(),
+  nextAttemptAt: z.string(),
+  lastStatusCode: z.number().nullish(),
+  lastError: z.string().nullish(),
+  createdAt: z.string(),
+  deliveredAt: z.string().nullish(),
+  payload: z.string(),
+});
+export type Delivery = z.infer<typeof deliverySchema>;
+export const auditEntrySchema = z.object({
+  id: z.number(),
+  action: z.string(),
+  targetType: z.string(),
+  targetId: z.string().nullish(),
+  actorUserId: z.string().nullish(),
+  actorEmail: z.string().nullish(),
+  actorApiKeyId: z.string().nullish(),
+  details: z.record(z.string()),
+  at: z.string(),
+});
+export type AuditEntry = z.infer<typeof auditEntrySchema>;

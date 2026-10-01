@@ -6,17 +6,28 @@ import com.voicecontrol.domain.event.FlowDeleted
 import com.voicecontrol.domain.event.FlowVersionSaved
 import com.voicecontrol.domain.flow.AppSummary
 import com.voicecontrol.domain.flow.Flow
+import com.voicecontrol.domain.flow.FlowOwner
 import com.voicecontrol.domain.flow.FlowRepository
 import com.voicecontrol.domain.flow.FlowStep
 import com.voicecontrol.domain.flow.FlowVersion
 import com.voicecontrol.domain.flow.FlowWithVersion
 import com.voicecontrol.domain.flow.StepAction
 import com.voicecontrol.domain.flow.VersionSource
+import com.voicecontrol.domain.org.Actor
+import com.voicecontrol.domain.org.AuditLog
+import com.voicecontrol.domain.org.OrgRepository
+import com.voicecontrol.domain.org.Role
 import java.net.URI
 import java.time.Clock
 import java.util.UUID
 
 data class NewFlow(val appPackage: String, val name: String, val screenSignature: String, val steps: List<FlowStep>)
+
+/**
+ * An API key acting for its creator: limited to the key's organization ([orgId]); flows outside it are
+ * invisible, and actions are audited with the key's id.
+ */
+data class KeyContext(val apiKeyId: UUID, val orgId: UUID)
 
 /**
  * Versioned flow library. Every edit (from the phone or the dashboard) appends an immutable version;
@@ -27,6 +38,8 @@ class FlowService(
     private val flows: FlowRepository,
     private val events: EventPublisher,
     private val clock: Clock = Clock.systemUTC(),
+    private val orgs: OrgRepository? = null,
+    private val audit: AuditLog = AuditLog { _, _, _, _, _, _ -> },
 ) {
     /** Upload from the phone. Idempotent per (app, screen signature): returns the existing flow if any. */
     suspend fun createFromDevice(userId: UUID, input: NewFlow): FlowWithVersion {
@@ -42,38 +55,63 @@ class FlowService(
     }
 
     /**
-     * Adds marketplace steps to the user's library: a new flow, or a new version of their flow for the
-     * same screen (their earlier steps stay in its history).
+     * Adds marketplace steps to the user's library (or to organization [orgId], which needs the editor
+     * role): a new flow, or a new version of the flow for the same screen (earlier steps stay in history).
      */
-    suspend fun importFlow(userId: UUID, appPackage: String, name: String, signature: String, steps: List<FlowStep>, note: String): FlowWithVersion {
+    suspend fun importFlow(
+        userId: UUID,
+        appPackage: String,
+        name: String,
+        signature: String,
+        steps: List<FlowStep>,
+        note: String,
+        orgId: UUID? = null,
+    ): FlowWithVersion {
         val pkg = validatePackage(appPackage)
         val sig = signature.trim().take(MAX_SIGNATURE).ifEmpty { throw DomainException.Validation("This listing has no screen to match") }
         val clean = normalizeSteps(steps)
-        flows.findBySignature(userId, pkg, sig)?.let { existing ->
-            return update(userId, existing.flow.id, existing.flow.currentVersion, null, clean, note, VersionSource.IMPORT)
+        if (orgId != null) requireRole(orgId, userId, Role.EDITOR)
+        val existing = if (orgId == null) {
+            flows.findBySignature(userId, pkg, sig)
+        } else {
+            flows.list(FlowOwner.Org(orgId), pkg, 500, 0).firstOrNull { it.screenSignature == sig }?.let { flows.find(userId, it.id) }
         }
+        existing?.let { return update(userId, it.flow.id, it.flow.currentVersion, null, clean, note, VersionSource.IMPORT) }
         val now = clock.instant()
-        val flow = Flow(UUID.randomUUID(), userId, pkg, validateName(name), sig, 1, now, now)
+        val flow = Flow(UUID.randomUUID(), userId, pkg, validateName(name), sig, 1, now, now, orgId = orgId)
         val created = flows.create(flow, FlowVersion(flow.id, 1, clean, sig, VersionSource.IMPORT, note, now))
         publish(created)
+        orgId?.let { audit.record(it, Actor(userId), "flow.imported", "flow", flow.id.toString(), mapOf("name" to flow.name)) }
         return created
     }
 
-    suspend fun list(userId: UUID, appPackage: String?, limit: Int, offset: Int): List<Flow> =
-        flows.list(userId, appPackage?.takeIf { it.isNotBlank() }, limit.coerceIn(1, 200), offset.coerceAtLeast(0))
+    /** Personal flows, or organization [orgId]'s flows (any member may read them). */
+    suspend fun list(userId: UUID, appPackage: String?, limit: Int, offset: Int, orgId: UUID? = null): List<Flow> {
+        val owner = owner(userId, orgId)
+        return flows.list(owner, appPackage?.takeIf { it.isNotBlank() }, limit.coerceIn(1, 200), offset.coerceAtLeast(0))
+    }
 
-    suspend fun apps(userId: UUID): List<AppSummary> = flows.apps(userId)
+    suspend fun apps(userId: UUID, orgId: UUID? = null): List<AppSummary> = flows.apps(owner(userId, orgId))
 
-    suspend fun get(userId: UUID, flowId: UUID): FlowWithVersion =
-        flows.find(userId, flowId) ?: throw DomainException.NotFound("Flow not found")
+    suspend fun get(userId: UUID, flowId: UUID, key: KeyContext? = null): FlowWithVersion {
+        val found = flows.find(userId, flowId) ?: throw DomainException.NotFound("Flow not found")
+        if (key != null && found.flow.orgId != key.orgId) throw DomainException.NotFound("Flow not found")
+        return found
+    }
 
-    suspend fun versions(userId: UUID, flowId: UUID): List<FlowVersion> {
-        get(userId, flowId)
+    suspend fun versions(userId: UUID, flowId: UUID, key: KeyContext? = null): List<FlowVersion> {
+        get(userId, flowId, key)
         return flows.versions(userId, flowId)
     }
 
-    suspend fun version(userId: UUID, flowId: UUID, version: Int): FlowVersion =
-        flows.version(userId, flowId, version) ?: throw DomainException.NotFound("Version not found")
+    suspend fun version(userId: UUID, flowId: UUID, version: Int, key: KeyContext? = null): FlowVersion {
+        get(userId, flowId, key)
+        return flows.version(userId, flowId, version) ?: throw DomainException.NotFound("Version not found")
+    }
+
+    /** The caller's role for a flow: personal flows are their own (admin); organization flows use membership. */
+    suspend fun roleFor(userId: UUID, flow: Flow): Role =
+        flow.orgId?.let { orgs?.role(it, userId) ?: throw DomainException.NotFound("Flow not found") } ?: Role.ADMIN
 
     /** Dashboard edit: questions, rules, defaults, skips, order, help videos (and optionally the name). */
     suspend fun update(
@@ -84,8 +122,10 @@ class FlowService(
         steps: List<FlowStep>,
         changeNote: String?,
         source: VersionSource = VersionSource.DASHBOARD,
+        key: KeyContext? = null,
     ): FlowWithVersion {
-        val current = get(userId, flowId)
+        val current = get(userId, flowId, key)
+        requireFlowRole(userId, current.flow, Role.EDITOR)
         val next = FlowVersion(
             flowId = flowId,
             version = current.flow.currentVersion + 1,
@@ -98,19 +138,65 @@ class FlowService(
         val saved = flows.addVersion(userId, flowId, expectedVersion, name?.let(::validateName), next)
             ?: throw DomainException.Conflict("This flow was changed by someone else. Reload and try again.")
         publish(saved)
+        current.flow.orgId?.let {
+            audit.record(
+                it, Actor(userId, key?.apiKeyId), if (source == VersionSource.ROLLBACK) "flow.rolled_back" else "flow.updated", "flow", flowId.toString(),
+                mapOf("name" to saved.flow.name, "version" to saved.version.version.toString()),
+            )
+        }
         return saved
     }
 
-    suspend fun rollback(userId: UUID, flowId: UUID, toVersion: Int): FlowWithVersion {
-        val current = get(userId, flowId)
-        val old = version(userId, flowId, toVersion)
-        return update(userId, flowId, current.flow.currentVersion, null, old.steps, "Rolled back to version $toVersion", VersionSource.ROLLBACK)
+    suspend fun rollback(userId: UUID, flowId: UUID, toVersion: Int, key: KeyContext? = null): FlowWithVersion {
+        val current = get(userId, flowId, key)
+        val old = version(userId, flowId, toVersion, key)
+        return update(userId, flowId, current.flow.currentVersion, null, old.steps, "Rolled back to version $toVersion", VersionSource.ROLLBACK, key)
     }
 
-    suspend fun delete(userId: UUID, flowId: UUID) {
-        val existing = get(userId, flowId)
+    suspend fun delete(userId: UUID, flowId: UUID, key: KeyContext? = null) {
+        val existing = get(userId, flowId, key)
+        requireFlowRole(userId, existing.flow, Role.EDITOR)
         if (!flows.delete(userId, flowId)) throw DomainException.NotFound("Flow not found")
-        events.publish(FlowDeleted(flowId.toString(), userId.toString(), existing.flow.appPackage))
+        events.publish(FlowDeleted(flowId.toString(), userId.toString(), existing.flow.appPackage, existing.flow.orgId?.toString()))
+        existing.flow.orgId?.let { audit.record(it, Actor(userId, key?.apiKeyId), "flow.deleted", "flow", flowId.toString(), mapOf("name" to existing.flow.name)) }
+    }
+
+    /**
+     * Moves a flow between the caller's personal flows and an organization. Moving in needs the editor role
+     * in the target; moving out of an organization needs its admin role. Personal flows move only by their owner.
+     */
+    suspend fun transfer(userId: UUID, flowId: UUID, toOrgId: UUID?): FlowWithVersion {
+        val existing = get(userId, flowId)
+        val from = existing.flow.orgId
+        if (from == toOrgId) return existing
+        if (from == null) {
+            if (existing.flow.userId != userId) throw DomainException.NotFound("Flow not found")
+        } else {
+            requireRole(from, userId, Role.ADMIN)
+        }
+        if (toOrgId != null) requireRole(toOrgId, userId, Role.EDITOR)
+        if (!flows.transfer(flowId, toOrgId, userId)) throw DomainException.NotFound("Flow not found")
+        val moved = get(userId, flowId)
+        // Both the old and the new owners' match caches must forget this flow.
+        events.publish(FlowDeleted(flowId.toString(), existing.flow.userId.toString(), existing.flow.appPackage, from?.toString()))
+        publish(moved)
+        from?.let { audit.record(it, Actor(userId), "flow.moved_out", "flow", flowId.toString(), mapOf("name" to moved.flow.name, "to" to (toOrgId?.toString() ?: "personal"))) }
+        toOrgId?.let { audit.record(it, Actor(userId), "flow.moved_in", "flow", flowId.toString(), mapOf("name" to moved.flow.name)) }
+        return moved
+    }
+
+    private suspend fun owner(userId: UUID, orgId: UUID?): FlowOwner =
+        if (orgId == null) FlowOwner.Personal(userId) else FlowOwner.Org(orgId).also { requireRole(orgId, userId, Role.VIEWER) }
+
+    private suspend fun requireFlowRole(userId: UUID, flow: Flow, required: Role) {
+        val role = roleFor(userId, flow)
+        if (!role.atLeast(required)) throw DomainException.Forbidden("Viewers can't change this organization's flows")
+    }
+
+    private suspend fun requireRole(orgId: UUID, userId: UUID, required: Role) {
+        val repo = orgs ?: throw DomainException.NotFound("Organization not found")
+        val role = repo.role(orgId, userId) ?: throw DomainException.NotFound("Organization not found")
+        if (!role.atLeast(required)) throw DomainException.Forbidden("This needs the ${required.name.lowercase()} role; you are ${role.name.lowercase()}")
     }
 
     private suspend fun publish(saved: FlowWithVersion) {
@@ -121,6 +207,7 @@ class FlowService(
                 appPackage = saved.flow.appPackage,
                 version = saved.version.version,
                 screenSignature = saved.version.screenSignature,
+                orgId = saved.flow.orgId?.toString(),
             ),
         )
     }

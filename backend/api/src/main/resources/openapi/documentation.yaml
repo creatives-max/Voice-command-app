@@ -6,6 +6,16 @@ info:
     Backend for VoiceControl: authentication, user profile, the versioned flow library,
     and AI interpretation of screen + speech. All `/v1` endpoints except auth require
     `Authorization: Bearer <accessToken>`. Errors use `{"error": "<code>", "message": "..."}`.
+
+    Organizations: send `X-Org-Id: <orgId>` to list an organization's flows instead of your own.
+    Organization API keys (`X-Api-Key: vck_…` or `Authorization: Bearer vck_…`) work on the flow
+    endpoints (`flows:read`, `flows:write`) and on `POST /v1/run-requests` (`runs:write`); a key acts as
+    its creator, only on its organization's flows, and is rate limited per minute (429 when exceeded).
+
+    Webhooks are POSTed as JSON `{id, type, createdAt, orgId, data}` with headers `X-VoiceControl-Event`,
+    `X-VoiceControl-Delivery`, `X-VoiceControl-Timestamp` and `X-VoiceControl-Signature: t=<unix>,v1=<hex>`
+    where `v1 = HMAC-SHA256(secret, "<t>.<raw body>")`. Reject timestamps older than 5 minutes; a 2xx
+    response acknowledges, anything else is retried after 30 s, 2 min, 10 min, 30 min, 1 h and 3 h.
 servers:
   - url: /
 security:
@@ -17,6 +27,7 @@ tags:
   - name: AI
   - name: History
   - name: Ops
+  - name: Teams
 paths:
   /health:
     get:
@@ -112,7 +123,9 @@ paths:
   /v1/flows:
     get:
       tags: [Flows]
+      security: [{ bearerAuth: [] }, { apiKeyAuth: [] }]
       parameters:
+        - $ref: "#/components/parameters/OrgId"
         - { name: appPackage, in: query, schema: { type: string } }
         - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
         - { name: offset, in: query, schema: { type: integer, default: 0 } }
@@ -142,6 +155,9 @@ paths:
     get:
       tags: [Flows]
       summary: Apps that have flows, with counts
+      security: [{ bearerAuth: [] }, { apiKeyAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
       responses:
         "200":
           description: Apps
@@ -438,6 +454,7 @@ paths:
   /v1/run-requests:
     post:
       tags: [Automation]
+      security: [{ bearerAuth: [] }, { apiKeyAuth: [] }]
       summary: Run a flow now on a phone (default the most recently seen one)
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [flowId], properties: { flowId: { type: string }, deviceId: { type: string } } } } } }
       responses:
@@ -577,9 +594,210 @@ paths:
       responses:
         "200": { description: Updated flow, content: { application/json: { schema: { $ref: "#/components/schemas/Flow" } } } }
         "409": { description: Already up to date }
+  /v1/flows/{id}/transfer:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Flows, Teams]
+      summary: Move a flow into an organization (editor there) or back to your own flows (admin of its organization)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, properties: { orgId: { type: string, format: uuid, nullable: true } } } } }
+      responses:
+        "200": { description: Moved flow, content: { application/json: { schema: { $ref: "#/components/schemas/Flow" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+  /v1/orgs:
+    get:
+      tags: [Teams]
+      summary: Your organizations and your role in each
+      responses:
+        "200": { description: Organizations, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Organization" } } } } }
+    post:
+      tags: [Teams]
+      summary: Create an organization (you become its admin)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [name], properties: { name: { type: string } } } } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Organization" } } } }
+  /v1/orgs/{orgId}:
+    parameters: [{ $ref: "#/components/parameters/OrgPath" }]
+    patch:
+      tags: [Teams]
+      summary: Rename (admin)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { name: { type: string } } } } } }
+      responses: { "204": { description: Renamed } }
+    delete:
+      tags: [Teams]
+      summary: Delete the organization and its flows, keys and webhooks (admin)
+      responses: { "204": { description: Deleted } }
+  /v1/orgs/{orgId}/members:
+    parameters: [{ $ref: "#/components/parameters/OrgPath" }]
+    get:
+      tags: [Teams]
+      responses:
+        "200": { description: Members, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Member" } } } } }
+  /v1/orgs/{orgId}/members/{userId}:
+    parameters:
+      - $ref: "#/components/parameters/OrgPath"
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Teams]
+      summary: Change a member's role (admin; an organization keeps at least one admin)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { role: { $ref: "#/components/schemas/Role" } } } } } }
+      responses: { "204": { description: Changed } }
+    delete:
+      tags: [Teams]
+      summary: Remove a member (admin) or leave (yourself)
+      responses: { "204": { description: Removed } }
+  /v1/orgs/{orgId}/invitations:
+    parameters: [{ $ref: "#/components/parameters/OrgPath" }]
+    get:
+      tags: [Teams]
+      summary: Open invitations (admin)
+      responses:
+        "200": { description: Invitations, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Invitation" } } } } }
+    post:
+      tags: [Teams]
+      summary: Invite by email (admin); the response's token is shown once and expires after 7 days
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [email], properties: { email: { type: string }, role: { $ref: "#/components/schemas/Role" } } } } }
+      responses:
+        "201": { description: Invitation with token, content: { application/json: { schema: { $ref: "#/components/schemas/Invitation" } } } }
+  /v1/orgs/{orgId}/invitations/{id}:
+    parameters:
+      - $ref: "#/components/parameters/OrgPath"
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [Teams]
+      responses: { "204": { description: Revoked } }
+  /v1/invitations/{token}:
+    parameters: [{ name: token, in: path, required: true, schema: { type: string } }]
+    get:
+      tags: [Teams]
+      summary: What an invitation link is for
+      responses:
+        "200":
+          description: Preview
+          content:
+            application/json:
+              schema: { type: object, properties: { orgName: { type: string }, email: { type: string }, role: { $ref: "#/components/schemas/Role" }, expiresAt: { type: string, format: date-time } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/invitations/{token}/accept:
+    parameters: [{ name: token, in: path, required: true, schema: { type: string } }]
+    post:
+      tags: [Teams]
+      summary: Join (the signed-in account's email must match the invitation)
+      responses:
+        "200": { description: Joined organization, content: { application/json: { schema: { $ref: "#/components/schemas/Organization" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+  /v1/orgs/{orgId}/api-keys:
+    parameters: [{ $ref: "#/components/parameters/OrgPath" }]
+    get:
+      tags: [Teams]
+      summary: API keys (admin); secrets are never returned again
+      responses:
+        "200": { description: Keys, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ApiKey" } } } } }
+    post:
+      tags: [Teams]
+      summary: Create a key (admin); `secret` is returned once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, scopes]
+              properties:
+                name: { type: string }
+                scopes: { type: array, items: { type: string, enum: ["flows:read", "flows:write", "runs:write"] } }
+                rateLimitPerMinute: { type: integer, default: 60, minimum: 1, maximum: 10000 }
+      responses:
+        "201": { description: Key with secret, content: { application/json: { schema: { $ref: "#/components/schemas/ApiKey" } } } }
+  /v1/orgs/{orgId}/api-keys/{id}:
+    parameters:
+      - $ref: "#/components/parameters/OrgPath"
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [Teams]
+      responses: { "204": { description: Revoked } }
+  /v1/orgs/{orgId}/webhooks:
+    parameters: [{ $ref: "#/components/parameters/OrgPath" }]
+    get:
+      tags: [Teams]
+      responses:
+        "200": { description: Webhooks, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Webhook" } } } } }
+    post:
+      tags: [Teams]
+      summary: Add a webhook (admin, https and public addresses only); `secret` is returned once
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WebhookRequest" } } } }
+      responses:
+        "201": { description: Webhook with secret, content: { application/json: { schema: { $ref: "#/components/schemas/Webhook" } } } }
+        "400": { $ref: "#/components/responses/Error" }
+  /v1/orgs/{orgId}/webhooks/{id}:
+    parameters:
+      - $ref: "#/components/parameters/OrgPath"
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Teams]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WebhookRequest" } } } }
+      responses: { "200": { description: Updated, content: { application/json: { schema: { $ref: "#/components/schemas/Webhook" } } } } }
+    delete:
+      tags: [Teams]
+      responses: { "204": { description: Deleted } }
+  /v1/orgs/{orgId}/webhooks/{id}/rotate-secret:
+    parameters:
+      - $ref: "#/components/parameters/OrgPath"
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Teams]
+      responses: { "200": { description: Webhook with the new secret, content: { application/json: { schema: { $ref: "#/components/schemas/Webhook" } } } } }
+  /v1/orgs/{orgId}/webhooks/{id}/ping:
+    parameters:
+      - $ref: "#/components/parameters/OrgPath"
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Teams]
+      summary: Queue a `ping` delivery
+      responses: { "202": { description: Queued, content: { application/json: { schema: { $ref: "#/components/schemas/WebhookDelivery" } } } } }
+  /v1/orgs/{orgId}/webhooks/{id}/deliveries:
+    parameters:
+      - $ref: "#/components/parameters/OrgPath"
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 100 } }
+    get:
+      tags: [Teams]
+      responses:
+        "200": { description: Recent deliveries, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/WebhookDelivery" } } } } }
+  /v1/orgs/{orgId}/webhooks/deliveries/{deliveryId}/redeliver:
+    parameters:
+      - $ref: "#/components/parameters/OrgPath"
+      - { name: deliveryId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Teams]
+      responses: { "200": { description: Queued again, content: { application/json: { schema: { $ref: "#/components/schemas/WebhookDelivery" } } } } }
+  /v1/orgs/{orgId}/audit:
+    parameters:
+      - $ref: "#/components/parameters/OrgPath"
+      - { name: action, in: query, description: "Exact action or prefix (\"member\" matches member.*)", schema: { type: string } }
+      - { name: before, in: query, description: Entries older than this id (paging), schema: { type: integer } }
+      - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+    get:
+      tags: [Teams]
+      summary: Audit log, newest first (admin)
+      responses:
+        "200": { description: Entries, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/AuditEntry" } } } } }
 components:
+  parameters:
+    OrgId:
+      name: X-Org-Id
+      in: header
+      required: false
+      description: Organization whose flows to use (omit for your own flows; ignored for API keys).
+      schema: { type: string, format: uuid }
+    OrgPath: { name: orgId, in: path, required: true, schema: { type: string, format: uuid } }
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+    apiKeyAuth: { type: apiKey, in: header, name: X-Api-Key }
   responses:
     Error:
       description: Error
@@ -591,6 +809,85 @@ components:
               error: { type: string, example: validation_error }
               message: { type: string }
   schemas:
+    Role: { type: string, enum: [ADMIN, EDITOR, VIEWER] }
+    Organization:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+        memberCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+    Member:
+      type: object
+      properties:
+        userId: { type: string, format: uuid }
+        email: { type: string }
+        name: { type: string, nullable: true }
+        role: { $ref: "#/components/schemas/Role" }
+        joinedAt: { type: string, format: date-time }
+    Invitation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        token: { type: string, description: Only when created }
+    ApiKey:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        prefix: { type: string, example: vck_ab12cd34 }
+        scopes: { type: array, items: { type: string } }
+        rateLimitPerMinute: { type: integer }
+        createdAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time, nullable: true }
+        revokedAt: { type: string, format: date-time, nullable: true }
+        secret: { type: string, description: Only when created }
+    WebhookRequest:
+      type: object
+      properties:
+        url: { type: string, example: "https://example.com/hooks/voicecontrol" }
+        events: { type: array, items: { type: string, enum: [flow.version_saved, flow.deleted, run.finished] } }
+        active: { type: boolean }
+    Webhook:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string }
+        events: { type: array, items: { type: string } }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        secret: { type: string, description: Only when created or rotated }
+    WebhookDelivery:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        eventId: { type: string }
+        eventType: { type: string }
+        status: { type: string, enum: [PENDING, SUCCEEDED, FAILED] }
+        attempts: { type: integer }
+        nextAttemptAt: { type: string, format: date-time }
+        lastStatusCode: { type: integer, nullable: true }
+        lastError: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        deliveredAt: { type: string, format: date-time, nullable: true }
+        payload: { type: string, description: JSON body as sent }
+    AuditEntry:
+      type: object
+      properties:
+        id: { type: integer }
+        action: { type: string, example: flow.updated }
+        targetType: { type: string }
+        targetId: { type: string, nullable: true }
+        actorUserId: { type: string, nullable: true }
+        actorEmail: { type: string, nullable: true }
+        actorApiKeyId: { type: string, nullable: true }
+        details: { type: object, additionalProperties: { type: string } }
+        at: { type: string, format: date-time }
     Listing:
       type: object
       properties:
@@ -769,6 +1066,7 @@ components:
     FlowSummary:
       type: object
       properties:
+        orgId: { type: string, format: uuid, nullable: true, description: Owning organization (null for personal flows) }
         id: { type: string, format: uuid }
         appPackage: { type: string }
         name: { type: string }
@@ -778,6 +1076,7 @@ components:
     Flow:
       type: object
       properties:
+        orgId: { type: string, format: uuid, nullable: true, description: Owning organization (null for personal flows) }
         id: { type: string, format: uuid }
         version: { type: integer }
         appPackage: { type: string }

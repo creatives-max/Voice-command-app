@@ -173,3 +173,52 @@ export function useSaveProfile() {
     onSuccess: (profile) => qc.setQueryData(keys.profile, profile),
   });
 }
+
+// Organizations ------------------------------------------------------------------------------------
+
+export const orgKeys = {
+  orgs: ["orgs"] as const,
+  members: (orgId: string) => ["orgs", orgId, "members"] as const,
+  invitations: (orgId: string) => ["orgs", orgId, "invitations"] as const,
+  apiKeys: (orgId: string) => ["orgs", orgId, "api-keys"] as const,
+  webhooks: (orgId: string) => ["orgs", orgId, "webhooks"] as const,
+  deliveries: (orgId: string, webhookId: string) => ["orgs", orgId, "webhooks", webhookId, "deliveries"] as const,
+  audit: (orgId: string, action: string) => ["orgs", orgId, "audit", action] as const,
+};
+
+export const orgsQuery = queryOptions({ queryKey: orgKeys.orgs, queryFn: api.orgs, staleTime: 30_000 });
+export const membersQuery = (orgId: string) => queryOptions({ queryKey: orgKeys.members(orgId), queryFn: () => api.members(orgId) });
+export const invitationsQuery = (orgId: string) => queryOptions({ queryKey: orgKeys.invitations(orgId), queryFn: () => api.invitations(orgId) });
+export const apiKeysQuery = (orgId: string) => queryOptions({ queryKey: orgKeys.apiKeys(orgId), queryFn: () => api.apiKeys(orgId) });
+export const webhooksQuery = (orgId: string) => queryOptions({ queryKey: orgKeys.webhooks(orgId), queryFn: () => api.webhooks(orgId) });
+export const deliveriesQuery = (orgId: string, webhookId: string) =>
+  queryOptions({ queryKey: orgKeys.deliveries(orgId, webhookId), queryFn: () => api.deliveries(orgId, webhookId), refetchInterval: 5_000 });
+
+/** Invalidates everything under one organization (members, keys, webhooks, audit…). */
+export function useOrgMutation<TVars, TResult>(orgId: string, fn: (vars: TVars) => Promise<TResult>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["orgs", orgId] });
+      void qc.invalidateQueries({ queryKey: orgKeys.orgs, exact: true });
+    },
+  });
+}
+
+export function useCreateOrg() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (name: string) => api.createOrg(name), onSuccess: () => qc.invalidateQueries({ queryKey: orgKeys.orgs }) });
+}
+
+export function useTransferFlow(flowId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orgId: string | null) => api.transferFlow(flowId, orgId),
+    onSuccess: (flow) => {
+      qc.setQueryData(keys.flow(flowId), flow);
+      void qc.invalidateQueries({ queryKey: ["flows"] });
+      void qc.invalidateQueries({ queryKey: keys.apps });
+    },
+  });
+}

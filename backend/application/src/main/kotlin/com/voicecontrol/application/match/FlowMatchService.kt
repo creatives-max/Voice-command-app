@@ -19,7 +19,8 @@ data class FlowMatch(val flow: FlowWithVersion, val kind: MatchKind, val similar
 /**
  * Screen → saved flow matching.
  * 1. Exact signature (same app, same screen structure).
- * 2. Nearest pgvector embedding among the user's flows for the app, above [threshold],
+ * Candidates are the user's personal flows (preferred) and their organizations' flows.
+ * 2. Nearest pgvector embedding among those flows for the app, above [threshold],
  *    so a flow still matches after small label changes ("Mobile no." → "Mobile number").
  * Results (including misses) are cached in Redis and invalidated by flow events.
  */
@@ -44,7 +45,7 @@ class FlowMatchService(
     }
 
     private suspend fun compute(userId: UUID, appPackage: String, signature: String): FlowMatch? {
-        flows.findBySignature(userId, appPackage, signature)?.let { return FlowMatch(it, MatchKind.EXACT, 1.0) }
+        flows.findAccessibleBySignature(userId, appPackage, signature)?.let { return FlowMatch(it, MatchKind.EXACT, 1.0) }
         val vector = embedder.embed(SignatureText.of(signature))
         val best = embeddings.nearest(userId, appPackage, vector, limit = 3).firstOrNull() ?: return null
         if (best.similarity < threshold) return null
@@ -74,7 +75,7 @@ class FlowEmbeddingHandler(
         if (event !is FlowVersionSaved) return
         val flowId = UUID.fromString(event.flowId)
         if (embeddings.hasEmbedding(flowId, event.version)) return
-        val version = flows.version(UUID.fromString(event.userId), flowId, event.version) ?: return // deleted meanwhile
+        val version = flows.versionById(flowId, event.version) ?: return // deleted meanwhile
         embeddings.store(flowId, event.version, embedder.embed(SignatureText.of(version.screenSignature)), embedder.name)
     }
 }

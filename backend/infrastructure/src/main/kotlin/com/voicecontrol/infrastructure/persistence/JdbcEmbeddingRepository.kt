@@ -22,11 +22,12 @@ class JdbcEmbeddingRepository(private val db: Database) : EmbeddingRepository {
             """
             SELECT f.id, 1 - (v.embedding <=> ?::vector) AS similarity
             FROM flows f JOIN flow_versions v ON v.flow_id = f.id AND v.version = f.current_version
-            WHERE f.user_id = ? AND f.app_package = ? AND f.deleted_at IS NULL AND v.embedding IS NOT NULL
+            WHERE ((f.org_id IS NULL AND f.user_id = ?) OR f.org_id IN (SELECT org_id FROM memberships WHERE user_id = ?))
+              AND f.app_package = ? AND f.deleted_at IS NULL AND v.embedding IS NOT NULL
             ORDER BY v.embedding <=> ?::vector
             LIMIT ?
             """.trimIndent(),
-            vector, userId, appPackage, vector, limit,
+            vector, userId, userId, appPackage, vector, limit,
         ) { VectorMatch(it.uuid("id"), it.getDouble("similarity")) }
     }
 

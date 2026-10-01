@@ -2,11 +2,19 @@ package com.voicecontrol.domain.event
 
 import kotlinx.serialization.Serializable
 
-/** Integration events published on the event bus (Redis Streams). */
+/**
+ * Integration events published on the event bus (Kafka, with Redis Streams as fallback).
+ * [eventId] is unique per event so consumers (webhooks) can deduplicate at-least-once deliveries.
+ */
 @Serializable
 sealed interface DomainEvent {
     val type: String
+    val eventId: String
+    /** Organization the event belongs to, if any (webhooks are per organization). */
+    val orgId: String?
 }
+
+private fun newEventId() = java.util.UUID.randomUUID().toString()
 
 @Serializable
 data class FlowVersionSaved(
@@ -15,6 +23,8 @@ data class FlowVersionSaved(
     val appPackage: String,
     val version: Int,
     val screenSignature: String,
+    override val orgId: String? = null,
+    override val eventId: String = newEventId(),
 ) : DomainEvent {
     override val type: String get() = TYPE
 
@@ -24,7 +34,13 @@ data class FlowVersionSaved(
 }
 
 @Serializable
-data class FlowDeleted(val flowId: String, val userId: String, val appPackage: String) : DomainEvent {
+data class FlowDeleted(
+    val flowId: String,
+    val userId: String,
+    val appPackage: String,
+    override val orgId: String? = null,
+    override val eventId: String = newEventId(),
+) : DomainEvent {
     override val type: String get() = TYPE
 
     companion object {
@@ -32,7 +48,26 @@ data class FlowDeleted(val flowId: String, val userId: String, val appPackage: S
     }
 }
 
-interface EventPublisher {
+/** A remote run (run now, schedule, app open) reached a final status. */
+@Serializable
+data class RunFinished(
+    val requestId: String,
+    val userId: String,
+    val flowId: String?,
+    val flowName: String,
+    val status: String,
+    val source: String,
+    override val orgId: String? = null,
+    override val eventId: String = newEventId(),
+) : DomainEvent {
+    override val type: String get() = TYPE
+
+    companion object {
+        const val TYPE = "run.finished"
+    }
+}
+
+fun interface EventPublisher {
     suspend fun publish(event: DomainEvent)
 }
 

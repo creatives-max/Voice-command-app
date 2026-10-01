@@ -16,6 +16,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       search: request.nextUrl.search,
       body: request.method === "GET" || request.method === "HEAD" ? null : await request.text(),
       cookies: { get: (name) => jar.get(name)?.value },
+      orgId: request.headers.get("x-org-id"),
     },
     backendUrl(),
   );

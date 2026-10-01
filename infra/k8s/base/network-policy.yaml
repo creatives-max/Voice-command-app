@@ -1,4 +1,4 @@
-# Only the backend may talk to Postgres and Redis.
+# Only the backend may talk to Postgres, Redis and Kafka.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -8,7 +8,7 @@ spec:
     matchExpressions:
       - key: app.kubernetes.io/name
         operator: In
-        values: [postgres, redis]
+        values: [postgres, redis, kafka]
   policyTypes: [Ingress]
   ingress:
     - from:

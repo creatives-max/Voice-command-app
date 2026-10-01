@@ -99,13 +99,13 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Tests, commit + push
 
 ## Phase 14 — Teams & multi-tenant backend
-- [ ] Organizations, memberships, invitations, RBAC (admin/editor/viewer), per-org flows
-- [ ] Audit logs
-- [ ] API keys + per-key rate limiting
-- [ ] Webhooks on flow events (signed, retried, delivery log)
-- [ ] Kafka event bus with Redis Streams fallback
-- [ ] Dashboard: org switcher, team, API keys, webhooks, audit log
-- [ ] Tests, commit + push
+- [x] Organizations, memberships, invitations, RBAC (admin/editor/viewer), per-org flows
+- [x] Audit logs
+- [x] API keys + per-key rate limiting
+- [x] Webhooks on flow events (signed, retried, delivery log)
+- [x] Kafka event bus with Redis Streams fallback
+- [x] Dashboard: org switcher, team, API keys, webhooks, audit log
+- [x] Tests, commit + push
 
 ## Phase 15 — Analytics & visual builder
 - [ ] Per-flow usage + success analytics API and dashboard charts

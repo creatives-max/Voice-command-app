@@ -26,6 +26,9 @@ object TestEnvironment {
                 "LLM_PROVIDER" to "rules",
                 "EMBEDDING_PROVIDER" to "hashing",
                 "AUTH_RATE_LIMIT_PER_MINUTE" to "1000",
+                // Webhook tests deliver to a local HTTP server.
+                "WEBHOOK_ALLOW_HTTP" to "true",
+                "WEBHOOK_ALLOW_PRIVATE" to "true",
             ),
         )
         Bootstrap.create(config, bcryptCost = 4)

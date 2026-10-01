@@ -5,6 +5,7 @@ dependencies {
     implementation(libs.flyway.core)
     implementation(libs.flyway.postgres)
     implementation(libs.lettuce)
+    implementation(libs.kafka.clients)
     implementation(libs.bcrypt)
     implementation(libs.java.jwt)
     implementation(libs.ktor.client.core)
@@ -17,6 +18,7 @@ dependencies {
 
     testImplementation(libs.testcontainers.postgres)
     testImplementation(libs.testcontainers.junit)
+    testImplementation(libs.testcontainers.kafka)
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.ktor.server.netty)
     testImplementation(libs.ktor.server.core)

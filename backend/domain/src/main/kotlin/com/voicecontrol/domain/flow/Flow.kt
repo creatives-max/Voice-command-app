@@ -74,7 +74,15 @@ data class Flow(
     /** Marketplace listing this flow was imported from, and which of its versions. */
     val sourcePublishedId: UUID? = null,
     val sourceVersion: Int? = null,
+    /** Organization that owns the flow; null for a personal flow. */
+    val orgId: UUID? = null,
 )
+
+/** Whose flows a list covers: the user's personal flows or an organization's. */
+sealed interface FlowOwner {
+    data class Personal(val userId: UUID) : FlowOwner
+    data class Org(val orgId: UUID) : FlowOwner
+}
 
 data class FlowVersion(
     val flowId: UUID,
@@ -88,20 +96,31 @@ data class FlowVersion(
 
 data class FlowWithVersion(val flow: Flow, val version: FlowVersion)
 
+/**
+ * Flows a user can access are their personal flows plus the flows of organizations they belong to.
+ * Methods taking a `userId` and a flow id apply that access rule; role checks are the service's job.
+ */
 interface FlowRepository {
     suspend fun create(flow: Flow, firstVersion: FlowVersion): FlowWithVersion
     suspend fun find(userId: UUID, flowId: UUID): FlowWithVersion?
+    /** Personal flow with this exact screen signature (idempotent device uploads). */
     suspend fun findBySignature(userId: UUID, appPackage: String, signature: String): FlowWithVersion?
-    suspend fun list(userId: UUID, appPackage: String?, limit: Int, offset: Int): List<Flow>
+    /** Any accessible flow with this exact signature, personal first (screen matching). */
+    suspend fun findAccessibleBySignature(userId: UUID, appPackage: String, signature: String): FlowWithVersion?
+    suspend fun list(owner: FlowOwner, appPackage: String?, limit: Int, offset: Int): List<Flow>
     suspend fun versions(userId: UUID, flowId: UUID): List<FlowVersion>
     suspend fun version(userId: UUID, flowId: UUID, version: Int): FlowVersion?
+    /** A version regardless of access (background processing such as embeddings). */
+    suspend fun versionById(flowId: UUID, version: Int): FlowVersion?
     /**
      * Appends [next] as the new current version if the flow is still at [expectedVersion].
      * Returns null on a concurrent modification.
      */
     suspend fun addVersion(userId: UUID, flowId: UUID, expectedVersion: Int, name: String?, next: FlowVersion): FlowWithVersion?
     suspend fun delete(userId: UUID, flowId: UUID): Boolean
-    suspend fun apps(userId: UUID): List<AppSummary>
+    suspend fun apps(owner: FlowOwner): List<AppSummary>
+    /** Moves a flow to an organization, or back to [personalUserId]'s personal flows when [orgId] is null. */
+    suspend fun transfer(flowId: UUID, orgId: UUID?, personalUserId: UUID): Boolean
     /** Records which marketplace listing (and version) a flow now follows. */
     suspend fun linkSource(userId: UUID, flowId: UUID, publishedId: UUID?, version: Int?): Boolean
 }

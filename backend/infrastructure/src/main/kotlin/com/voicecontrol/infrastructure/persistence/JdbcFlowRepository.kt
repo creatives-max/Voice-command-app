@@ -2,6 +2,7 @@ package com.voicecontrol.infrastructure.persistence
 
 import com.voicecontrol.domain.flow.AppSummary
 import com.voicecontrol.domain.flow.Flow
+import com.voicecontrol.domain.flow.FlowOwner
 import com.voicecontrol.domain.flow.FlowRepository
 import com.voicecontrol.domain.flow.FlowStep
 import com.voicecontrol.domain.flow.FlowVersion
@@ -14,17 +15,20 @@ import java.sql.ResultSet
 import java.util.UUID
 
 class JdbcFlowRepository(private val db: Database) : FlowRepository {
+    /** Personal flows of the user, or flows of organizations the user belongs to (two userId parameters). */
+    private val accessible = "((f.org_id IS NULL AND f.user_id = ?) OR f.org_id IN (SELECT org_id FROM memberships WHERE user_id = ?))"
+
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; explicitNulls = false }
     private val stepsSerializer = ListSerializer(FlowStep.serializer())
 
     override suspend fun create(flow: Flow, firstVersion: FlowVersion): FlowWithVersion = db.tx {
         update(
             """
-            INSERT INTO flows (id, user_id, app_package, name, screen_signature, current_version, created_at, updated_at, source_published_id, source_version)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO flows (id, user_id, app_package, name, screen_signature, current_version, created_at, updated_at, source_published_id, source_version, org_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent(),
             flow.id, flow.userId, flow.appPackage, flow.name, flow.screenSignature, flow.currentVersion, flow.createdAt, flow.updatedAt,
-            flow.sourcePublishedId, flow.sourceVersion,
+            flow.sourcePublishedId, flow.sourceVersion, flow.orgId,
         )
         insertVersion(firstVersion)
         FlowWithVersion(flow, firstVersion)
@@ -37,37 +41,55 @@ class JdbcFlowRepository(private val db: Database) : FlowRepository {
             """
             SELECT f.*, v.version, v.steps, v.screen_signature AS v_signature, v.source, v.change_note, v.created_at AS v_created_at
             FROM flows f JOIN flow_versions v ON v.flow_id = f.id AND v.version = f.current_version
-            WHERE f.id = ? AND f.user_id = ? AND f.deleted_at IS NULL
+            WHERE f.id = ? AND f.deleted_at IS NULL AND $accessible
             """.trimIndent(),
-            flowId, userId,
+            flowId, userId, userId,
         ) { rs -> FlowWithVersion(toFlow(rs), toVersion(rs, "v_signature", "v_created_at")) }.firstOrNull()
 
     override suspend fun findBySignature(userId: UUID, appPackage: String, signature: String): FlowWithVersion? = db.tx {
         val id = query(
-            "SELECT id FROM flows WHERE user_id = ? AND app_package = ? AND md5(screen_signature) = md5(?) AND screen_signature = ? AND deleted_at IS NULL",
+            "SELECT id FROM flows WHERE user_id = ? AND org_id IS NULL AND app_package = ? AND md5(screen_signature) = md5(?) AND screen_signature = ? AND deleted_at IS NULL",
             userId, appPackage, signature, signature,
         ) { it.uuid("id") }.firstOrNull() ?: return@tx null
         findIn(this, userId, id)
     }
 
-    override suspend fun list(userId: UUID, appPackage: String?, limit: Int, offset: Int): List<Flow> = db.tx {
+    override suspend fun findAccessibleBySignature(userId: UUID, appPackage: String, signature: String): FlowWithVersion? = db.tx {
+        val id = query(
+            """
+            SELECT f.id FROM flows f
+            WHERE $accessible AND f.app_package = ? AND md5(f.screen_signature) = md5(?) AND f.screen_signature = ? AND f.deleted_at IS NULL
+            ORDER BY (f.org_id IS NOT NULL), f.updated_at DESC LIMIT 1
+            """.trimIndent(),
+            userId, userId, appPackage, signature, signature,
+        ) { it.uuid("id") }.firstOrNull() ?: return@tx null
+        findIn(this, userId, id)
+    }
+
+    override suspend fun list(owner: FlowOwner, appPackage: String?, limit: Int, offset: Int): List<Flow> = db.tx {
+        val (ownerSql, ownerId) = ownerClause(owner)
         if (appPackage == null) {
-            query("SELECT * FROM flows WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT ? OFFSET ?", userId, limit, offset, map = ::toFlow)
+            query("SELECT * FROM flows WHERE $ownerSql AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT ? OFFSET ?", ownerId, limit, offset, map = ::toFlow)
         } else {
             query(
-                "SELECT * FROM flows WHERE user_id = ? AND app_package = ? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT ? OFFSET ?",
-                userId, appPackage, limit, offset, map = ::toFlow,
+                "SELECT * FROM flows WHERE $ownerSql AND app_package = ? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT ? OFFSET ?",
+                ownerId, appPackage, limit, offset, map = ::toFlow,
             )
         }
+    }
+
+    private fun ownerClause(owner: FlowOwner): Pair<String, UUID> = when (owner) {
+        is FlowOwner.Personal -> "user_id = ? AND org_id IS NULL" to owner.userId
+        is FlowOwner.Org -> "org_id = ?" to owner.orgId
     }
 
     override suspend fun versions(userId: UUID, flowId: UUID): List<FlowVersion> = db.tx {
         query(
             """
             SELECT v.*, v.screen_signature AS v_signature, v.created_at AS v_created_at FROM flow_versions v
-            JOIN flows f ON f.id = v.flow_id WHERE v.flow_id = ? AND f.user_id = ? AND f.deleted_at IS NULL ORDER BY v.version DESC
+            JOIN flows f ON f.id = v.flow_id WHERE v.flow_id = ? AND $accessible AND f.deleted_at IS NULL ORDER BY v.version DESC
             """.trimIndent(),
-            flowId, userId,
+            flowId, userId, userId,
         ) { toVersion(it, "v_signature", "v_created_at") }
     }
 
@@ -75,9 +97,19 @@ class JdbcFlowRepository(private val db: Database) : FlowRepository {
         query(
             """
             SELECT v.*, v.screen_signature AS v_signature, v.created_at AS v_created_at FROM flow_versions v
-            JOIN flows f ON f.id = v.flow_id WHERE v.flow_id = ? AND v.version = ? AND f.user_id = ? AND f.deleted_at IS NULL
+            JOIN flows f ON f.id = v.flow_id WHERE v.flow_id = ? AND v.version = ? AND $accessible AND f.deleted_at IS NULL
             """.trimIndent(),
-            flowId, version, userId,
+            flowId, version, userId, userId,
+        ) { toVersion(it, "v_signature", "v_created_at") }.firstOrNull()
+    }
+
+    override suspend fun versionById(flowId: UUID, version: Int): FlowVersion? = db.tx {
+        query(
+            """
+            SELECT v.*, v.screen_signature AS v_signature, v.created_at AS v_created_at FROM flow_versions v
+            JOIN flows f ON f.id = v.flow_id WHERE v.flow_id = ? AND v.version = ? AND f.deleted_at IS NULL
+            """.trimIndent(),
+            flowId, version,
         ) { toVersion(it, "v_signature", "v_created_at") }.firstOrNull()
     }
 
@@ -85,10 +117,10 @@ class JdbcFlowRepository(private val db: Database) : FlowRepository {
         // Optimistic concurrency: only advance if nobody else did since the client loaded the flow.
         val updated = update(
             """
-            UPDATE flows SET current_version = ?, name = COALESCE(?, name), updated_at = ?
-            WHERE id = ? AND user_id = ? AND current_version = ? AND deleted_at IS NULL
+            UPDATE flows f SET current_version = ?, name = COALESCE(?, name), updated_at = ?
+            WHERE f.id = ? AND $accessible AND f.current_version = ? AND f.deleted_at IS NULL
             """.trimIndent(),
-            next.version, name, next.createdAt, flowId, userId, expectedVersion,
+            next.version, name, next.createdAt, flowId, userId, userId, expectedVersion,
         )
         if (updated == 0) return@tx null
         insertVersion(next)
@@ -96,20 +128,28 @@ class JdbcFlowRepository(private val db: Database) : FlowRepository {
     }
 
     override suspend fun delete(userId: UUID, flowId: UUID): Boolean = db.tx {
-        update("UPDATE flows SET deleted_at = now() WHERE id = ? AND user_id = ? AND deleted_at IS NULL", flowId, userId) > 0
+        update("UPDATE flows f SET deleted_at = now() WHERE f.id = ? AND $accessible AND f.deleted_at IS NULL", flowId, userId, userId) > 0
     }
 
-    override suspend fun apps(userId: UUID): List<AppSummary> = db.tx {
+    override suspend fun transfer(flowId: UUID, orgId: UUID?, personalUserId: UUID): Boolean = db.tx {
+        update(
+            "UPDATE flows SET org_id = ?, user_id = CASE WHEN ?::uuid IS NULL THEN ? ELSE user_id END, updated_at = now() WHERE id = ? AND deleted_at IS NULL",
+            orgId, orgId, personalUserId, flowId,
+        ) > 0
+    }
+
+    override suspend fun apps(owner: FlowOwner): List<AppSummary> = db.tx {
+        val (ownerSql, ownerId) = ownerClause(owner)
         query(
-            "SELECT app_package, count(*) AS n, max(updated_at) AS last FROM flows WHERE user_id = ? AND deleted_at IS NULL GROUP BY app_package ORDER BY last DESC",
-            userId,
+            "SELECT app_package, count(*) AS n, max(updated_at) AS last FROM flows WHERE $ownerSql AND deleted_at IS NULL GROUP BY app_package ORDER BY last DESC",
+            ownerId,
         ) { AppSummary(it.getString("app_package"), it.getInt("n"), it.instant("last")) }
     }
 
     override suspend fun linkSource(userId: UUID, flowId: UUID, publishedId: UUID?, version: Int?): Boolean = db.tx {
         update(
-            "UPDATE flows SET source_published_id = ?, source_version = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
-            publishedId, version, flowId, userId,
+            "UPDATE flows f SET source_published_id = ?, source_version = ? WHERE f.id = ? AND $accessible AND f.deleted_at IS NULL",
+            publishedId, version, flowId, userId, userId,
         ) > 0
     }
 
@@ -131,6 +171,7 @@ class JdbcFlowRepository(private val db: Database) : FlowRepository {
         updatedAt = rs.instant("updated_at"),
         sourcePublishedId = rs.getObject("source_published_id", UUID::class.java),
         sourceVersion = rs.getObject("source_version") as Int?,
+        orgId = rs.getObject("org_id", UUID::class.java),
     )
 
     private fun toVersion(rs: ResultSet, signatureColumn: String, createdColumn: String) = FlowVersion(

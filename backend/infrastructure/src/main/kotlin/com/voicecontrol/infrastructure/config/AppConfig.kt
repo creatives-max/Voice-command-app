@@ -15,6 +15,14 @@ data class AppConfig(
     val authRateLimitPerMinute: Int = 10,
     /** How often schedule triggers are checked; 0 turns the scheduler off on this replica. */
     val schedulerIntervalSeconds: Int = 15,
+    /** Kafka brokers for flow events; when unset, events go to Redis Streams only. */
+    val kafkaBootstrapServers: String? = null,
+    val kafkaTopic: String = "vc.events",
+    /** How often due webhook deliveries are sent; 0 turns delivery off on this replica. */
+    val webhookIntervalSeconds: Int = 5,
+    /** Development only: allow http:// webhook URLs and private/loopback addresses. */
+    val webhookAllowHttp: Boolean = false,
+    val webhookAllowPrivate: Boolean = false,
 ) {
     data class DatabaseConfig(val url: String, val user: String, val password: String, val maxPoolSize: Int)
     data class JwtConfig(val secret: String, val issuer: String, val audience: String, val accessTtlSeconds: Long, val refreshTtlSeconds: Long)
@@ -64,6 +72,11 @@ data class AppConfig(
                 serviceName = get("OTEL_SERVICE_NAME", "voicecontrol-backend"),
                 authRateLimitPerMinute = get("AUTH_RATE_LIMIT_PER_MINUTE", "10").toInt(),
                 schedulerIntervalSeconds = get("SCHEDULER_INTERVAL_SECONDS", "15").toInt(),
+                kafkaBootstrapServers = env["KAFKA_BOOTSTRAP_SERVERS"]?.takeIf { it.isNotBlank() },
+                kafkaTopic = get("KAFKA_TOPIC", "vc.events"),
+                webhookIntervalSeconds = get("WEBHOOK_INTERVAL_SECONDS", "5").toInt(),
+                webhookAllowHttp = get("WEBHOOK_ALLOW_HTTP", "false").toBoolean(),
+                webhookAllowPrivate = get("WEBHOOK_ALLOW_PRIVATE", "false").toBoolean(),
             )
         }
     }

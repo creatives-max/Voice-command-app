@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CalendarClock, FlaskConical, History, Layers, Save, Share2, Trash2, Undo2 } from "lucide-react";
+import { ArrowRightLeft, CalendarClock, Eye, FlaskConical, History, Layers, Save, Share2, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,9 @@ import { PublishDialog } from "@/features/marketplace/publish-dialog";
 import { SourceBanner } from "@/features/marketplace/listing-page";
 import { SimulatorPanel } from "./simulator-panel";
 import { StepCard } from "./step-card";
+import { MoveFlowDialog, moveTargets } from "./move-dialog";
+import { useCurrentOrg } from "@/features/org/use-org";
+import { can } from "@/lib/org";
 
 const LOGIC_ACTIONS: LogicAction[] = ["SET_VARIABLE", "REPEAT", "NEXT_SCREEN", "OPEN_APP"];
 const newId = () => `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -39,6 +42,11 @@ function FlowEditor({ flow }: { flow: Flow }) {
   const [testing, setTesting] = useState(false);
   const [appendOpen, setAppendOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const { orgs } = useCurrentOrg();
+  const role = flow.orgId ? (orgs.find((o) => o.id === flow.orgId)?.role ?? "VIEWER") : null;
+  const editable = can.edit(role);
+  const canMove = moveTargets(flow, orgs).length > 0;
   const update = useUpdateFlow(flow.id);
   const remove = useDeleteFlow();
   const navigate = useNavigate();
@@ -87,6 +95,7 @@ function FlowEditor({ flow }: { flow: Flow }) {
           <Input
             aria-label="Flow name"
             className="h-10 max-w-md text-lg font-semibold"
+            readOnly={!editable}
             value={state.name}
             onChange={(e) => dispatch({ type: "rename", name: e.target.value })}
           />
@@ -103,23 +112,37 @@ function FlowEditor({ flow }: { flow: Flow }) {
                 <CalendarClock /> Run &amp; triggers
               </Link>
             </Button>
-            <Button variant="outline" onClick={() => setPublishOpen(true)}>
-              <Share2 /> Publish
-            </Button>
+            {can.manage(role) && (
+              <Button variant="outline" onClick={() => setPublishOpen(true)}>
+                <Share2 /> Publish
+              </Button>
+            )}
+            {canMove && (
+              <Button variant="outline" onClick={() => setMoveOpen(true)}>
+                <ArrowRightLeft /> Move
+              </Button>
+            )}
             <Button variant={testing ? "default" : "outline"} onClick={() => setTesting((t) => !t)} aria-pressed={testing}>
               <FlaskConical /> Test run
             </Button>
-            <Button variant="outline" onClick={() => setConfirmDelete(true)}>
-              <Trash2 /> Delete
-            </Button>
+            {editable && (
+              <Button variant="outline" onClick={() => setConfirmDelete(true)}>
+                <Trash2 /> Delete
+              </Button>
+            )}
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className={editable ? "text-sm text-muted-foreground" : "hidden"}>
           Drag steps to change the order VoiceControl asks them. Add conditions, computed values, loops for lists, and further screens or
           apps. Password, OTP and PIN fields are always typed by the user.
         </p>
-        <SourceBanner flow={flow} />
-        <div className="flex flex-wrap gap-2">
+        {editable && <SourceBanner flow={flow} />}
+        {!editable && (
+          <p className="flex items-center gap-2 rounded-md border bg-secondary/40 p-3 text-sm" data-testid="read-only-banner">
+            <Eye className="size-4" /> You are a viewer in this organization: you can read and test this flow and run it on your phone, but not change it.
+          </p>
+        )}
+        <div className={editable ? "flex flex-wrap gap-2" : "hidden"}>
           <NativeSelect
             aria-label="Add a logic step"
             className="h-9 w-auto"
@@ -141,12 +164,12 @@ function FlowEditor({ flow }: { flow: Flow }) {
 
       <div className={testing ? "grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px]" : ""}>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={state.steps.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-            <div className="grid gap-3">
+          <SortableContext items={state.steps.map((s) => s.id)} strategy={verticalListSortingStrategy} disabled={!editable}>
+            <fieldset disabled={!editable} className="grid min-w-0 gap-3" aria-label="Steps">
               {state.steps.map((step, index) => (
                 <StepCard key={step.id} step={step} steps={state.steps} index={index} count={state.steps.length} errors={errors[step.id] ?? []} dispatch={dispatch} />
               ))}
-            </div>
+            </fieldset>
           </SortableContext>
         </DndContext>
         {testing && (
@@ -157,6 +180,7 @@ function FlowEditor({ flow }: { flow: Flow }) {
       </div>
 
       <PublishDialog flow={flow} open={publishOpen} onOpenChange={setPublishOpen} dirty={state.dirty} />
+      {moveOpen && <MoveFlowDialog flow={flow} orgs={orgs} open={moveOpen} onOpenChange={setMoveOpen} />}
 
       <AppendFlowDialog
         open={appendOpen}
@@ -169,7 +193,7 @@ function FlowEditor({ flow }: { flow: Flow }) {
         }}
       />
 
-      <div className="fixed inset-x-0 bottom-0 border-t bg-background/95 p-3 backdrop-blur md:left-60">
+      <div className={`fixed inset-x-0 bottom-0 border-t bg-background/95 p-3 backdrop-blur md:left-60 ${editable ? "" : "hidden"}`}>
         <div className="mx-auto flex max-w-4xl flex-col gap-2 sm:flex-row sm:items-center">
           <Label htmlFor="note" className="sr-only">
             Change note

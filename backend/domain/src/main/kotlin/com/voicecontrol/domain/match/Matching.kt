@@ -15,6 +15,6 @@ data class VectorMatch(val flowId: UUID, val similarity: Double)
 interface EmbeddingRepository {
     suspend fun store(flowId: UUID, version: Int, embedding: FloatArray, model: String)
     suspend fun hasEmbedding(flowId: UUID, version: Int): Boolean
-    /** Nearest current flow versions of [userId] for [appPackage] by cosine similarity. */
+    /** Nearest current versions of flows [userId] can access (personal + organizations) for [appPackage]. */
     suspend fun nearest(userId: UUID, appPackage: String, embedding: FloatArray, limit: Int): List<VectorMatch>
 }

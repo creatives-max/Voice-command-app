@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError, api } from "@/lib/api";
 import { keys } from "@/lib/queries";
+import { useT } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 
 export function LoginPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -19,6 +21,8 @@ export function LoginPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { next } = useSearch({ from: "/login" });
+  const t = useT();
+  useTheme();
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -29,36 +33,36 @@ export function LoginPage() {
       qc.setQueryData(keys.session, user);
       await (next ? navigate({ href: next }) : navigate({ to: "/" }));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong");
+      setError(err instanceof ApiError ? err.message : t("common.error"));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="grid min-h-screen place-items-center p-4">
+    <div className="grid min-h-screen place-items-center bg-background p-4 text-foreground">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <div className="mb-2 grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground">
             <Mic className="size-5" />
           </div>
-          <CardTitle className="text-xl">{mode === "login" ? "Sign in to VoiceControl" : "Create your account"}</CardTitle>
-          <CardDescription>Edit the voice flows your phone recorded: questions, rules, defaults, order and help videos.</CardDescription>
+          <CardTitle className="text-xl">{mode === "login" ? t("login.signInTitle") : t("login.registerTitle")}</CardTitle>
+          <CardDescription>{t("login.description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="grid gap-4" onSubmit={submit}>
             {mode === "register" && (
               <div className="grid gap-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name">{t("login.name")}</Label>
                 <Input id="name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
               </div>
             )}
             <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("login.email")}</Label>
               <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("login.password")}</Label>
               <Input
                 id="password"
                 type="password"
@@ -75,15 +79,15 @@ export function LoginPage() {
               </p>
             )}
             <Button type="submit" disabled={busy}>
-              {busy ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
+              {busy ? t("login.wait") : mode === "login" ? t("login.signIn") : t("login.create")}
             </Button>
             <Button type="button" variant="link" onClick={() => setMode(mode === "login" ? "register" : "login")}>
-              {mode === "login" ? "New here? Create an account" : "Already have an account? Sign in"}
+              {mode === "login" ? t("login.toRegister") : t("login.toLogin")}
             </Button>
           </form>
           <p className="mt-4 text-center text-xs text-muted-foreground">
             <Link to="/privacy" className="hover:underline">
-              Privacy policy
+              {t("login.privacy")}
             </Link>
           </p>
         </CardContent>

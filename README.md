@@ -109,6 +109,17 @@ images.
   each delivery and can redeliver. Details in the OpenAPI docs at `/docs`.
 - **Audit log** of member, flow, key and webhook changes for admins.
 
+## Analytics, visual builder and collaboration
+
+- **Analytics** (sidebar): runs per day, success rate, people and last run for every flow in the workspace; per flow
+  also average time, how each step went (filled by voice, typed by hand, skipped…) with the worst steps first, how
+  answers were understood and remote-run outcomes. Built from the run history phones upload (no values).
+- **Canvas** view in the flow editor: steps as nodes, one column per screen, loop edges for repeats; drag a step onto
+  another to reorder, drag logic steps from the palette, click a node to edit it. Positions are shared.
+- **Comments** on a flow or a step (resolve, edit, delete) and **presence**: see who else has the flow open or is
+  editing, and get told when someone saves a newer version.
+- **Dark mode** (system/light/dark) and **Hindi** in the sidebar.
+
 ## Kubernetes
 
 ```bash

@@ -1,4 +1,5 @@
 import { useDeferredValue, useState } from "react";
+import { useT } from "@/lib/i18n";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Download, LayoutTemplate, Search, Star, Store, UserRound } from "lucide-react";
@@ -23,6 +24,7 @@ export const humanizeCategory = (c: string) => c.charAt(0).toUpperCase() + c.sli
 
 /** Browse and search flows others published, the starter templates, and your own listings. */
 export function MarketplacePage() {
+  const t = useT();
   const [tab, setTab] = useState<Tab>("community");
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("");
@@ -41,7 +43,7 @@ export function MarketplacePage() {
   return (
     <div className="mx-auto grid max-w-6xl gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Marketplace</h1>
+        <h1 className="text-2xl font-semibold">{t("marketplace.title")}</h1>
         <p className="text-sm text-muted-foreground">
           Flows shared by other people and starter templates for common forms. Shared flows never include anyone&apos;s default values.
         </p>

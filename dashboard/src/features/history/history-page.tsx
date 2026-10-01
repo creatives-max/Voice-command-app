@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useT } from "@/lib/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, CircleStop, Trash2, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +20,7 @@ function StatusIcon({ status }: { status: Run["status"] }) {
 }
 
 export function HistoryPage() {
+  const t = useT();
   const [app, setApp] = useState("");
   const [open, setOpen] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -31,8 +33,8 @@ export function HistoryPage() {
     <div className="mx-auto max-w-5xl">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">History</h1>
-          <p className="text-sm text-muted-foreground">Voice sessions from your phone. Spoken values are never stored.</p>
+          <h1 className="text-2xl font-semibold">{t("history.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("history.subtitle")}</p>
         </div>
         <div className="flex gap-2">
           <NativeSelect aria-label="Filter by app" className="w-56" value={app} onChange={(e) => setApp(e.target.value)}>

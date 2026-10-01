@@ -42,6 +42,7 @@ Only when you are **signed in** and **local-only mode is off**:
 | Phone name, app version and last-seen time; remote-run logs (step labels and outcomes, no values) | Run flows from the dashboard, on schedules or when an app opens |
 | Organizations you create or join: name, members' email, name and role, invitations (email, role) | Share flows with a team |
 | Audit log of organization changes (who changed which flow, member, API key or webhook, and when) | Accountability for organization admins |
+| Comments you write on flows; which flow you have open on the dashboard (kept about a minute) | Collaboration with your team |
 
 ## Organizations, API keys and webhooks
 
@@ -49,7 +50,8 @@ Flows you move into an organization are visible to all its members, and editors 
 their phones use those flows too. Organization admins can create **API keys** for other services (only a hash of
 each key is stored) and **webhooks** that send flow and run events (ids, names, app, status — never spoken or typed
 values) to an address the admin chooses. Leaving an organization removes your access to its flows; deleting it
-removes its flows, keys, webhooks and audit log.
+removes its flows, keys, webhooks and audit log. Flow analytics show organization members only totals (runs,
+success rate, how each step went) built from everyone's history — never who ran what or any values.
 
 ## AI providers
 

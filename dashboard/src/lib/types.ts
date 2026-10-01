@@ -328,3 +328,54 @@ export const auditEntrySchema = z.object({
   at: z.string(),
 });
 export type AuditEntry = z.infer<typeof auditEntrySchema>;
+
+export const usageSchema = z.object({
+  runs: z.number(),
+  completed: z.number(),
+  stopped: z.number(),
+  failed: z.number(),
+  users: z.number(),
+  successRate: z.number().nullish(),
+  avgDurationMillis: z.number().nullish(),
+  lastRunAt: z.string().nullish(),
+});
+export type Usage = z.infer<typeof usageSchema>;
+export const dailySchema = z.object({ date: z.string(), completed: z.number(), stopped: z.number(), failed: z.number() });
+export type Daily = z.infer<typeof dailySchema>;
+export const stepStatsSchema = z.object({ elementId: z.string(), label: z.string(), total: z.number(), outcomes: z.record(z.number()) });
+export type StepStats = z.infer<typeof stepStatsSchema>;
+export const flowAnalyticsSchema = z.object({
+  usage: usageSchema,
+  daily: z.array(dailySchema),
+  steps: z.array(stepStatsSchema),
+  interpretedBy: z.record(z.number()),
+  remoteRuns: z.record(z.number()),
+});
+export type FlowAnalytics = z.infer<typeof flowAnalyticsSchema>;
+export const analyticsOverviewSchema = z.object({
+  flows: z.array(z.object({ flowId: z.string(), name: z.string(), appPackage: z.string(), usage: usageSchema })),
+  daily: z.array(dailySchema),
+  totals: usageSchema,
+});
+export type AnalyticsOverview = z.infer<typeof analyticsOverviewSchema>;
+
+export const commentSchema = z.object({
+  id: z.string(),
+  flowId: z.string(),
+  userId: z.string().nullish(),
+  authorName: z.string().nullish(),
+  authorEmail: z.string().nullish(),
+  stepId: z.string().nullish(),
+  body: z.string(),
+  createdAt: z.string(),
+  editedAt: z.string().nullish(),
+  resolvedAt: z.string().nullish(),
+});
+export type Comment = z.infer<typeof commentSchema>;
+export const presenceSchema = z.object({
+  others: z.array(z.object({ userId: z.string(), name: z.string(), editing: z.boolean(), seenAt: z.string() })),
+  currentVersion: z.number(),
+});
+export type PresenceInfo = z.infer<typeof presenceSchema>;
+export const layoutSchema = z.object({ positions: z.record(z.object({ x: z.number(), y: z.number() })) });
+export type Layout = z.infer<typeof layoutSchema>;

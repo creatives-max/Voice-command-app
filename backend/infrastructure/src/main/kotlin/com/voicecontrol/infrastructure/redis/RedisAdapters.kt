@@ -85,3 +85,40 @@ class RedisRateLimiter(private val redis: RedisConnections) : RateLimiter {
         return count <= limit
     }
 }
+
+/**
+ * Presence per flow: a sorted set of user ids scored by last heartbeat plus a hash with display data.
+ * Entries older than [window] are dropped on every heartbeat; idle flows' keys expire on their own.
+ */
+class RedisPresenceStore(
+    private val redis: RedisConnections,
+    private val window: java.time.Duration = java.time.Duration.ofSeconds(45),
+) : com.voicecontrol.domain.collab.PresenceStore {
+    private fun zkey(flowId: java.util.UUID) = "vc:presence:$flowId"
+    private fun hkey(flowId: java.util.UUID) = "vc:presence:$flowId:info"
+
+    override suspend fun heartbeat(flowId: java.util.UUID, presence: com.voicecontrol.domain.collab.Presence): List<com.voicecontrol.domain.collab.Presence> {
+        val now = presence.seenAt.toEpochMilli()
+        val c = redis.commands
+        c.zadd(zkey(flowId), now.toDouble(), presence.userId.toString()).await()
+        c.hset(hkey(flowId), presence.userId.toString(), "${if (presence.editing) 1 else 0}|${presence.name}").await()
+        c.zremrangebyscore(zkey(flowId), io.lettuce.core.Range.create(0.0, (now - window.toMillis()).toDouble())).await()
+        val ttl = window.seconds * 4
+        c.expire(zkey(flowId), ttl).await()
+        c.expire(hkey(flowId), ttl).await()
+        val members = c.zrangeWithScores(zkey(flowId), 0, -1).await()
+        if (members.isEmpty()) return emptyList()
+        val info = c.hmget(hkey(flowId), *members.map { it.value }.toTypedArray()).await().associate { it.key to it.getValueOrElse(null) }
+        return members.map { m ->
+            val parts = (info[m.value] ?: "0|Someone").split('|', limit = 2)
+            val editing = parts[0] == "1"
+            val name = parts.getOrElse(1) { "Someone" }
+            com.voicecontrol.domain.collab.Presence(java.util.UUID.fromString(m.value), name, editing, java.time.Instant.ofEpochMilli(m.score.toLong()))
+        }.sortedBy { it.name.lowercase() }
+    }
+
+    override suspend fun leave(flowId: java.util.UUID, userId: java.util.UUID) {
+        redis.commands.zrem(zkey(flowId), userId.toString()).await()
+        redis.commands.hdel(hkey(flowId), userId.toString()).await()
+    }
+}

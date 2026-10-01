@@ -13,6 +13,8 @@ import { ListingPage } from "@/features/marketplace/listing-page";
 import { MarketplacePage } from "@/features/marketplace/marketplace-page";
 import { PrivacyPage } from "@/features/legal/privacy-page";
 import { ProfilePage } from "@/features/profile/profile-page";
+import { AnalyticsPage } from "@/features/analytics/analytics-page";
+import { FlowAnalyticsPage } from "@/features/analytics/flow-analytics-page";
 import { AcceptInvitePage } from "@/features/org/accept-invite-page";
 import { ApiKeysPage } from "@/features/org/api-keys-page";
 import { AuditPage } from "@/features/org/audit-page";
@@ -65,6 +67,8 @@ const automationRoute = createRoute({ getParentRoute: () => appRoute, path: "flo
 const devicesRoute = createRoute({ getParentRoute: () => appRoute, path: "devices", component: DevicesPage });
 const marketplaceRoute = createRoute({ getParentRoute: () => appRoute, path: "marketplace", component: MarketplacePage });
 const listingRoute = createRoute({ getParentRoute: () => appRoute, path: "marketplace/$listingId", component: ListingPage });
+const analyticsRoute = createRoute({ getParentRoute: () => appRoute, path: "analytics", component: AnalyticsPage });
+const flowAnalyticsRoute = createRoute({ getParentRoute: () => appRoute, path: "flows/$flowId/analytics", component: FlowAnalyticsPage });
 const orgRoute = createRoute({ getParentRoute: () => appRoute, path: "org", component: OrgPage });
 const apiKeysRoute = createRoute({ getParentRoute: () => appRoute, path: "org/api-keys", component: ApiKeysPage });
 const webhooksRoute = createRoute({ getParentRoute: () => appRoute, path: "org/webhooks", component: WebhooksPage });
@@ -83,6 +87,8 @@ export const routeTree = rootRoute.addChildren([loginRoute, privacyRoute, appRou
     liveRunRoute,
     marketplaceRoute,
     listingRoute,
+    analyticsRoute,
+    flowAnalyticsRoute,
     orgRoute,
     apiKeysRoute,
     webhooksRoute,

@@ -108,11 +108,11 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Tests, commit + push
 
 ## Phase 15 — Analytics & visual builder
-- [ ] Per-flow usage + success analytics API and dashboard charts
-- [ ] Drag-and-drop visual flow builder (canvas)
-- [ ] Flow comments + presence
-- [ ] Dashboard dark mode + i18n (English, Hindi)
-- [ ] Tests, commit + push
+- [x] Per-flow usage + success analytics API and dashboard charts
+- [x] Drag-and-drop visual flow builder (canvas)
+- [x] Flow comments + presence
+- [x] Dashboard dark mode + i18n (English, Hindi)
+- [x] Tests, commit + push
 
 ## Phase 16 — Security, platform & polish
 - [ ] Biometric app lock

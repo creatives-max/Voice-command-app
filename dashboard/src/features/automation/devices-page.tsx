@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useT } from "@/lib/i18n";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Pencil, Smartphone, Trash2 } from "lucide-react";
@@ -15,14 +16,15 @@ import { SOURCE_LABELS, STATUS_LABELS, statusTone } from "./run-log";
 
 /** Phones signed in to this account, and recent remote runs across all flows. */
 export function DevicesPage() {
+  const t = useT();
   const devices = useQuery(devicesQuery);
   const runs = useQuery(runRequestsQuery());
 
   return (
     <div className="mx-auto grid max-w-4xl gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Devices</h1>
-        <p className="text-sm text-muted-foreground">Phones signed in to your account. Flows run on them from “Run now”, schedules and app-open triggers.</p>
+        <h1 className="text-2xl font-semibold">{t("devices.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("devices.subtitle")}</p>
       </div>
       {devices.isPending ? (
         <Skeleton className="h-32" />

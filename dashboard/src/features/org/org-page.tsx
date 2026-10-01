@@ -15,6 +15,7 @@ import { invitationsQuery, membersQuery, sessionQuery, useCreateOrg, useOrgMutat
 import { ROLE_LABELS, roles, type Org } from "@/lib/types";
 import type { Role } from "@/lib/org";
 import { OrgHeader, copyText } from "./org-nav";
+import { useT } from "@/lib/i18n";
 import { useCurrentOrg, useSwitchOrg } from "./use-org";
 
 /** Organizations: create/switch when none is selected; members, invitations and settings for the selected one. */
@@ -28,6 +29,7 @@ function OrgList({ orgs }: { orgs: Org[] }) {
   const create = useCreateOrg();
   const switchOrg = useSwitchOrg();
   const [name, setName] = useState("");
+  const t = useT();
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -44,7 +46,7 @@ function OrgList({ orgs }: { orgs: Org[] }) {
   return (
     <>
       <div>
-        <h1 className="text-2xl font-semibold">Organizations</h1>
+        <h1 className="text-2xl font-semibold">{t("org.title")}</h1>
         <p className="text-sm text-muted-foreground">
           Share flows with your team. Admins manage members, API keys and webhooks; editors change flows; viewers use them on their phones.
         </p>
@@ -93,6 +95,7 @@ function OrgDetails({ org }: { org: Org }) {
   const switchOrg = useSwitchOrg();
   const setRole = useOrgMutation(org.id, ({ userId, role }: { userId: string; role: Role }) => api.setRole(org.id, userId, role));
   const remove = useOrgMutation(org.id, (userId: string) => api.removeMember(org.id, userId));
+  const t = useT();
 
   const leave = () =>
     remove.mutate(me.id, {
@@ -108,7 +111,7 @@ function OrgDetails({ org }: { org: Org }) {
       <OrgHeader org={org} />
       <Card>
         <CardHeader>
-          <CardTitle>Members</CardTitle>
+          <CardTitle>{t("org.members")}</CardTitle>
           <CardDescription>Roles: admin (everything), editor (change flows), viewer (read and run flows).</CardDescription>
         </CardHeader>
         <CardContent>

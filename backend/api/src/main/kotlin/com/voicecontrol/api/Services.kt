@@ -2,6 +2,14 @@ package com.voicecontrol.api
 
 import com.voicecontrol.api.plugins.ApiKeyPrincipal
 import com.voicecontrol.application.ai.AiService
+import com.voicecontrol.application.collab.AnalyticsService
+import com.voicecontrol.application.collab.CommentService
+import com.voicecontrol.application.collab.LayoutService
+import com.voicecontrol.application.collab.PresenceService
+import com.voicecontrol.infrastructure.persistence.JdbcAnalyticsRepository
+import com.voicecontrol.infrastructure.persistence.JdbcCommentRepository
+import com.voicecontrol.infrastructure.persistence.JdbcLayoutRepository
+import com.voicecontrol.infrastructure.redis.RedisPresenceStore
 import com.voicecontrol.application.org.ApiKeyService
 import com.voicecontrol.application.org.AuditService
 import com.voicecontrol.application.org.OrgAccess
@@ -90,6 +98,10 @@ class Services(
     val webhookWorker: WebhookWorker,
     val audit: AuditService,
     val orgRepository: OrgRepository,
+    val analytics: AnalyticsService,
+    val comments: CommentService,
+    val presence: PresenceService,
+    val layouts: LayoutService,
     val eventBus: RedisStreamEventBus,
     /** Kafka bus when KAFKA_BOOTSTRAP_SERVERS is set; Redis Streams stays the fallback queue. */
     val kafkaBus: KafkaEventBus?,
@@ -235,6 +247,10 @@ object Bootstrap {
             webhookWorker = WebhookWorker(webhookRepository, webhookSender, urlPolicy),
             audit = audit,
             orgRepository = orgRepository,
+            analytics = AnalyticsService(JdbcAnalyticsRepository(database), flowService),
+            comments = CommentService(JdbcCommentRepository(database), flowService, JdbcUserRepository(database), audit),
+            presence = PresenceService(RedisPresenceStore(redis), flowService, JdbcUserRepository(database)),
+            layouts = LayoutService(JdbcLayoutRepository(database), flowService),
             eventBus = bus,
             kafkaBus = kafka,
             database = database,

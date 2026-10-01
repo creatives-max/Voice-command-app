@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { ArrowRightLeft, CalendarClock, Eye, FlaskConical, History, Layers, Save, Share2, Trash2, Undo2 } from "lucide-react";
+import { ArrowRightLeft, BarChart3, CalendarClock, Eye, FlaskConical, History, LayoutList, Layers, MessageSquare, Save, Share2, Trash2, Undo2, Workflow } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,11 @@ import { StepCard } from "./step-card";
 import { MoveFlowDialog, moveTargets } from "./move-dialog";
 import { useCurrentOrg } from "@/features/org/use-org";
 import { can } from "@/lib/org";
+import { useT } from "@/lib/i18n";
+import { FlowCanvas } from "@/features/builder/flow-canvas";
+import { CommentsPanel, useComments } from "@/features/collab/comments-panel";
+import { PresenceBar } from "@/features/collab/presence-bar";
+import { usePresence } from "@/features/collab/use-presence";
 
 const LOGIC_ACTIONS: LogicAction[] = ["SET_VARIABLE", "REPEAT", "NEXT_SCREEN", "OPEN_APP"];
 const newId = () => `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -43,6 +48,36 @@ function FlowEditor({ flow }: { flow: Flow }) {
   const [appendOpen, setAppendOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [view, setView] = useState<"list" | "canvas">(() => {
+    try {
+      return window.localStorage.getItem("vc.editorView") === "canvas" ? "canvas" : "list";
+    } catch {
+      return "list";
+    }
+  });
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentStep, setCommentStep] = useState<string | null>(null);
+  const t = useT();
+  const qc = useQueryClient();
+  const presence = usePresence(flow.id, state.dirty);
+  const comments = useComments(flow.id);
+  const commentCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const c of comments.data ?? []) if (c.stepId && !c.resolvedAt) counts[c.stepId] = (counts[c.stepId] ?? 0) + 1;
+    return counts;
+  }, [comments.data]);
+  const openComments = (stepId: string | null) => {
+    setCommentStep(stepId);
+    setCommentsOpen(true);
+  };
+  const chooseView = (v: "list" | "canvas") => {
+    setView(v);
+    try {
+      window.localStorage.setItem("vc.editorView", v);
+    } catch {
+      // ignore
+    }
+  };
   const { orgs } = useCurrentOrg();
   const role = flow.orgId ? (orgs.find((o) => o.id === flow.orgId)?.role ?? "VIEWER") : null;
   const editable = can.edit(role);
@@ -72,7 +107,7 @@ function FlowEditor({ flow }: { flow: Flow }) {
   async function save() {
     try {
       const saved = await update.mutateAsync(toUpdatePayload(state));
-      toast.success(`Saved version ${saved.version}. The phone will use it on the next run.`);
+      toast.success(t("editor.saved", { version: saved.version }));
     } catch (e) {
       if (e instanceof ApiError && e.isConflict) toast.error("Someone else changed this flow. Reload to see the latest version.");
       else toast.error(e instanceof Error ? e.message : "Save failed");
@@ -86,11 +121,16 @@ function FlowEditor({ flow }: { flow: Flow }) {
   }
 
   return (
-    <div className={`mx-auto pb-28 ${testing ? "max-w-7xl" : "max-w-4xl"}`}>
+    <div className={`mx-auto pb-28 ${testing || view === "canvas" || commentsOpen ? "max-w-7xl" : "max-w-4xl"}`}>
       <div className="mb-6 flex flex-col gap-3">
-        <Link to="/" className="text-sm text-muted-foreground hover:underline">
-          ← All flows
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link to="/" className="text-sm text-muted-foreground hover:underline">
+            {t("editor.allFlows")}
+          </Link>
+          <div className="ml-auto">
+            <PresenceBar info={presence} loadedVersion={flow.version} onReload={() => void qc.invalidateQueries({ queryKey: ["flow", flow.id] })} />
+          </div>
+        </div>
         <div className="flex flex-wrap items-center gap-3">
           <Input
             aria-label="Flow name"
@@ -104,30 +144,35 @@ function FlowEditor({ flow }: { flow: Flow }) {
           <div className="ml-auto flex gap-2">
             <Button variant="outline" asChild>
               <Link to="/flows/$flowId/versions" params={{ flowId: flow.id }}>
-                <History /> History
+                <History /> {t("editor.history")}
               </Link>
             </Button>
             <Button variant="outline" asChild>
               <Link to="/flows/$flowId/automation" params={{ flowId: flow.id }}>
-                <CalendarClock /> Run &amp; triggers
+                <CalendarClock /> {t("editor.triggers")}
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/flows/$flowId/analytics" params={{ flowId: flow.id }}>
+                <BarChart3 /> {t("editor.analytics")}
               </Link>
             </Button>
             {can.manage(role) && (
               <Button variant="outline" onClick={() => setPublishOpen(true)}>
-                <Share2 /> Publish
+                <Share2 /> {t("editor.publish")}
               </Button>
             )}
             {canMove && (
               <Button variant="outline" onClick={() => setMoveOpen(true)}>
-                <ArrowRightLeft /> Move
+                <ArrowRightLeft /> {t("editor.move")}
               </Button>
             )}
             <Button variant={testing ? "default" : "outline"} onClick={() => setTesting((t) => !t)} aria-pressed={testing}>
-              <FlaskConical /> Test run
+              <FlaskConical /> {t("editor.test")}
             </Button>
             {editable && (
               <Button variant="outline" onClick={() => setConfirmDelete(true)}>
-                <Trash2 /> Delete
+                <Trash2 /> {t("editor.delete")}
               </Button>
             )}
           </div>
@@ -139,7 +184,7 @@ function FlowEditor({ flow }: { flow: Flow }) {
         {editable && <SourceBanner flow={flow} />}
         {!editable && (
           <p className="flex items-center gap-2 rounded-md border bg-secondary/40 p-3 text-sm" data-testid="read-only-banner">
-            <Eye className="size-4" /> You are a viewer in this organization: you can read and test this flow and run it on your phone, but not change it.
+            <Eye className="size-4" /> {t("editor.viewer")}
           </p>
         )}
         <div className={editable ? "flex flex-wrap gap-2" : "hidden"}>
@@ -160,9 +205,54 @@ function FlowEditor({ flow }: { flow: Flow }) {
             <Layers /> Add a screen from another flow
           </Button>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex gap-1 rounded-md bg-secondary p-1" role="radiogroup" aria-label="View">
+            <button
+              role="radio"
+              aria-checked={view === "list"}
+              onClick={() => chooseView("list")}
+              className={`flex items-center gap-1 rounded px-3 py-1 text-sm ${view === "list" ? "bg-background font-medium shadow-sm" : "text-muted-foreground"}`}
+            >
+              <LayoutList className="size-4" /> {t("editor.list")}
+            </button>
+            <button
+              role="radio"
+              aria-checked={view === "canvas"}
+              onClick={() => chooseView("canvas")}
+              className={`flex items-center gap-1 rounded px-3 py-1 text-sm ${view === "canvas" ? "bg-background font-medium shadow-sm" : "text-muted-foreground"}`}
+            >
+              <Workflow className="size-4" /> {t("editor.canvas")}
+            </button>
+          </div>
+          <Button variant={commentsOpen ? "default" : "outline"} size="sm" className="h-9" aria-pressed={commentsOpen} onClick={() => (commentsOpen ? setCommentsOpen(false) : openComments(null))}>
+            <MessageSquare /> {t("editor.comments")}
+            {(comments.data?.filter((c) => !c.resolvedAt).length ?? 0) > 0 && (
+              <Badge variant="secondary" className="ml-1">
+                {comments.data!.filter((c) => !c.resolvedAt).length}
+              </Badge>
+            )}
+          </Button>
+        </div>
       </div>
 
-      <div className={testing ? "grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px]" : ""}>
+      <div className={testing || (commentsOpen && view === "list") ? "grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px]" : ""}>
+        {view === "canvas" ? (
+          <FlowCanvas
+            flowId={flow.id}
+            steps={state.steps}
+            errors={errors}
+            editable={editable}
+            commentCounts={commentCounts}
+            dispatch={dispatch}
+            newId={newId}
+            onCommentStep={(id) => openComments(id)}
+            aside={
+              commentsOpen ? (
+                <CommentsPanel key={commentStep ?? "all"} flowId={flow.id} steps={state.steps} focusStepId={commentStep} onClose={() => setCommentsOpen(false)} />
+              ) : undefined
+            }
+          />
+        ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={state.steps.map((s) => s.id)} strategy={verticalListSortingStrategy} disabled={!editable}>
             <fieldset disabled={!editable} className="grid min-w-0 gap-3" aria-label="Steps">
@@ -172,7 +262,13 @@ function FlowEditor({ flow }: { flow: Flow }) {
             </fieldset>
           </SortableContext>
         </DndContext>
-        {testing && (
+        )}
+        {commentsOpen && view === "list" && (
+          <div className="lg:sticky lg:top-4">
+            <CommentsPanel key={commentStep ?? "all"} flowId={flow.id} steps={state.steps} focusStepId={commentStep} onClose={() => setCommentsOpen(false)} />
+          </div>
+        )}
+        {testing && !(commentsOpen && view === "list") && (
           <div className="lg:sticky lg:top-4">
             <SimulatorPanel steps={state.steps} onClose={() => setTesting(false)} />
           </div>
@@ -198,13 +294,13 @@ function FlowEditor({ flow }: { flow: Flow }) {
           <Label htmlFor="note" className="sr-only">
             Change note
           </Label>
-          <Input id="note" placeholder="What changed? (optional)" value={state.changeNote} onChange={(e) => dispatch({ type: "note", text: e.target.value })} />
+          <Input id="note" placeholder={t("editor.note")} value={state.changeNote} onChange={(e) => dispatch({ type: "note", text: e.target.value })} />
           <div className="flex gap-2">
             <Button variant="ghost" disabled={!state.dirty} onClick={() => dispatch({ type: "reset", flow })}>
-              <Undo2 /> Discard
+              <Undo2 /> {t("editor.discard")}
             </Button>
             <Button disabled={!state.dirty || hasErrors || update.isPending || !state.name.trim()} onClick={save}>
-              <Save /> {update.isPending ? "Saving…" : "Save new version"}
+              <Save /> {update.isPending ? t("editor.saving") : t("editor.save")}
             </Button>
           </div>
         </div>

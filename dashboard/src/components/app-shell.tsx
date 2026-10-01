@@ -1,19 +1,22 @@
 import { useEffect } from "react";
 import { Link, Outlet, useNavigate } from "@tanstack/react-router";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Building2, History, LogOut, Mic, Smartphone, Store, UserRound, Workflow } from "lucide-react";
+import { BarChart3, Building2, History, Languages, LogOut, Mic, Moon, Smartphone, Store, Sun, SunMoon, UserRound, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useCurrentOrg, useSwitchOrg } from "@/features/org/use-org";
 import { api } from "@/lib/api";
+import { LOCALE_NAMES, locales, setLocale, useLocale, useT, type Locale } from "@/lib/i18n";
 import { setOrgId } from "@/lib/org";
 import { sessionQuery } from "@/lib/queries";
+import { setTheme, themes, useTheme, type Theme } from "@/lib/theme";
 
 /** Personal flows or one of the user's organizations; every page then works in that context. */
 function OrgSwitcher() {
   const { orgId, orgs, loading } = useCurrentOrg();
   const switchOrg = useSwitchOrg();
   const navigate = useNavigate();
+  const t = useT();
   // A remembered organization the user no longer belongs to falls back to personal flows.
   useEffect(() => {
     if (!loading && orgId && !orgs.some((o) => o.id === orgId)) switchOrg(null);
@@ -21,7 +24,7 @@ function OrgSwitcher() {
 
   return (
     <NativeSelect
-      aria-label="Workspace"
+      aria-label={t("nav.workspace")}
       className="mb-2"
       value={orgId ?? ""}
       onChange={(e) => {
@@ -34,14 +37,48 @@ function OrgSwitcher() {
         void navigate({ to: "/" });
       }}
     >
-      <option value="">Personal</option>
+      <option value="">{t("nav.personal")}</option>
       {orgs.map((o) => (
         <option key={o.id} value={o.id}>
           {o.name}
         </option>
       ))}
-      <option value="__new">+ New organization…</option>
+      <option value="__new">{t("nav.newOrg")}</option>
     </NativeSelect>
+  );
+}
+
+const THEME_ICONS: Record<Theme, typeof Sun> = { system: SunMoon, light: Sun, dark: Moon };
+
+/** Theme (system/light/dark) and language, remembered on this browser. */
+function Preferences() {
+  const theme = useTheme();
+  const locale = useLocale();
+  const t = useT();
+  const ThemeIcon = THEME_ICONS[theme];
+  return (
+    <div className="grid gap-2 px-1 pt-4">
+      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+        <ThemeIcon className="size-4 shrink-0" aria-hidden />
+        <NativeSelect aria-label={t("prefs.theme")} className="h-8 text-xs" value={theme} onChange={(e) => setTheme(e.target.value as Theme)}>
+          {themes.map((th) => (
+            <option key={th} value={th}>
+              {t(`prefs.theme.${th}`)}
+            </option>
+          ))}
+        </NativeSelect>
+      </label>
+      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Languages className="size-4 shrink-0" aria-hidden />
+        <NativeSelect aria-label={t("prefs.language")} className="h-8 text-xs" value={locale} onChange={(e) => setLocale(e.target.value as Locale)}>
+          {locales.map((l) => (
+            <option key={l} value={l}>
+              {LOCALE_NAMES[l]}
+            </option>
+          ))}
+        </NativeSelect>
+      </label>
+    </div>
   );
 }
 
@@ -49,6 +86,7 @@ export function AppShell() {
   const { data: user } = useSuspenseQuery(sessionQuery);
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const t = useT();
 
   async function signOut() {
     await api.logout().catch(() => undefined);
@@ -58,8 +96,9 @@ export function AppShell() {
   }
 
   const nav = "flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground";
+  const active = { className: "bg-secondary !text-foreground" };
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
+    <div className="flex min-h-screen flex-col bg-background text-foreground md:flex-row">
       <aside className="flex shrink-0 flex-col gap-1 border-b p-4 md:w-60 md:border-b-0 md:border-r">
         <div className="mb-4 flex items-center gap-2 px-2 text-lg font-semibold">
           <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
@@ -68,28 +107,34 @@ export function AppShell() {
           VoiceControl
         </div>
         <OrgSwitcher />
-        <Link to="/" className={nav} activeProps={{ className: "bg-secondary !text-foreground" }} activeOptions={{ exact: true }}>
-          <Workflow className="size-4" /> Flows
+        <Link to="/" className={nav} activeProps={active} activeOptions={{ exact: true }}>
+          <Workflow className="size-4" /> {t("nav.flows")}
         </Link>
-        <Link to="/history" className={nav} activeProps={{ className: "bg-secondary !text-foreground" }}>
-          <History className="size-4" /> History
+        <Link to="/analytics" className={nav} activeProps={active}>
+          <BarChart3 className="size-4" /> {t("nav.analytics")}
         </Link>
-        <Link to="/marketplace" className={nav} activeProps={{ className: "bg-secondary !text-foreground" }}>
-          <Store className="size-4" /> Marketplace
+        <Link to="/history" className={nav} activeProps={active}>
+          <History className="size-4" /> {t("nav.history")}
         </Link>
-        <Link to="/devices" className={nav} activeProps={{ className: "bg-secondary !text-foreground" }}>
-          <Smartphone className="size-4" /> Devices
+        <Link to="/marketplace" className={nav} activeProps={active}>
+          <Store className="size-4" /> {t("nav.marketplace")}
         </Link>
-        <Link to="/org" className={nav} activeProps={{ className: "bg-secondary !text-foreground" }}>
-          <Building2 className="size-4" /> Organization
+        <Link to="/devices" className={nav} activeProps={active}>
+          <Smartphone className="size-4" /> {t("nav.devices")}
         </Link>
-        <Link to="/profile" className={nav} activeProps={{ className: "bg-secondary !text-foreground" }}>
-          <UserRound className="size-4" /> Profile
+        <Link to="/org" className={nav} activeProps={active}>
+          <Building2 className="size-4" /> {t("nav.organization")}
         </Link>
-        <div className="mt-auto hidden px-3 pt-6 text-xs text-muted-foreground md:block">{user.email}</div>
-        <Button variant="ghost" className="justify-start text-muted-foreground" onClick={signOut}>
-          <LogOut /> Sign out
-        </Button>
+        <Link to="/profile" className={nav} activeProps={active}>
+          <UserRound className="size-4" /> {t("nav.profile")}
+        </Link>
+        <div className="mt-auto">
+          <Preferences />
+          <div className="hidden px-3 pt-4 text-xs text-muted-foreground md:block">{user.email}</div>
+          <Button variant="ghost" className="w-full justify-start text-muted-foreground" onClick={signOut}>
+            <LogOut /> {t("nav.signOut")}
+          </Button>
+        </div>
       </aside>
       <main className="min-w-0 flex-1 p-4 md:p-8">
         <Outlet />

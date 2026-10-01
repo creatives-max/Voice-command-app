@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { getOrgId } from "./org";
 import {
+  analyticsOverviewSchema,
+  commentSchema,
+  flowAnalyticsSchema,
+  layoutSchema,
+  presenceSchema,
   apiKeySchema,
   auditEntrySchema,
   deliverySchema,
@@ -28,6 +33,7 @@ import {
   userSchema,
   type Flow,
   type FlowStep,
+  type Layout,
   type Profile,
 } from "./types";
 import type { Role } from "./org";
@@ -194,6 +200,21 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), orgId:
       if (params.before) qs.set("before", String(params.before));
       return request(auditEntrySchema.array(), `/orgs/${orgId}/audit?${qs.toString()}`);
     },
+
+    analyticsOverview: (days: number, tz: string) =>
+      request(analyticsOverviewSchema, `/analytics/flows?days=${days}&tz=${encodeURIComponent(tz)}`),
+    flowAnalytics: (id: string, days: number, tz: string) =>
+      request(flowAnalyticsSchema, `/flows/${id}/analytics?days=${days}&tz=${encodeURIComponent(tz)}`),
+
+    comments: (flowId: string) => request(commentSchema.array(), `/flows/${flowId}/comments`),
+    addComment: (flowId: string, body: string, stepId?: string | null) =>
+      request(commentSchema, `/flows/${flowId}/comments`, { method: "POST", body: json({ body, stepId: stepId || undefined }) }),
+    editComment: (id: string, patch: { body?: string; resolved?: boolean }) => request(commentSchema, `/comments/${id}`, { method: "PATCH", body: json(patch) }),
+    deleteComment: (id: string) => request(null, `/comments/${id}`, { method: "DELETE" }),
+    presence: (flowId: string, editing: boolean) => request(presenceSchema, `/flows/${flowId}/presence`, { method: "POST", body: json({ editing }) }),
+    leave: (flowId: string) => request(null, `/flows/${flowId}/presence`, { method: "DELETE", keepalive: true }),
+    layout: (flowId: string) => request(layoutSchema, `/flows/${flowId}/layout`),
+    saveLayout: (flowId: string, positions: Layout["positions"]) => request(null, `/flows/${flowId}/layout`, { method: "PUT", body: json({ positions }) }),
 
     profile: () => request(profileSchema, "/profile"),
     saveProfile: (profile: Profile) => request(profileSchema, "/profile", { method: "PUT", body: json(profile) }),

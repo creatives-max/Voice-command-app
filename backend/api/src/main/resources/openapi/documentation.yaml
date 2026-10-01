@@ -28,6 +28,8 @@ tags:
   - name: History
   - name: Ops
   - name: Teams
+  - name: Analytics
+  - name: Collaboration
 paths:
   /health:
     get:
@@ -786,6 +788,101 @@ paths:
       summary: Audit log, newest first (admin)
       responses:
         "200": { description: Entries, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/AuditEntry" } } } } }
+  /v1/flows/{id}/analytics:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: days, in: query, schema: { type: integer, default: 30, minimum: 1, maximum: 365 } }
+      - { name: tz, in: query, description: IANA time zone for day boundaries, schema: { type: string, default: UTC } }
+    get:
+      tags: [Analytics]
+      summary: Usage, success rate, daily runs and per-step outcomes (all users' runs of the flow, aggregated)
+      security: [{ bearerAuth: [] }, { apiKeyAuth: [] }]
+      responses:
+        "200": { description: Analytics, content: { application/json: { schema: { $ref: "#/components/schemas/FlowAnalytics" } } } }
+  /v1/analytics/flows:
+    parameters:
+      - $ref: "#/components/parameters/OrgId"
+      - { name: days, in: query, schema: { type: integer, default: 30 } }
+      - { name: tz, in: query, schema: { type: string, default: UTC } }
+    get:
+      tags: [Analytics]
+      summary: Usage of every flow in the workspace, busiest first, with daily totals
+      security: [{ bearerAuth: [] }, { apiKeyAuth: [] }]
+      responses:
+        "200":
+          description: Overview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  flows:
+                    type: array
+                    items: { type: object, properties: { flowId: { type: string }, name: { type: string }, appPackage: { type: string }, usage: { $ref: "#/components/schemas/Usage" } } }
+                  daily: { type: array, items: { $ref: "#/components/schemas/DailyRuns" } }
+                  totals: { $ref: "#/components/schemas/Usage" }
+  /v1/flows/{id}/comments:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      tags: [Collaboration]
+      responses:
+        "200": { description: Comments, oldest first, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Comment" } } } } }
+    post:
+      tags: [Collaboration]
+      summary: Comment on the flow or one of its steps (anyone who can open the flow)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [body], properties: { body: { type: string, maxLength: 2000 }, stepId: { type: string } } } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Comment" } } } }
+  /v1/comments/{commentId}:
+    parameters: [{ name: commentId, in: path, required: true, schema: { type: string, format: uuid } }]
+    patch:
+      tags: [Collaboration]
+      summary: Edit your comment (`body`) or resolve/reopen (`resolved`; editors for others' comments)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, properties: { body: { type: string }, resolved: { type: boolean } } } } }
+      responses:
+        "200": { description: Updated, content: { application/json: { schema: { $ref: "#/components/schemas/Comment" } } } }
+    delete:
+      tags: [Collaboration]
+      summary: Delete your comment (organization admins can delete any)
+      responses: { "204": { description: Deleted } }
+  /v1/flows/{id}/presence:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      tags: [Collaboration]
+      summary: Heartbeat (every ~15 s) — returns who else has the flow open and its current version
+      requestBody: { content: { application/json: { schema: { type: object, properties: { editing: { type: boolean } } } } } }
+      responses:
+        "200":
+          description: Others
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  currentVersion: { type: integer }
+                  others:
+                    type: array
+                    items: { type: object, properties: { userId: { type: string }, name: { type: string }, editing: { type: boolean }, seenAt: { type: string, format: date-time } } }
+    delete:
+      tags: [Collaboration]
+      summary: Leave (closing the flow)
+      responses: { "204": { description: Left } }
+  /v1/flows/{id}/layout:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      tags: [Collaboration]
+      summary: Visual builder node positions
+      responses:
+        "200": { description: Layout, content: { application/json: { schema: { $ref: "#/components/schemas/Layout" } } } }
+    put:
+      tags: [Collaboration]
+      summary: Save node positions (editors)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Layout" } } } }
+      responses: { "204": { description: Saved } }
 components:
   parameters:
     OrgId:
@@ -809,6 +906,53 @@ components:
               error: { type: string, example: validation_error }
               message: { type: string }
   schemas:
+    Usage:
+      type: object
+      properties:
+        runs: { type: integer }
+        completed: { type: integer }
+        stopped: { type: integer }
+        failed: { type: integer }
+        users: { type: integer }
+        successRate: { type: number, nullable: true }
+        avgDurationMillis: { type: integer, nullable: true }
+        lastRunAt: { type: string, format: date-time, nullable: true }
+    DailyRuns:
+      type: object
+      properties: { date: { type: string, format: date }, completed: { type: integer }, stopped: { type: integer }, failed: { type: integer } }
+    FlowAnalytics:
+      type: object
+      properties:
+        usage: { $ref: "#/components/schemas/Usage" }
+        daily: { type: array, items: { $ref: "#/components/schemas/DailyRuns" } }
+        steps:
+          type: array
+          items:
+            type: object
+            properties:
+              elementId: { type: string }
+              label: { type: string }
+              total: { type: integer }
+              outcomes: { type: object, additionalProperties: { type: integer }, example: { FILLED: 12, MANUAL: 3 } }
+        interpretedBy: { type: object, additionalProperties: { type: integer } }
+        remoteRuns: { type: object, additionalProperties: { type: integer } }
+    Comment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        flowId: { type: string, format: uuid }
+        userId: { type: string, nullable: true }
+        authorName: { type: string, nullable: true }
+        authorEmail: { type: string, nullable: true }
+        stepId: { type: string, nullable: true }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+        editedAt: { type: string, format: date-time, nullable: true }
+        resolvedAt: { type: string, format: date-time, nullable: true }
+    Layout:
+      type: object
+      properties:
+        positions: { type: object, additionalProperties: { type: object, properties: { x: { type: number }, y: { type: number } } } }
     Role: { type: string, enum: [ADMIN, EDITOR, VIEWER] }
     Organization:
       type: object

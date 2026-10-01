@@ -38,8 +38,10 @@ cd android
 
 Install the APK, open **VoiceControl**, then enable the accessibility service
 (*Settings → Accessibility → VoiceControl*). A floating mic button appears over other apps; tap it
-to start the voice session for the current screen. In the emulator the default backend URL is
-`http://10.0.2.2:8080`. It can be changed in the app's settings.
+to start the voice session for the current screen. The app uses the hosted backend
+(`https://voicecontrol-backend.onrender.com`) by default; change it in the app's settings, or build with
+`-Pvc.backendUrl=http://10.0.2.2:8080 -Pvc.dashboardUrl=http://10.0.2.2:3000` for a local backend in the emulator.
+The debug APK of every CI run is under *Actions → CI → the run → Artifacts → voicecontrol-debug-apk*.
 
 ### Backend
 

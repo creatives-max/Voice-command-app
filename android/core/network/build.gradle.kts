@@ -8,9 +8,12 @@ android {
     namespace = "com.voicecontrol.core.network"
     buildFeatures.buildConfig = true
     defaultConfig {
-        // 10.0.2.2 is the host machine when running in the Android emulator.
-        buildConfigField("String", "DEFAULT_BACKEND_URL", "\"http://10.0.2.2:8080\"")
-        buildConfigField("String", "DEFAULT_DASHBOARD_URL", "\"http://10.0.2.2:3000\"")
+        // The hosted servers by default; for a local backend in the emulator build with
+        // -Pvc.backendUrl=http://10.0.2.2:8080 -Pvc.dashboardUrl=http://10.0.2.2:3000 (or change it in Settings).
+        val backendUrl = providers.gradleProperty("vc.backendUrl").getOrElse("https://voicecontrol-backend.onrender.com")
+        val dashboardUrl = providers.gradleProperty("vc.dashboardUrl").getOrElse("https://voicecontrol-dashboard.onrender.com")
+        buildConfigField("String", "DEFAULT_BACKEND_URL", "\"$backendUrl\"")
+        buildConfigField("String", "DEFAULT_DASHBOARD_URL", "\"$dashboardUrl\"")
     }
 }
 

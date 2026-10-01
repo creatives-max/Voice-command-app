@@ -13,15 +13,15 @@ import android.os.SystemClock
 import androidx.test.espresso.Espresso
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
-import androidx.test.espresso.action.ViewActions.closeSoftKeyboard
 import androidx.test.espresso.action.ViewActions.scrollTo
-import androidx.test.espresso.action.ViewActions.typeText
+import androidx.test.espresso.action.ViewActions.replaceText
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.RootMatchers.isDialog
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.voicecontrol.feature.onboarding.PracticeFormActivity
 import org.junit.FixMethodOrder
 import org.junit.Rule
@@ -66,10 +66,16 @@ class EndToEndTest {
 
     @Test
     fun b_practiceFormCanBeFilledAndSubmitted() {
+        // A system dialog (e.g. "System UI isn't responding" on a cold emulator) can hold window focus.
+        InstrumentationRegistry.getInstrumentation().uiAutomation
+            .executeShellCommand("am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS").close()
         ActivityScenario.launch(PracticeFormActivity::class.java).use {
-            onView(withId(OnboardingR.id.practice_name)).perform(scrollTo(), typeText("Asha Rao"), closeSoftKeyboard())
-            onView(withId(OnboardingR.id.practice_city)).perform(scrollTo(), typeText("Pune"), closeSoftKeyboard())
-            // The keyboard must be fully gone, or the tap can land on it while it animates away.
+            // replaceText never opens the soft keyboard, so no tap can land on it while it animates away;
+            // it is idempotent, so the first action can be retried until the form's window has focus.
+            eventually(timeoutMillis = 20_000) {
+                onView(withId(OnboardingR.id.practice_name)).perform(scrollTo(), replaceText("Asha Rao"))
+            }
+            onView(withId(OnboardingR.id.practice_city)).perform(scrollTo(), replaceText("Pune"))
             Espresso.closeSoftKeyboard()
             onView(withId(OnboardingR.id.practice_submit)).perform(scrollTo()).check(matches(isDisplayed())).perform(click())
             eventually {

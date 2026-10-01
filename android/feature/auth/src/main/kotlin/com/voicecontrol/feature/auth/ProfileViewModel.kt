@@ -20,7 +20,8 @@ class ProfileViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             val user = auth.user.first()
-            setState { copy(draft = profiles.profile.first(), email = user?.email, signedIn = user != null, loaded = true) }
+            val profile = profiles.profile.first()
+            setState { copy(draft = profile, email = user?.email, signedIn = user != null, loaded = true) }
         }
     }
 

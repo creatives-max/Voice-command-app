@@ -49,10 +49,16 @@ fun UserProfile.valueOf(field: ProfileField): String = when (field) {
 }.orEmpty()
 
 /** Local validation mirrors the server rules so mistakes show up before syncing. */
-fun UserProfile.validationError(): String? = when {
-    pincode != null && !Regex("^\\d{6}$").matches(pincode) -> "PIN code must be 6 digits"
-    phone != null && phone.count(Char::isDigit) !in 10..13 -> "Phone must have 10 to 13 digits"
-    email != null && !Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$").matches(email) -> "Please enter a valid email address"
-    dateOfBirth != null && !Regex("^\\d{2}/\\d{2}/\\d{4}$").matches(dateOfBirth) -> "Date of birth must look like 31/12/1990"
-    else -> null
+fun UserProfile.validationError(): String? {
+    val pin = pincode
+    val phoneNumber = phone
+    val mail = email
+    val dob = dateOfBirth
+    return when {
+        pin != null && !Regex("^\\d{6}$").matches(pin) -> "PIN code must be 6 digits"
+        phoneNumber != null && phoneNumber.count(Char::isDigit) !in 10..13 -> "Phone must have 10 to 13 digits"
+        mail != null && !Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$").matches(mail) -> "Please enter a valid email address"
+        dob != null && !Regex("^\\d{2}/\\d{2}/\\d{4}$").matches(dob) -> "Date of birth must look like 31/12/1990"
+        else -> null
+    }
 }

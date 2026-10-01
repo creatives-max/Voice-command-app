@@ -1,0 +1,16 @@
+plugins {
+    alias(libs.plugins.voicecontrol.android.feature)
+}
+
+android {
+    namespace = "com.voicecontrol.feature.assistant"
+}
+
+dependencies {
+    implementation(projects.core.accessibility)
+    implementation(projects.core.voice)
+    implementation(projects.core.engine)
+    implementation(projects.core.data)
+    implementation(libs.androidx.lifecycle.service)
+    implementation(libs.androidx.core.ktx)
+}

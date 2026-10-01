@@ -1,0 +1,62 @@
+# VoiceControl — Build Progress
+
+If work is interrupted, read this file first and resume from the first unchecked item.
+
+## Phase 1 — Monorepo setup, module structure, Docker + CI, README
+- [x] Repo layout `/android`, `/backend`, `/dashboard`, `/infra`, `/docs`
+- [x] Android multi-module Gradle build (app, core:*, feature:*) with Hilt/Compose/Room/Ktor wiring
+- [x] Backend multi-module Gradle build (domain, application, infrastructure, api)
+- [x] Dashboard Next.js + TS + Tailwind + shadcn/ui + TanStack Query/Router skeleton
+- [x] Dockerfiles (backend, dashboard) + `docker-compose.yml` (Postgres+pgvector, Redis, backend, dashboard)
+- [x] GitHub Actions CI (Android build, backend tests, dashboard build)
+- [x] README + docs/architecture.md
+- [x] Commit + push `Phase 1: ...`
+
+## Phase 2 — AccessibilityService screen reading
+- [ ] Node abstraction + screen parser (fields, buttons, labels, types)
+- [ ] Stable IDs (viewId / hierarchy path / label hash)
+- [ ] Password / OTP masking
+- [ ] VoiceControlAccessibilityService + live screen inspector UI
+- [ ] Unit tests, commit + push
+
+## Phase 3 — Act on screen + floating overlay
+- [ ] Fill fields (ACTION_SET_TEXT, paste fallback), click, scroll, back, focus
+- [ ] Floating mic-button overlay (draggable, state-aware)
+- [ ] Unit tests, commit + push
+
+## Phase 4 — Voice loop
+- [ ] TTS + STT interfaces with Android implementations (swappable for cloud)
+- [ ] Hindi/English/Hinglish normalization (numbers, email, phone)
+- [ ] Commands: next / submit / back / scroll / skip / repeat / stop
+- [ ] Assistant session engine (MVI) asks → listens → fills, wired to overlay
+- [ ] Unit tests, commit + push
+
+## Phase 5 — AI brain
+- [ ] Backend `/v1/ai/interpret` with pluggable LLM provider (Anthropic / OpenAI / rule-based) via env
+- [ ] Android client uses backend interpretation with local fallback
+- [ ] Hindi/English/Hinglish prompt + rule-based parsing
+- [ ] Tests, commit + push
+
+## Phase 6 — Backend core
+- [ ] JWT auth (register/login/refresh/logout) with Redis sessions
+- [ ] User profile (name/email/phone/address) reused in flows
+- [ ] Redis caching
+- [ ] Flow save API + event-driven processing (Redis Streams)
+- [ ] OpenAPI docs + Swagger UI
+- [ ] Android login/profile screens + flow upload
+- [ ] Tests, commit + push
+
+## Phase 7 — Flow Library
+- [ ] Versioned flows (history, rollback)
+- [ ] pgvector embeddings + screen → flow matching
+- [ ] Dashboard: login, flows list, flow editor (question, rules, defaults, skip, order, help video), versions
+- [ ] Android: fetch matched flow and run edited flow next time
+- [ ] Tests, commit + push
+
+## Phase 8 — Settings, history, vision, compliance, k8s, observability
+- [ ] Android settings + run history screens; backend run history API + dashboard history
+- [ ] Screenshot + vision fallback for apps without readable fields
+- [ ] Privacy policy + Play Store notes
+- [ ] Kubernetes manifests in `/infra/k8s`
+- [ ] OpenTelemetry tracing/logging (backend + collector in compose)
+- [ ] Tests, commit + push

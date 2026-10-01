@@ -1,0 +1,31 @@
+# OS / IDE
+.DS_Store
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# Gradle / Kotlin
+.gradle/
+build/
+!**/src/**/build/
+.kotlin/
+local.properties
+captures/
+*.apk
+*.aab
+*.keystore
+!android/app/debug.keystore
+
+# Node / Next
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Env
+.env
+.env.*
+!.env.example

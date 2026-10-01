@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { devicesQuery, runRequestsQuery, useDeleteDevice, useUpdateDevice } from "@/lib/queries";
+import { api } from "@/lib/api";
 import type { Device } from "@/lib/types";
 import { SOURCE_LABELS, STATUS_LABELS, statusTone } from "./run-log";
 
@@ -39,6 +40,8 @@ export function DevicesPage() {
           <CardContent className="p-6 text-sm text-muted-foreground">No phones yet. Sign in on the VoiceControl Android app; it registers itself.</CardContent>
         </Card>
       )}
+
+      <AppProblems />
 
       <Card>
         <CardHeader>
@@ -118,6 +121,43 @@ function DeviceRow({ device }: { device: Device }) {
         <Button variant="ghost" size="icon" aria-label="Remove phone" onClick={() => remove.mutate(device.id, { onSuccess: () => toast.success("Phone removed") })}>
           <Trash2 />
         </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Crash reports your phones sent (only with "Send crash reports" on), grouped by cause. */
+function AppProblems() {
+  const crashes = useQuery({ queryKey: ["crashes"], queryFn: api.crashes });
+  const [open, setOpen] = useState<string | null>(null);
+  if (!crashes.data?.length) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>App problems</CardTitle>
+        <CardDescription>Crashes your phones reported. Personal details such as numbers and email addresses are removed before sending.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ul className="divide-y">
+          {crashes.data.map((g) => (
+            <li key={g.fingerprint} className="grid gap-1 py-2 text-sm" data-testid="crash-group">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="destructive">{g.count}×</Badge>
+                <span className="font-medium">{g.exception.split(".").pop()}</span>
+                <span className="truncate text-muted-foreground">{g.message}</span>
+                <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setOpen(open === g.fingerprint ? null : g.fingerprint)}>
+                  {open === g.fingerprint ? "Hide" : "Details"}
+                </Button>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                Last {new Date(g.lastSeen).toLocaleString()} · first {new Date(g.firstSeen).toLocaleDateString()}
+                {g.appVersions.length ? ` · app ${g.appVersions.join(", ")}` : ""}
+                {g.topFrame ? ` · ${g.topFrame}` : ""}
+              </span>
+              {open === g.fingerprint && <pre className="max-h-64 overflow-auto rounded bg-secondary/50 p-2 text-xs">{g.latestStacktrace}</pre>}
+            </li>
+          ))}
+        </ul>
       </CardContent>
     </Card>
   );

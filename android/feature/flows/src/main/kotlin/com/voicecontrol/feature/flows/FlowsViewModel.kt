@@ -2,7 +2,9 @@ package com.voicecontrol.feature.flows
 
 import androidx.lifecycle.viewModelScope
 import com.voicecontrol.core.data.automation.RemoteRunRepository
+import com.voicecontrol.core.data.flows.EditOutcome
 import com.voicecontrol.core.data.flows.FlowLibrary
+import com.voicecontrol.core.model.FlowEditing
 import com.voicecontrol.core.data.flows.TemplateRepository
 import com.voicecontrol.core.engine.port.FlowLauncher
 import com.voicecontrol.core.data.settings.SettingsRepository
@@ -41,10 +43,48 @@ class FlowsViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
+    /** Applies an edit to the draft; invalid edits (like a default for an OTP field) are explained instead. */
+    private suspend fun edit(change: (com.voicecontrol.core.model.FlowDefinition) -> com.voicecontrol.core.model.FlowDefinition) {
+        val draft = currentState.editing ?: return
+        runCatching { change(draft) }
+            .onSuccess { next -> setState { copy(editing = next) } }
+            .onFailure { sendEffect(FlowsEffect.Message(it.message ?: "Can't change that")) }
+    }
+
     override suspend fun handleIntent(intent: FlowsIntent) {
         when (intent) {
             is FlowsIntent.Open -> setState { copy(selected = apps.flatMap { it.flows }.firstOrNull { it.id == intent.flowId }) }
-            FlowsIntent.CloseDetail -> setState { copy(selected = null) }
+            FlowsIntent.CloseDetail -> setState { copy(selected = null, editing = null) }
+            FlowsIntent.StartEdit -> setState { copy(editing = selected) }
+            FlowsIntent.CancelEdit -> setState { copy(editing = null) }
+            is FlowsIntent.Rename -> setState { copy(editing = editing?.copy(name = intent.name.take(120))) }
+            is FlowsIntent.SetQuestion -> edit { FlowEditing.setQuestion(it, intent.stepId, intent.question) }
+            is FlowsIntent.SetDefault -> edit { FlowEditing.setDefault(it, intent.stepId, intent.value) }
+            is FlowsIntent.SetSkip -> edit { FlowEditing.setSkip(it, intent.stepId, intent.skip) }
+            is FlowsIntent.MoveStep -> edit { FlowEditing.move(it, intent.stepId, intent.delta) }
+            is FlowsIntent.RemoveStep -> edit { FlowEditing.remove(it, intent.stepId) }
+            FlowsIntent.SaveEdit -> {
+                val draft = currentState.editing ?: return
+                val named = runCatching { FlowEditing.rename(draft, draft.name) }.getOrElse {
+                    sendEffect(FlowsEffect.Message(it.message ?: "Invalid name"))
+                    return
+                }
+                setState { copy(saving = true) }
+                library.saveEdited(named).fold(
+                    onSuccess = { outcome ->
+                        setState { copy(editing = null, saving = false) }
+                        sendEffect(
+                            FlowsEffect.Message(
+                                if (outcome == EditOutcome.SAVED_TO_ACCOUNT) "Saved as a new version in your account" else "Saved on this phone",
+                            ),
+                        )
+                    },
+                    onFailure = {
+                        setState { copy(saving = false) }
+                        sendEffect(FlowsEffect.Message(it.message ?: "Save failed"))
+                    },
+                )
+            }
             is FlowsIntent.Delete -> {
                 library.delete(intent.flow).fold(
                     onSuccess = {

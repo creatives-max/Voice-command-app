@@ -36,6 +36,8 @@ class FlowRepository @Inject constructor(
 
     suspend fun delete(id: String) = dao.delete(id)
 
+    suspend fun clear() = dao.clear()
+
     suspend fun unsynced(): List<FlowDefinition> = dao.unsynced().map(::toModel)
 
     /** Server-synced flows by id (local drafts excluded). */

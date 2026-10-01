@@ -15,6 +15,7 @@ class ProfileViewModel @Inject constructor(
     private val profiles: ProfileRepository,
     private val auth: AuthRepository,
     private val sync: SyncScheduler,
+    private val account: com.voicecontrol.core.data.account.AccountDataRepository,
 ) : MviViewModel<ProfileState, ProfileIntent, ProfileEffect>(ProfileState()) {
 
     init {
@@ -39,6 +40,18 @@ class ProfileViewModel @Inject constructor(
                 if (currentState.signedIn) sync.syncNow()
                 setState { copy(saving = false) }
                 sendEffect(ProfileEffect.Message(if (currentState.signedIn) "Saved. Syncing to your account…" else "Saved on this phone"))
+            }
+            is ProfileIntent.DeleteAccount -> {
+                setState { copy(saving = true) }
+                val result = account.deleteAccount(intent.password)
+                setState { copy(saving = false) }
+                result.fold(
+                    onSuccess = {
+                        sendEffect(ProfileEffect.Message("Your account and data were deleted"))
+                        sendEffect(ProfileEffect.SignedOut)
+                    },
+                    onFailure = { sendEffect(ProfileEffect.Message(it.message ?: "Deletion failed")) },
+                )
             }
             ProfileIntent.SignOut -> {
                 auth.logout()

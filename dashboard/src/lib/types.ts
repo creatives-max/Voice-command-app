@@ -379,3 +379,16 @@ export const presenceSchema = z.object({
 export type PresenceInfo = z.infer<typeof presenceSchema>;
 export const layoutSchema = z.object({ positions: z.record(z.object({ x: z.number(), y: z.number() })) });
 export type Layout = z.infer<typeof layoutSchema>;
+
+export const crashGroupSchema = z.object({
+  fingerprint: z.string(),
+  exception: z.string(),
+  message: z.string().nullish(),
+  topFrame: z.string().nullish(),
+  count: z.number(),
+  firstSeen: z.string(),
+  lastSeen: z.string(),
+  appVersions: z.array(z.string()),
+  latestStacktrace: z.string(),
+});
+export type CrashGroup = z.infer<typeof crashGroupSchema>;

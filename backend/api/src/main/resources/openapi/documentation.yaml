@@ -883,6 +883,57 @@ paths:
       summary: Save node positions (editors)
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Layout" } } } }
       responses: { "204": { description: Saved } }
+  /v1/me/export:
+    get:
+      tags: [Auth]
+      summary: Download all your data as JSON (GDPR access)
+      responses:
+        "200": { description: JSON document (account, profile, flows with versions, history, devices, triggers, remote runs, listings, ratings, organizations, comments, API keys created, audit entries, crash reports) }
+  /v1/me:
+    delete:
+      tags: [Auth]
+      summary: Delete your account and data (GDPR erasure)
+      description: Organizations where you are the only member are deleted; your organization flows move to another admin. Fails with 409 while you are the only admin of an organization with other members.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [password], properties: { password: { type: string } } } } } }
+      responses:
+        "204": { description: Deleted; all sessions signed out }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /v1/crashes:
+    get:
+      tags: [Ops]
+      summary: Crash reports from your phones, grouped
+      responses:
+        "200": { description: Groups, newest first }
+    post:
+      tags: [Ops]
+      summary: Upload crash reports (opt-in on the phone; signed in or not; 30 per minute per address)
+      security: [{}, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reports:
+                  type: array
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [exception, stacktrace, occurredAtMillis]
+                    properties:
+                      exception: { type: string }
+                      message: { type: string }
+                      stacktrace: { type: string }
+                      thread: { type: string }
+                      appVersion: { type: string }
+                      androidSdk: { type: integer }
+                      deviceModel: { type: string }
+                      occurredAtMillis: { type: integer }
+                      installId: { type: string }
+      responses:
+        "200": { description: Accepted count }
 components:
   parameters:
     OrgId:

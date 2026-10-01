@@ -14,6 +14,7 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
     private val tts: TextToSpeech,
+    private val account: com.voicecontrol.core.data.account.AccountDataRepository,
 ) : MviViewModel<SettingsState, SettingsIntent, SettingsEffect>(SettingsState()) {
 
     init {
@@ -62,6 +63,27 @@ class SettingsViewModel @Inject constructor(
                 }
                 repository.update { it.copy(wakeWord = phrase) }
                 sendEffect(SettingsEffect.Message("Wake phrase saved"))
+            }
+            is SettingsIntent.SetAppLock -> repository.update { it.copy(appLock = intent.enabled) }
+            is SettingsIntent.SetLockTimeout -> repository.update { it.copy(lockTimeoutSeconds = intent.seconds) }
+            is SettingsIntent.ExportData -> {
+                setState { copy(busy = true) }
+                val result = runCatching { account.exportTo(intent.target) }
+                setState { copy(busy = false) }
+                sendEffect(
+                    SettingsEffect.Message(
+                        result.fold(
+                            onSuccess = { if (it.serverIncluded) "Saved your data from this phone and your account" else "Saved your data from this phone" },
+                            onFailure = { "Export failed: ${it.message}" },
+                        ),
+                    ),
+                )
+            }
+            SettingsIntent.WipePhone -> {
+                setState { copy(busy = true) }
+                account.wipePhone()
+                setState { copy(busy = false) }
+                sendEffect(SettingsEffect.PhoneWiped)
             }
             SettingsIntent.TestVoice -> {
                 val s = currentState.settings

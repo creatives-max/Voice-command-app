@@ -2,6 +2,10 @@ package com.voicecontrol.api
 
 import com.voicecontrol.api.plugins.ApiKeyPrincipal
 import com.voicecontrol.application.ai.AiService
+import com.voicecontrol.application.account.AccountService
+import com.voicecontrol.application.account.CrashService
+import com.voicecontrol.infrastructure.persistence.JdbcAccountDataRepository
+import com.voicecontrol.infrastructure.persistence.JdbcCrashRepository
 import com.voicecontrol.application.collab.AnalyticsService
 import com.voicecontrol.application.collab.CommentService
 import com.voicecontrol.application.collab.LayoutService
@@ -102,6 +106,8 @@ class Services(
     val comments: CommentService,
     val presence: PresenceService,
     val layouts: LayoutService,
+    val account: AccountService,
+    val crashes: CrashService,
     val eventBus: RedisStreamEventBus,
     /** Kafka bus when KAFKA_BOOTSTRAP_SERVERS is set; Redis Streams stays the fallback queue. */
     val kafkaBus: KafkaEventBus?,
@@ -251,6 +257,11 @@ object Bootstrap {
             comments = CommentService(JdbcCommentRepository(database), flowService, JdbcUserRepository(database), audit),
             presence = PresenceService(RedisPresenceStore(redis), flowService, JdbcUserRepository(database)),
             layouts = LayoutService(JdbcLayoutRepository(database), flowService),
+            account = AccountService(
+                JdbcAccountDataRepository(database), JdbcUserRepository(database), BcryptPasswordHasher(bcryptCost), RedisSessionStore(redis, config.jwt.refreshTtlSeconds),
+                onDeleted = { userId -> cache.deleteByPrefix(FlowCacheInvalidator.userCachePattern(userId.toString())) },
+            ),
+            crashes = CrashService(JdbcCrashRepository(database)),
             eventBus = bus,
             kafkaBus = kafka,
             database = database,

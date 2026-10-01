@@ -43,6 +43,7 @@ Only when you are **signed in** and **local-only mode is off**:
 | Organizations you create or join: name, members' email, name and role, invitations (email, role) | Share flows with a team |
 | Audit log of organization changes (who changed which flow, member, API key or webhook, and when) | Accountability for organization admins |
 | Comments you write on flows; which flow you have open on the dashboard (kept about a minute) | Collaboration with your team |
+| Crash reports (only with **Send crash reports** on): error type, code location, app and Android version, phone model; numbers and email addresses are removed on the phone and again on the server | Fixing crashes |
 
 ## Organizations, API keys and webhooks
 
@@ -68,10 +69,16 @@ those terms, API inputs are not used to train their models by default, and we do
 
 ## Your controls
 
-- **Local-only mode**: nothing leaves the phone; understanding runs on-device.
+- **On-device only**: nothing leaves the phone; understanding runs on-device and flows are edited in the app.
+- **App lock**: require your fingerprint, face or screen lock to open VoiceControl; its screens are then hidden from
+  screenshots and the recent-apps preview.
+- **Export your data**: Settings → *Export my data* saves everything on the phone (and, when signed in, everything
+  on the server) as a JSON file; the dashboard's Profile page downloads the server copy.
 - **History**: turn off in Settings; delete single sessions or all history in the app or dashboard.
 - **Flows and profile**: edit or delete any time in the app or dashboard.
-- **Account deletion**: email us; all server data is erased within 30 days, including backups.
+- **Account deletion**: Profile → *Delete my account* (app or dashboard, password required) erases your account and
+  data immediately; backups are overwritten within 30 days. *Delete everything on this phone* wipes the app's data
+  without touching your account.
 
 ## Children
 

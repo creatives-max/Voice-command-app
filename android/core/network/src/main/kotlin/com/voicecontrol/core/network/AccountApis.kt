@@ -14,6 +14,7 @@ import com.voicecontrol.core.network.dto.RegisterRequestDto
 import com.voicecontrol.core.network.dto.UserDto
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpMethod
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -31,6 +32,24 @@ class AuthApi @Inject constructor(private val api: ApiClient) {
     }
 
     suspend fun me(): UserDto = api.get("/v1/me")
+
+    /** Everything the server stores about the user, as JSON text (GDPR access). */
+    suspend fun export(): String = api.send(HttpMethod.Get, "/v1/me/export").bodyAsText()
+
+    /** Deletes the account and its data on the server (GDPR erasure). */
+    suspend fun deleteAccount(password: String) {
+        api.send(HttpMethod.Delete, "/v1/me") { setBody(com.voicecontrol.core.network.dto.DeleteAccountRequestDto(password)) }
+    }
+}
+
+/** Self-hosted crash reports (sent only when the user turned crash reports on). */
+@Singleton
+class CrashApi @Inject constructor(private val api: ApiClient) {
+    suspend fun upload(reports: List<com.voicecontrol.core.model.diagnostics.CrashRecord>): Int =
+        api.post<com.voicecontrol.core.network.dto.CrashUploadDto, com.voicecontrol.core.network.dto.CrashUploadResponseDto>(
+            "/v1/crashes",
+            com.voicecontrol.core.network.dto.CrashUploadDto(reports),
+        ).accepted
 }
 
 @Singleton
@@ -53,6 +72,13 @@ class FlowApi @Inject constructor(private val api: ApiClient) {
         api.post<MatchRequestDto, MatchResponseDto>("/v1/flows/match", MatchRequestDto(appPackage, signature))
 
     suspend fun delete(id: String) = api.delete("/v1/flows/$id")
+
+    /** Saves an edit made on the phone as a new version (fails with 409 if the flow changed meanwhile). */
+    suspend fun update(flow: FlowDefinition, changeNote: String?): FlowDefinition =
+        api.put<com.voicecontrol.core.network.dto.UpdateFlowRequestDto, FlowDefinition>(
+            "/v1/flows/${flow.id}",
+            com.voicecontrol.core.network.dto.UpdateFlowRequestDto(flow.version, flow.name, flow.orderedSteps, changeNote),
+        )
 
     suspend fun list(appPackage: String? = null, limit: Int = 200): List<FlowSummaryDto> =
         api.get<PageDto<FlowSummaryDto>>("/v1/flows") {

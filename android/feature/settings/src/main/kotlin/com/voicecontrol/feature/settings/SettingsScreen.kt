@@ -1,5 +1,21 @@
 package com.voicecontrol.feature.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.voicecontrol.core.common.lock.AppLockPolicy
+import com.voicecontrol.core.ui.security.Biometrics
+import com.voicecontrol.core.ui.security.findFragmentActivity
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -53,6 +69,10 @@ fun SettingsRoute(onBack: () -> Unit, onOpenPrivacy: () -> Unit, viewModel: Sett
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             is SettingsEffect.Message -> snackbar.showSnackbar(effect.text)
+            SettingsEffect.PhoneWiped -> {
+                snackbar.showSnackbar("Everything VoiceControl stored on this phone was deleted")
+                onBack()
+            }
         }
     }
     SettingsScreen(state, snackbar, onBack, onOpenPrivacy, viewModel::dispatch)
@@ -72,7 +92,8 @@ private val toggles = listOf(
     Triple(Option.USE_TEMPLATES, "Use starter templates", "On new screens, use the sign-up, login or address template that fits."),
     Triple(Option.REMOTE_RUNS, "Allow runs from the dashboard", "\"Run now\" and schedules can start flows on this phone. Needs sign-in."),
     Triple(Option.SAVE_HISTORY, "Keep session history", "What happened to each field, never the values."),
-    Triple(Option.LOCAL_ONLY, "Local-only mode", "Never contact the server: on-device understanding only, no sync."),
+    Triple(Option.LOCAL_ONLY, "On-device only", "Nothing leaves the phone: on-device understanding, no sign-in or sync. Edit flows here in the app."),
+    Triple(Option.CRASH_REPORTS, "Send crash reports", "If VoiceControl crashes, send what went wrong (no numbers, emails or answers) to the VoiceControl server."),
     Triple(Option.VISION_FALLBACK, "Screenshot fallback", "For apps with no readable fields, send a screenshot to find fields and buttons."),
 )
 
@@ -174,6 +195,8 @@ fun SettingsScreen(
             )
             Button(onClick = { onIntent(SettingsIntent.SaveUrls) }) { Text("Save addresses") }
             HorizontalDivider()
+            SecurityAndData(state, onIntent, snackbar)
+            HorizontalDivider()
             OutlinedButton(onClick = onOpenPrivacy, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Filled.PrivacyTip, null)
                 Spacer(Modifier.width(8.dp))
@@ -203,5 +226,88 @@ fun PrivacyScreen(onBack: () -> Unit) {
                 Text(body, style = MaterialTheme.typography.bodyMedium)
             }
         }
+    }
+}
+
+/** App lock, data export and wiping the phone. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SecurityAndData(state: SettingsState, onIntent: (SettingsIntent) -> Unit, snackbar: SnackbarHostState) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val s = state.settings
+    var confirmWipe by remember { mutableStateOf(false) }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        uri?.let { onIntent(SettingsIntent.ExportData(it)) }
+    }
+    Text("Security and your data", style = MaterialTheme.typography.titleMedium)
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text("App lock", style = MaterialTheme.typography.bodyLarge)
+            Text(
+                "Ask for your fingerprint, face or screen lock to open VoiceControl. Hides it in recent apps.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(
+            checked = s.appLock,
+            onCheckedChange = { enable ->
+                val activity = context.findFragmentActivity()
+                if (activity == null || !Biometrics.available(context)) {
+                    scope.launch { snackbar.showSnackbar("Set up a fingerprint, face unlock or screen lock on this phone first") }
+                } else {
+                    Biometrics.authenticate(activity, if (enable) "Turn on app lock" else "Turn off app lock", null) { ok, _ ->
+                        if (ok) onIntent(SettingsIntent.SetAppLock(enable))
+                    }
+                }
+            },
+            modifier = Modifier.semantics { contentDescription = "App lock" },
+        )
+    }
+    if (s.appLock) {
+        Text("Lock again", style = MaterialTheme.typography.bodyMedium)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AppLockPolicy.TIMEOUTS.forEach { seconds ->
+                FilterChip(
+                    selected = s.lockTimeoutSeconds == seconds,
+                    onClick = { onIntent(SettingsIntent.SetLockTimeout(seconds)) },
+                    label = { Text(AppLockPolicy.describe(seconds)) },
+                )
+            }
+        }
+    }
+    OutlinedButton(
+        onClick = { exportLauncher.launch("voicecontrol-data-${java.time.LocalDate.now()}.json") },
+        enabled = !state.busy,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Icon(Icons.Filled.Download, null)
+        Spacer(Modifier.width(8.dp))
+        Text("Export my data")
+    }
+    OutlinedButton(onClick = { confirmWipe = true }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+        Icon(Icons.Filled.DeleteForever, null, tint = MaterialTheme.colorScheme.error)
+        Spacer(Modifier.width(8.dp))
+        Text("Delete everything on this phone", color = MaterialTheme.colorScheme.error)
+    }
+    if (confirmWipe) {
+        AlertDialog(
+            onDismissRequest = { confirmWipe = false },
+            title = { Text("Delete everything on this phone?") },
+            text = {
+                Text(
+                    "Flows, history, your profile, settings and sign-in are removed from this phone. Your account on the server is not deleted; " +
+                        "do that under Profile & account.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmWipe = false
+                    onIntent(SettingsIntent.WipePhone)
+                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirmWipe = false }) { Text("Cancel") } },
+        )
     }
 }

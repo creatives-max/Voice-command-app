@@ -14,7 +14,9 @@ object PrivacyPolicy {
         "What is stored" to
             "Saved flows store field labels, questions and your edits, never the values you typed unless you add a default yourself. History stores what happened to each field (filled, skipped…) without the values. Your profile stores only the details you enter.",
         "Your controls" to
-            "Turn on local-only mode to keep everything on the phone. Turn off history. Delete flows and history in the app or dashboard. Signing out removes tokens from the phone; deleting your account removes all server data.",
+            "Turn on on-device only to keep everything on the phone. Turn off history. Lock the app with your fingerprint, face or screen lock. Export all your data as JSON in Settings. Delete flows and history in the app or dashboard. Delete everything on this phone in Settings; delete your account (and all server data) under Profile & account.",
+        "Crash reports" to
+            "Only if you turn on \"Send crash reports\", the app sends the error type, code location, app and Android version and phone model when it crashes. Numbers and email addresses are removed first.",
         "Contact" to
             "privacy@voicecontrol.app",
     )

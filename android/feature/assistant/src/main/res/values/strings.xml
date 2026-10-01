@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vc_widget_label">Talk</string>
+    <string name="vc_widget_description">Start a VoiceControl voice session over the app you are using</string>
+    <string name="vc_widget_name">VoiceControl</string>
+    <string name="vc_tile_label">VoiceControl</string>
+    <string name="vc_tile_ready">Tap to talk</string>
+    <string name="vc_tile_listening">Listening</string>
+    <string name="vc_tile_setup">Set up</string>
+</resources>

@@ -10,6 +10,7 @@ data class SettingsState(
     val dashboardUrlDraft: String = "",
     val deviceNameDraft: String = "",
     val wakeWordDraft: String = "",
+    val busy: Boolean = false,
 )
 
 sealed interface SettingsIntent {
@@ -24,12 +25,18 @@ sealed interface SettingsIntent {
     data class EditWakeWord(val value: String) : SettingsIntent
     data object SaveWakeWord : SettingsIntent
     data object TestVoice : SettingsIntent
+    /** Only sent after the fingerprint/face/screen lock check succeeded. */
+    data class SetAppLock(val enabled: Boolean) : SettingsIntent
+    data class SetLockTimeout(val seconds: Int) : SettingsIntent
+    data class ExportData(val target: android.net.Uri) : SettingsIntent
+    data object WipePhone : SettingsIntent
 }
 
-enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START, REMOTE_RUNS, USE_TEMPLATES, BARGE_IN, CONFIRM_LOW_CONFIDENCE, WAKE_WORD, CONFIRM_DESTRUCTIVE }
+enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START, REMOTE_RUNS, USE_TEMPLATES, BARGE_IN, CONFIRM_LOW_CONFIDENCE, WAKE_WORD, CONFIRM_DESTRUCTIVE, CRASH_REPORTS }
 
 sealed interface SettingsEffect {
     data class Message(val text: String) : SettingsEffect
+    data object PhoneWiped : SettingsEffect
 }
 
 fun AppSettings.with(option: Option, enabled: Boolean): AppSettings = when (option) {
@@ -49,6 +56,7 @@ fun AppSettings.with(option: Option, enabled: Boolean): AppSettings = when (opti
     Option.CONFIRM_LOW_CONFIDENCE -> copy(confirmLowConfidence = enabled)
     Option.WAKE_WORD -> copy(wakeWordEnabled = enabled)
     Option.CONFIRM_DESTRUCTIVE -> copy(confirmDestructive = enabled)
+    Option.CRASH_REPORTS -> copy(crashReports = enabled)
 }
 
 fun AppSettings.isOn(option: Option): Boolean = when (option) {
@@ -67,6 +75,7 @@ fun AppSettings.isOn(option: Option): Boolean = when (option) {
     Option.CONFIRM_LOW_CONFIDENCE -> confirmLowConfidence
     Option.WAKE_WORD -> wakeWordEnabled
     Option.CONFIRM_DESTRUCTIVE -> confirmDestructive
+    Option.CRASH_REPORTS -> crashReports
 }
 
 /** Accepts http(s) URLs only; blank means "use the build default". */

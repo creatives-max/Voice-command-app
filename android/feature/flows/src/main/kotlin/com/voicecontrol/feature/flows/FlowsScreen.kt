@@ -1,5 +1,18 @@
 package com.voicecontrol.feature.flows
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.VerticalDivider
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -72,7 +85,8 @@ fun FlowsRoute(onBack: () -> Unit, viewModel: FlowsViewModel = hiltViewModel()) 
             }.onFailure { snackbar.showSnackbar("No browser available") }
         }
     }
-    BackHandler(enabled = state.selected != null) { viewModel.dispatch(FlowsIntent.CloseDetail) }
+    BackHandler(enabled = state.editing != null) { viewModel.dispatch(FlowsIntent.CancelEdit) }
+    BackHandler(enabled = state.selected != null && state.editing == null) { viewModel.dispatch(FlowsIntent.CloseDetail) }
     FlowsScreen(state, snackbar, onBack, viewModel::dispatch)
 }
 
@@ -83,9 +97,15 @@ fun FlowsScreen(state: FlowsState, snackbar: SnackbarHostState, onBack: () -> Un
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(selected?.name ?: "Saved flows") },
+                title = { Text(if (state.editing != null) "Edit flow" else selected?.name ?: "Saved flows") },
                 navigationIcon = {
-                    IconButton(onClick = { if (selected != null) onIntent(FlowsIntent.CloseDetail) else onBack() }) {
+                    IconButton(onClick = {
+                        when {
+                            state.editing != null -> onIntent(FlowsIntent.CancelEdit)
+                            selected != null -> onIntent(FlowsIntent.CloseDetail)
+                            else -> onBack()
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
@@ -97,47 +117,152 @@ fun FlowsScreen(state: FlowsState, snackbar: SnackbarHostState, onBack: () -> Un
         },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        when {
-            state.loading -> LoadingBox(Modifier.padding(padding))
-            selected != null -> FlowDetail(selected, selected.id in state.appOpenFlowIds, Modifier.padding(padding), onIntent)
-            state.apps.isEmpty() && state.templates.isEmpty() -> EmptyState(
-                "No flows yet. Run VoiceControl on any app; each form you fill is saved here and can be edited on the dashboard.",
-                Modifier.padding(padding),
-                Icons.Filled.ViewList,
-            )
-            else -> LazyColumn(
-                Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                state.apps.forEach { app ->
-                    item(key = "app-${app.appPackage}") {
-                        Text(app.appPackage, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
-                    }
-                    items(app.flows, key = { it.id }) { flow -> FlowCard(flow) { onIntent(FlowsIntent.Open(flow.id)) } }
-                }
-                if (state.apps.isEmpty()) {
-                    item(key = "no-flows") {
-                        Text(
-                            "No saved flows yet. Run VoiceControl on any app; each form you fill is saved here and can be edited on the dashboard.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                if (state.templates.isNotEmpty()) {
-                    item(key = "templates-header") {
-                        Column(Modifier.padding(top = 16.dp)) {
-                            Text("Starter templates", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                            Text(
-                                "Used automatically on screens without a saved flow when they fit. Turn off in Settings.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+        BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
+            // Tablets and unfolded phones: list and detail side by side.
+            val twoPane = maxWidth >= 840.dp
+            when {
+                state.loading -> LoadingBox()
+                twoPane -> Row(Modifier.fillMaxSize()) {
+                    FlowList(state, Modifier.weight(0.42f).fillMaxHeight(), onIntent)
+                    VerticalDivider()
+                    Box(Modifier.weight(0.58f).fillMaxHeight()) {
+                        if (selected != null) {
+                            FlowPane(state, selected, onIntent)
+                        } else {
+                            EmptyState("Choose a flow to see and edit its steps.", Modifier.fillMaxSize(), Icons.Filled.ViewList)
                         }
                     }
-                    items(state.templates, key = { "t-" + it.id }) { t -> TemplateCard(t) }
                 }
+                selected != null -> FlowPane(state, selected, onIntent)
+                state.apps.isEmpty() && state.templates.isEmpty() -> EmptyState(
+                    "No flows yet. Run VoiceControl on any app; each form you fill is saved here and can be edited on the dashboard.",
+                    Modifier.fillMaxSize(),
+                    Icons.Filled.ViewList,
+                )
+                else -> FlowList(state, Modifier.fillMaxSize(), onIntent)
+            }
+        }
+    }
+}
+
+@Composable
+private fun FlowPane(state: FlowsState, selected: FlowDefinition, onIntent: (FlowsIntent) -> Unit) {
+    val draft = state.editing
+    if (draft != null && draft.id == selected.id) {
+        FlowEditor(draft, state.saving, Modifier.fillMaxSize(), onIntent)
+    } else {
+        FlowDetail(selected, selected.id in state.appOpenFlowIds, Modifier.fillMaxSize(), onIntent)
+    }
+}
+
+@Composable
+private fun FlowList(state: FlowsState, modifier: Modifier, onIntent: (FlowsIntent) -> Unit) {
+    LazyColumn(
+        modifier,
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        state.apps.forEach { app ->
+            item(key = "app-${app.appPackage}") {
+                Text(app.appPackage, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
+            }
+            items(app.flows, key = { it.id }) { flow -> FlowCard(flow, flow.id == state.selected?.id) { onIntent(FlowsIntent.Open(flow.id)) } }
+        }
+        if (state.apps.isEmpty()) {
+            item(key = "no-flows") {
+                Text(
+                    "No saved flows yet. Run VoiceControl on any app; each form you fill is saved here and can be edited here or on the dashboard.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (state.templates.isNotEmpty()) {
+            item(key = "templates-header") {
+                Column(Modifier.padding(top = 16.dp)) {
+                    Text("Starter templates", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        "Used automatically on screens without a saved flow when they fit. Turn off in Settings.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            items(state.templates, key = { "t-" + it.id }) { t -> TemplateCard(t) }
+        }
+    }
+}
+
+/** Editing on the phone: name, questions, defaults, skips, order and removing steps. */
+@Composable
+private fun FlowEditor(draft: FlowDefinition, saving: Boolean, modifier: Modifier, onIntent: (FlowsIntent) -> Unit) {
+    val steps = draft.orderedSteps
+    LazyColumn(modifier, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        item {
+            OutlinedTextField(
+                value = draft.name,
+                onValueChange = { onIntent(FlowsIntent.Rename(it)) },
+                label = { Text("Flow name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        item {
+            Text(
+                if (draft.isSynced) "Saving adds a new version to your account (on-device only: kept on this phone)." else "Saved on this phone; synced when you sign in.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        itemsIndexed(steps, key = { _, s -> s.id }) { index, step ->
+            EditableStep(step, index, steps.size, onIntent)
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { onIntent(FlowsIntent.SaveEdit) }, enabled = !saving) {
+                    Icon(Icons.Filled.Save, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (saving) "Saving…" else "Save")
+                }
+                OutlinedButton(onClick = { onIntent(FlowsIntent.CancelEdit) }, enabled = !saving) { Text("Cancel") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EditableStep(step: FlowStep, index: Int, count: Int, onIntent: (FlowsIntent) -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("${index + 1}. ${step.label}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                IconButton(onClick = { onIntent(FlowsIntent.MoveStep(step.id, -1)) }, enabled = index > 0) { Icon(Icons.Filled.ArrowUpward, "Move ${step.label} up") }
+                IconButton(onClick = { onIntent(FlowsIntent.MoveStep(step.id, 1)) }, enabled = index < count - 1) { Icon(Icons.Filled.ArrowDownward, "Move ${step.label} down") }
+                IconButton(onClick = { onIntent(FlowsIntent.RemoveStep(step.id)) }) { Icon(Icons.Filled.Delete, "Remove ${step.label}") }
+            }
+            if (step.action == StepAction.FILL || step.action == StepAction.CLICK) {
+                OutlinedTextField(
+                    value = step.question.orEmpty(),
+                    onValueChange = { onIntent(FlowsIntent.SetQuestion(step.id, it)) },
+                    label = { Text(if (step.action == StepAction.CLICK) "Confirmation question" else "Question") },
+                    placeholder = { Text("Generated from the label") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            if (step.action == StepAction.FILL && step.fieldType?.isSensitive != true) {
+                OutlinedTextField(
+                    value = step.defaultValue.orEmpty(),
+                    onValueChange = { onIntent(FlowsIntent.SetDefault(step.id, it)) },
+                    label = { Text("Default value") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else if (step.fieldType?.isSensitive == true) {
+                Text("Typed by you every time (passwords, OTPs and PINs are never saved).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(if (step.action == StepAction.CLICK) "Press without asking" else "Skip this step", modifier = Modifier.weight(1f))
+                Switch(checked = step.skip, onCheckedChange = { onIntent(FlowsIntent.SetSkip(step.id, it)) })
             }
         }
     }
@@ -155,8 +280,11 @@ private fun TemplateCard(template: TemplateSummary) {
 }
 
 @Composable
-private fun FlowCard(flow: FlowDefinition, onClick: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+private fun FlowCard(flow: FlowDefinition, selected: Boolean, onClick: () -> Unit) {
+    Card(
+        Modifier.fillMaxWidth().clickable(onClick = onClick),
+        colors = if (selected) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer) else CardDefaults.cardColors(),
+    ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(flow.name, style = MaterialTheme.typography.titleMedium)
@@ -181,8 +309,8 @@ private fun FlowDetail(flow: FlowDefinition, startsOnAppOpen: Boolean, modifier:
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
             Text(
-                if (flow.isSynced) "Version ${flow.version}. Edit questions, rules, defaults, skips, order and help videos on the web dashboard; the next run uses your edits."
-                else "Recorded on this phone. Sign in to sync it and edit it on the web dashboard.",
+                if (flow.isSynced) "Version ${flow.version}. Edit questions, defaults, skips and order here, or everything (rules, logic, help videos) on the web dashboard; the next run uses your edits."
+                else "Recorded on this phone. Edit it here, or sign in to sync it and edit it on the web dashboard.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -193,6 +321,12 @@ private fun FlowDetail(flow: FlowDefinition, startsOnAppOpen: Boolean, modifier:
                     Icon(Icons.Filled.PlayArrow, null)
                     Spacer(Modifier.width(6.dp))
                     Text("Run now")
+                }
+                Spacer(Modifier.width(8.dp))
+                OutlinedButton(onClick = { onIntent(FlowsIntent.StartEdit) }) {
+                    Icon(Icons.Filled.Edit, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Edit")
                 }
                 if (startsOnAppOpen) {
                     Spacer(Modifier.width(8.dp))

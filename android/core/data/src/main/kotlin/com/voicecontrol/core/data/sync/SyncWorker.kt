@@ -9,7 +9,7 @@ import com.voicecontrol.core.data.settings.SettingsRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
-/** Background sync with the backend; does nothing when signed out or in local-only mode. */
+/** Background sync with the backend; only crash reports (if allowed) are sent when signed out; nothing in local-only mode. */
 @HiltWorker
 class SyncWorker @AssistedInject constructor(
     @Assisted context: Context,
@@ -17,9 +17,12 @@ class SyncWorker @AssistedInject constructor(
     private val tokens: TokenStore,
     private val settings: SettingsRepository,
     private val sync: SyncManager,
+    private val crashes: com.voicecontrol.core.data.diagnostics.CrashUploader,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
+        // Crash reports go out signed in or not (only when the user turned them on).
+        runCatching { crashes.uploadPending() }
         if (tokens.tokens() == null || settings.appSettings().localOnly) return Result.success()
         val report = sync.syncAll(pullProfile = inputData.getBoolean(KEY_PULL_PROFILE, false))
         return when {

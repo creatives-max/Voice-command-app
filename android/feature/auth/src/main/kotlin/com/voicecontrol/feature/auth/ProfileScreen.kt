@@ -10,7 +10,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -98,7 +103,45 @@ fun ProfileScreen(state: ProfileState, snackbar: SnackbarHostState, onBack: () -
             Button(onClick = { onIntent(ProfileIntent.Save) }, enabled = !state.saving, modifier = Modifier.fillMaxWidth()) { Text("Save") }
             if (state.signedIn) {
                 OutlinedButton(onClick = { onIntent(ProfileIntent.SignOut) }, modifier = Modifier.fillMaxWidth()) { Text("Sign out") }
+                DeleteAccount(state.saving) { password -> onIntent(ProfileIntent.DeleteAccount(password)) }
             }
         }
+    }
+}
+
+/** GDPR erasure: deletes the account on the server and everything on this phone, after re-entering the password. */
+@Composable
+private fun DeleteAccount(busy: Boolean, onDelete: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    var password by remember { mutableStateOf("") }
+    TextButton(onClick = { open = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+        Text("Delete my account", color = MaterialTheme.colorScheme.error)
+    }
+    if (open) {
+        AlertDialog(
+            onDismissRequest = { open = false },
+            title = { Text("Delete your account?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Your flows, history, profile and phones are deleted from the server and this phone. Organization flows stay with the organization. This can't be undone.")
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("Password") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    open = false
+                    onDelete(password)
+                    password = ""
+                }, enabled = password.isNotEmpty()) { Text("Delete account", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { open = false }) { Text("Cancel") } },
+        )
     }
 }

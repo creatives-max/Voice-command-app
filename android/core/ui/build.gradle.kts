@@ -12,4 +12,6 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     api(libs.androidx.lifecycle.viewmodel.compose)
     api(libs.androidx.lifecycle.runtime.compose)
+    api(libs.androidx.biometric)
+    api(libs.androidx.fragment.ktx)
 }

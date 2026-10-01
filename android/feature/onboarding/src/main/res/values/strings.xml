@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vc_practice_title">Practice form</string>
+    <string name="vc_practice_intro">Tap the floating mic and answer by voice. Try saying “next”, “repeat” or “submit”. Nothing you enter here is saved.</string>
+    <string name="vc_practice_name">Full name</string>
+    <string name="vc_practice_phone">Mobile number</string>
+    <string name="vc_practice_email">Email</string>
+    <string name="vc_practice_city">City</string>
+    <string name="vc_practice_submit">Submit</string>
+    <string name="vc_practice_service_off">Turn on the VoiceControl accessibility service to practise with your voice.</string>
+    <string name="vc_practice_open_settings">Open accessibility settings</string>
+    <string name="vc_practice_done_title">Well done!</string>
+    <string name="vc_practice_done_body">You filled %1$d of 4 fields. VoiceControl works the same way in every app.</string>
+    <string name="vc_practice_done_ok">Finish</string>
+</resources>

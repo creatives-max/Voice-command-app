@@ -115,12 +115,12 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Tests, commit + push
 
 ## Phase 16 — Security, platform & polish
-- [ ] Biometric app lock
-- [ ] On-device-only mode completeness (on-phone flow editing)
-- [ ] GDPR export + account deletion (backend, dashboard, app)
-- [ ] Crash reporting (self-hosted)
-- [ ] Onboarding tutorial with practice form
-- [ ] Home-screen widget + quick-settings tile
-- [ ] Tablet layout
-- [ ] Emulator end-to-end test in CI
-- [ ] Tests, commit + push
+- [x] Biometric app lock
+- [x] On-device-only mode completeness (on-phone flow editing)
+- [x] GDPR export + account deletion (backend, dashboard, app)
+- [x] Crash reporting (self-hosted)
+- [x] Onboarding tutorial with practice form
+- [x] Home-screen widget + quick-settings tile
+- [x] Tablet layout
+- [x] Emulator end-to-end test in CI
+- [x] Tests, commit + push

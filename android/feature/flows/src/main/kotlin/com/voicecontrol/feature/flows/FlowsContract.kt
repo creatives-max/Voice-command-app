@@ -12,6 +12,9 @@ data class FlowsState(
     val appOpenFlowIds: Set<String> = emptySet(),
     /** Starter templates used on screens without a saved flow. */
     val templates: List<TemplateSummary> = emptyList(),
+    /** Draft while the selected flow is being edited on the phone. */
+    val editing: FlowDefinition? = null,
+    val saving: Boolean = false,
 )
 
 data class TemplateSummary(val id: String, val name: String, val description: String, val stepCount: Int)
@@ -24,6 +27,15 @@ sealed interface FlowsIntent {
     data object OpenDashboard : FlowsIntent
     /** Run this flow now: opens its app and starts the voice session. */
     data class Run(val flow: FlowDefinition) : FlowsIntent
+    data object StartEdit : FlowsIntent
+    data object CancelEdit : FlowsIntent
+    data object SaveEdit : FlowsIntent
+    data class Rename(val name: String) : FlowsIntent
+    data class SetQuestion(val stepId: String, val question: String) : FlowsIntent
+    data class SetDefault(val stepId: String, val value: String) : FlowsIntent
+    data class SetSkip(val stepId: String, val skip: Boolean) : FlowsIntent
+    data class MoveStep(val stepId: String, val delta: Int) : FlowsIntent
+    data class RemoveStep(val stepId: String) : FlowsIntent
 }
 
 sealed interface FlowsEffect {

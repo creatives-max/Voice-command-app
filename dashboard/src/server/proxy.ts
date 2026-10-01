@@ -64,7 +64,7 @@ const clearCookies: SetCookie[] = [
   { name: REFRESH_COOKIE, value: "", maxAge: 0 },
 ];
 
-const ALLOWED_PREFIXES = ["flows", "profile", "me", "ai", "runs", "devices", "triggers", "run-requests", "marketplace", "orgs", "invitations", "analytics", "comments"];
+const ALLOWED_PREFIXES = ["flows", "profile", "me", "ai", "runs", "devices", "triggers", "run-requests", "marketplace", "orgs", "invitations", "analytics", "comments", "crashes"];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function handleProxy(req: ProxyRequest, backendUrl: string, fetcher: typeof fetch = fetch): Promise<ProxyResponse> {

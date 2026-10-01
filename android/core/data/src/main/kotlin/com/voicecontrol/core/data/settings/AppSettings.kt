@@ -34,6 +34,14 @@ data class AppSettings(
     /** Ask before pressing buttons that can't be undone (pay, delete, sign out…). */
     val confirmDestructive: Boolean = true,
     val wakeWord: String = "hey voice control",
+    /** Ask for fingerprint, face or the screen lock to open VoiceControl. */
+    val appLock: Boolean = false,
+    /** How long VoiceControl may stay in the background before it locks again. */
+    val lockTimeoutSeconds: Int = 60,
+    /** Send crash reports (without personal data) to the VoiceControl server. */
+    val crashReports: Boolean = false,
+    /** The first-run tutorial was finished or skipped. */
+    val onboardingDone: Boolean = false,
     val backendUrl: String = "",
     /** Web dashboard where flows are edited; blank = the default for this build. */
     val dashboardUrl: String = "",

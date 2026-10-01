@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="practice_name" type="id" />
+    <item name="practice_phone" type="id" />
+    <item name="practice_email" type="id" />
+    <item name="practice_city" type="id" />
+    <item name="practice_submit" type="id" />
+</resources>

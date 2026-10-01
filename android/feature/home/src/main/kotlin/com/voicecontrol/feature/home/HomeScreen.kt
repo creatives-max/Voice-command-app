@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -42,6 +44,7 @@ fun HomeRoute(
     onOpenHistory: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
+    onOpenTutorial: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -51,7 +54,7 @@ fun HomeRoute(
             HomeEffect.LaunchAccessibilitySettings -> context.startActivity(AccessibilityStatus.settingsIntent())
         }
     }
-    HomeScreen(state, viewModel::dispatch, onOpenInspector, onOpenAccount, onOpenFlows, onOpenHistory, onOpenSettings, onOpenProfile)
+    HomeScreen(state, viewModel::dispatch, onOpenInspector, onOpenAccount, onOpenFlows, onOpenHistory, onOpenSettings, onOpenProfile, onOpenTutorial)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,6 +68,7 @@ fun HomeScreen(
     onOpenHistory: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
+    onOpenTutorial: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -78,7 +82,7 @@ fun HomeScreen(
         },
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp).widthIn(max = 720.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             SectionCard(
@@ -124,6 +128,13 @@ fun HomeScreen(
                 icon = Icons.Filled.Mic,
             ) {
                 OutlinedButton(onClick = onOpenFlows) { Text("Open flows") }
+            }
+            SectionCard(
+                title = "Tutorial and practice",
+                subtitle = "Walk through the setup again and try VoiceControl on a practice form.",
+                icon = Icons.Filled.School,
+            ) {
+                OutlinedButton(onClick = onOpenTutorial) { Text("Open tutorial") }
             }
             SectionCard(
                 title = "Screen inspector",

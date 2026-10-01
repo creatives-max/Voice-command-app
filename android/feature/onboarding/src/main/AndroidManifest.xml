@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- A safe place to try VoiceControl: the accessibility service fills this screen like any other app. -->
+        <activity
+            android:name=".PracticeFormActivity"
+            android:exported="false"
+            android:label="@string/vc_practice_title"
+            android:theme="@style/Theme.VoiceControl.Practice"
+            android:windowSoftInputMode="adjustResize" />
+    </application>
+</manifest>

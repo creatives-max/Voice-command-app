@@ -60,8 +60,12 @@ dependencies {
     implementation(projects.feature.flows)
     implementation(projects.feature.history)
     implementation(projects.feature.settings)
+    implementation(projects.feature.onboarding)
 
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.biometric)
+    implementation(libs.androidx.fragment.ktx)
+    implementation(libs.androidx.compose.material3.window.size)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.navigation.compose)
@@ -70,4 +74,14 @@ dependencies {
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.hilt.work)
     ksp(libs.androidx.hilt.compiler)
+
+    // Emulator end-to-end tests (run in CI with an emulator).
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.espresso)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

@@ -27,11 +27,15 @@ const SECTIONS: [string, string][] = [
   ],
   [
     "Retention and deletion",
-    "You can delete flows, history and your profile at any time in the app or this dashboard. Signing out removes tokens from the phone. Deleting your account removes all of your data from our servers within 30 days, including backups.",
+    "You can delete flows, history and your profile at any time in the app or this dashboard. Download all your data as JSON from Profile (dashboard) or Settings → Export my data (app). Delete my account (password required) erases your account and data immediately; backups are overwritten within 30 days. Signing out removes tokens from the phone.",
+  ],
+  [
+    "Crash reports",
+    "Only if you turn on “Send crash reports”, the app sends the error type, code location, app and Android version and phone model when it crashes. Numbers and email addresses are removed before sending and again on the server. Reports are deleted with your account.",
   ],
   [
     "Security",
-    "All traffic uses HTTPS. Tokens on the phone are encrypted with the Android Keystore; tokens in the dashboard are kept in httpOnly cookies.",
+    "All traffic uses HTTPS. Tokens on the phone are encrypted with the Android Keystore; tokens in the dashboard are kept in httpOnly cookies. With the app lock on, VoiceControl asks for your fingerprint, face or screen lock and hides its screens from screenshots.",
   ],
   ["Children", "VoiceControl is not directed at children under 13 and does not knowingly collect their data."],
   ["Contact", "privacy@voicecontrol.app"],

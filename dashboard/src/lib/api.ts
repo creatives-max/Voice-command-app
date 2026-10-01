@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getOrgId } from "./org";
 import {
+  crashGroupSchema,
   analyticsOverviewSchema,
   commentSchema,
   flowAnalyticsSchema,
@@ -215,6 +216,15 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), orgId:
     leave: (flowId: string) => request(null, `/flows/${flowId}/presence`, { method: "DELETE", keepalive: true }),
     layout: (flowId: string) => request(layoutSchema, `/flows/${flowId}/layout`),
     saveLayout: (flowId: string, positions: Layout["positions"]) => request(null, `/flows/${flowId}/layout`, { method: "PUT", body: json({ positions }) }),
+
+    /** GDPR export as the raw JSON text (saved as a file). */
+    exportData: async () => {
+      const res = await fetcher("/api/me/export", { credentials: "same-origin" });
+      if (!res.ok) throw new ApiError(res.status, "export_failed", "Could not export your data");
+      return res.text();
+    },
+    deleteAccount: (password: string) => request(null, "/me", { method: "DELETE", body: json({ password }) }),
+    crashes: () => request(crashGroupSchema.array(), "/crashes"),
 
     profile: () => request(profileSchema, "/profile"),
     saveProfile: (profile: Profile) => request(profileSchema, "/profile", { method: "PUT", body: json(profile) }),

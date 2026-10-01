@@ -11,5 +11,37 @@
             android:name=".VoiceSessionService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+
+        <!-- Widget and quick-settings tile start a session over the current app. -->
+        <activity
+            android:name=".launch.StartVoiceActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <receiver
+            android:name=".launch.VoiceWidgetProvider"
+            android:exported="true"
+            android:label="@string/vc_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/vc_widget_info" />
+        </receiver>
+
+        <service
+            android:name=".launch.VoiceTileService"
+            android:exported="true"
+            android:icon="@drawable/vc_ic_mic"
+            android:label="@string/vc_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

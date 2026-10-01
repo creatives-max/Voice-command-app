@@ -21,3 +21,8 @@ import kotlinx.serialization.Serializable
 )
 @Serializable data class UploadRunsDto(val runs: List<com.voicecontrol.core.model.SessionSummary>)
 @Serializable data class UploadRunsResponseDto(val inserted: Int)
+
+@Serializable data class UpdateFlowRequestDto(val expectedVersion: Int, val name: String? = null, val steps: List<FlowStep>, val changeNote: String? = null)
+@Serializable data class DeleteAccountRequestDto(val password: String)
+@Serializable data class CrashUploadDto(val reports: List<com.voicecontrol.core.model.diagnostics.CrashRecord>)
+@Serializable data class CrashUploadResponseDto(val accepted: Int)

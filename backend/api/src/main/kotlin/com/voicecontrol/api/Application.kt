@@ -10,6 +10,7 @@ import com.voicecontrol.api.routes.automationRoutes
 import com.voicecontrol.api.routes.authRoutes
 import com.voicecontrol.api.routes.flowRoutes
 import com.voicecontrol.api.routes.marketplaceRoutes
+import com.voicecontrol.api.routes.accountRoutes
 import com.voicecontrol.api.routes.collabRoutes
 import com.voicecontrol.api.routes.orgRoutes
 import com.voicecontrol.api.routes.profileRoutes
@@ -59,6 +60,7 @@ fun Application.voiceControl(services: Services) {
         automationRoutes(services.devices, services.triggers, services.runRequests, services::flowApp, services.flows)
         orgRoutes(services.orgs, services.apiKeys, services.webhooks, services.audit)
         collabRoutes(services.analytics, services.comments, services.presence, services.layouts)
+        accountRoutes(services.account, services.crashes, services.rateLimiter)
     }
 }
 

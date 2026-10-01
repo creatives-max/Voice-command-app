@@ -68,6 +68,8 @@ class AccessibilityBridge @Inject constructor(
 
     private val rawEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 64)
     private var currentActivity: String? = null
+    /** VoiceControl's own screens are ignored, except the onboarding practice form (so people can try it safely). */
+    @Volatile private var practiceFormOpen = false
 
     init {
         rawEvents
@@ -92,8 +94,19 @@ class AccessibilityBridge @Inject constructor(
 
     internal fun onEvent(event: AccessibilityEvent) {
         val pkg = event.packageName?.toString() ?: return
-        if (pkg in ignoredPackages || pkg == service?.packageName) return
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+        if (pkg in ignoredPackages) return
+        val isStateChange = event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+        if (pkg == service?.packageName) {
+            val cls = event.className?.toString()
+            if (isStateChange && cls != null && looksLikeActivity(cls)) {
+                practiceFormOpen = cls == PRACTICE_FORM_ACTIVITY
+                if (practiceFormOpen) currentActivity = cls
+            }
+            if (practiceFormOpen) rawEvents.tryEmit(Unit)
+            return
+        }
+        if (isStateChange) practiceFormOpen = false
+        if (isStateChange) {
             val cls = event.className?.toString()
             if (cls != null && looksLikeActivity(cls)) currentActivity = cls
         }
@@ -125,11 +138,11 @@ class AccessibilityBridge @Inject constructor(
         for (window in candidates) {
             val root = window.root ?: continue
             val pkg = root.packageName?.toString()
-            if (pkg != null && pkg != ownPackage && pkg !in ignoredPackages) return root
+            if (pkg != null && (pkg != ownPackage || practiceFormOpen) && pkg !in ignoredPackages) return root
         }
         return svc.rootInActiveWindow?.takeIf { root ->
             val pkg = root.packageName?.toString()
-            pkg != null && pkg != ownPackage && pkg !in ignoredPackages
+            pkg != null && (pkg != ownPackage || practiceFormOpen) && pkg !in ignoredPackages
         }
     }
 
@@ -157,6 +170,8 @@ class AccessibilityBridge @Inject constructor(
 
     companion object {
         const val SCREEN_SETTLE_MS = 350L
+        /** The onboarding practice form inside VoiceControl, which sessions may fill like any other app. */
+        const val PRACTICE_FORM_ACTIVITY = "com.voicecontrol.feature.onboarding.PracticeFormActivity"
         val ignoredPackages = setOf(
             "com.android.systemui",
             "com.google.android.inputmethod.latin",

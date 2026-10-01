@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.voicecontrol.core.engine.port.SessionConfig
 import com.voicecontrol.core.engine.port.SessionConfigProvider
@@ -46,6 +47,10 @@ class SettingsRepository @Inject constructor(
         val wakeWordEnabled = booleanPreferencesKey("wake_word_enabled")
         val wakeWord = stringPreferencesKey("wake_word")
         val confirmDestructive = booleanPreferencesKey("confirm_destructive")
+        val appLock = booleanPreferencesKey("app_lock")
+        val lockTimeout = intPreferencesKey("lock_timeout_seconds")
+        val crashReports = booleanPreferencesKey("crash_reports")
+        val onboardingDone = booleanPreferencesKey("onboarding_done")
     }
 
     val settings: Flow<AppSettings> = store.data.map(::read)
@@ -82,6 +87,15 @@ class SettingsRepository @Inject constructor(
         store.edit { it[Keys.templates] = json }
     }
 
+    /** Removes every setting (used when all data on the phone is deleted). The install id is kept. */
+    suspend fun reset() {
+        store.edit { p ->
+            val id = p[Keys.deviceId]
+            p.clear()
+            id?.let { p[Keys.deviceId] = it }
+        }
+    }
+
     suspend fun update(transform: (AppSettings) -> AppSettings) {
         store.edit { p ->
             val next = transform(read(p))
@@ -106,6 +120,10 @@ class SettingsRepository @Inject constructor(
             p[Keys.wakeWordEnabled] = next.wakeWordEnabled
             p[Keys.wakeWord] = next.wakeWord.trim().take(60)
             p[Keys.confirmDestructive] = next.confirmDestructive
+            p[Keys.appLock] = next.appLock
+            p[Keys.lockTimeout] = next.lockTimeoutSeconds.coerceIn(0, 86_400)
+            p[Keys.crashReports] = next.crashReports
+            p[Keys.onboardingDone] = next.onboardingDone
         }
     }
 
@@ -133,6 +151,10 @@ class SettingsRepository @Inject constructor(
             wakeWordEnabled = p[Keys.wakeWordEnabled] ?: d.wakeWordEnabled,
             wakeWord = p[Keys.wakeWord]?.takeIf { it.isNotBlank() } ?: d.wakeWord,
             confirmDestructive = p[Keys.confirmDestructive] ?: d.confirmDestructive,
+            appLock = p[Keys.appLock] ?: d.appLock,
+            lockTimeoutSeconds = p[Keys.lockTimeout] ?: d.lockTimeoutSeconds,
+            crashReports = p[Keys.crashReports] ?: d.crashReports,
+            onboardingDone = p[Keys.onboardingDone] ?: d.onboardingDone,
         )
     }
 }

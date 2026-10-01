@@ -1,17 +1,40 @@
 package com.voicecontrol.app.navigation
 
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ViewList
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.voicecontrol.feature.auth.AuthRoute
 import com.voicecontrol.feature.auth.ProfileRoute
 import com.voicecontrol.feature.flows.FlowsRoute
 import com.voicecontrol.feature.history.HistoryRoute
-import com.voicecontrol.feature.settings.PrivacyScreen
-import com.voicecontrol.feature.settings.SettingsRoute
 import com.voicecontrol.feature.home.HomeRoute
 import com.voicecontrol.feature.inspector.InspectorRoute
+import com.voicecontrol.feature.onboarding.OnboardingRoute
+import com.voicecontrol.feature.settings.PrivacyScreen
+import com.voicecontrol.feature.settings.SettingsRoute
 import kotlinx.serialization.Serializable
 
 @Serializable data object HomeDestination
@@ -22,11 +45,72 @@ import kotlinx.serialization.Serializable
 @Serializable data object HistoryDestination
 @Serializable data object SettingsDestination
 @Serializable data object PrivacyDestination
+@Serializable data object OnboardingDestination
+
+/** Top-level places shown in the navigation rail on tablets and unfolded phones. */
+private class RailItem(val label: String, val icon: ImageVector, val isCurrent: (NavDestination?) -> Boolean, val go: () -> Any)
+
+/**
+ * App navigation. On wide windows ([wide]) a navigation rail with the main places sits beside the content;
+ * on phones the screens link to each other as before.
+ */
+@Composable
+fun VoiceControlNavHost(startWithOnboarding: Boolean = false, wide: Boolean = false, signedIn: Boolean = false) {
+    val navController = rememberNavController()
+    val entry by navController.currentBackStackEntryAsState()
+    val destination = entry?.destination
+    val showRail = wide && destination?.hasRoute(OnboardingDestination::class) != true
+    if (showRail) {
+        val items = listOf(
+            RailItem("Home", Icons.Filled.Home, { it?.hasRoute(HomeDestination::class) == true }) { HomeDestination },
+            RailItem("Flows", Icons.Filled.ViewList, { it?.hasRoute(FlowsDestination::class) == true }) { FlowsDestination },
+            RailItem("History", Icons.Filled.History, { it?.hasRoute(HistoryDestination::class) == true }) { HistoryDestination },
+            RailItem(
+                "Account",
+                Icons.Filled.AccountCircle,
+                { it?.hasRoute(ProfileDestination::class) == true || it?.hasRoute(AuthDestination::class) == true },
+            ) { if (signedIn) ProfileDestination else AuthDestination },
+            RailItem("Settings", Icons.Filled.Settings, { it?.hasRoute(SettingsDestination::class) == true || it?.hasRoute(PrivacyDestination::class) == true }) {
+                SettingsDestination
+            },
+        )
+        Row(Modifier.fillMaxSize()) {
+            NavigationRail(Modifier.fillMaxHeight().testTag("navigation-rail")) {
+                items.forEach { item ->
+                    NavigationRailItem(
+                        selected = item.isCurrent(destination),
+                        onClick = { navController.navigateTopLevel(item.go()) },
+                        icon = { Icon(item.icon, contentDescription = null) },
+                        label = { Text(item.label) },
+                    )
+                }
+            }
+            Graph(navController, startWithOnboarding, Modifier.fillMaxSize())
+        }
+    } else {
+        Graph(navController, startWithOnboarding, Modifier.fillMaxSize())
+    }
+}
+
+/** Switches top-level place keeping one copy of each on the back stack. */
+private fun NavHostController.navigateTopLevel(route: Any) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
 
 @Composable
-fun VoiceControlNavHost() {
-    val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = HomeDestination) {
+private fun Graph(navController: NavHostController, startWithOnboarding: Boolean, modifier: Modifier) {
+    NavHost(navController = navController, startDestination = if (startWithOnboarding) OnboardingDestination else HomeDestination, modifier = modifier) {
+        composable<OnboardingDestination> {
+            OnboardingRoute(onFinished = {
+                if (!navController.popBackStack()) {
+                    navController.navigate(HomeDestination) { popUpTo(OnboardingDestination) { inclusive = true } }
+                }
+            })
+        }
         composable<HomeDestination> {
             HomeRoute(
                 onOpenInspector = { navController.navigate(InspectorDestination) },
@@ -35,6 +119,7 @@ fun VoiceControlNavHost() {
                 onOpenHistory = { navController.navigate(HistoryDestination) },
                 onOpenSettings = { navController.navigate(SettingsDestination) },
                 onOpenProfile = { navController.navigate(ProfileDestination) },
+                onOpenTutorial = { navController.navigate(OnboardingDestination) },
             )
         }
         composable<HistoryDestination> {

@@ -120,6 +120,19 @@ images.
   editing, and get told when someone saves a newer version.
 - **Dark mode** (system/light/dark) and **Hindi** in the sidebar.
 
+## Security, privacy and platform
+
+- **App lock** (Settings): fingerprint, face or screen lock to open the app, re-locks after a chosen time in the
+  background; screens are kept out of screenshots while it is on.
+- **On-device only**: no server at all; flows are edited in the app (questions, defaults, skips, order).
+- **Your data**: export everything as JSON (app Settings, dashboard Profile); delete the account (app Profile,
+  dashboard Profile) or wipe the phone.
+- **Crash reports** (opt-in): scrubbed of numbers and emails, stored by the backend (`/v1/crashes`), grouped on the
+  dashboard's Devices page.
+- **First-run tutorial** with a practice form the accessibility service can fill, a **home-screen widget** and a
+  **quick-settings tile** to start talking, and a navigation rail with list-detail flows on tablets.
+- CI runs the app on an **Android emulator** (`android-e2e` job, `./gradlew :app:connectedDebugAndroidTest`).
+
 ## Kubernetes
 
 ```bash

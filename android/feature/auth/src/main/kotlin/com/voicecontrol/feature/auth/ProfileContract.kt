@@ -16,6 +16,7 @@ sealed interface ProfileIntent {
     data class Edit(val field: ProfileField, val value: String) : ProfileIntent
     data object Save : ProfileIntent
     data object SignOut : ProfileIntent
+    data class DeleteAccount(val password: String) : ProfileIntent
 }
 
 sealed interface ProfileEffect {

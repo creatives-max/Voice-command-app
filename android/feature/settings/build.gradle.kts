@@ -9,4 +9,5 @@ android {
 dependencies {
     implementation(projects.core.data)
     implementation(projects.core.voice)
+    implementation(libs.androidx.activity.compose)
 }

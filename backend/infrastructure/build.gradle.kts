@@ -6,6 +6,7 @@ dependencies {
     implementation(libs.flyway.postgres)
     implementation(libs.lettuce)
     implementation(libs.bcrypt)
+    implementation(libs.java.jwt)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.content.negotiation)

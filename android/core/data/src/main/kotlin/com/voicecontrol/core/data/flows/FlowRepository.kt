@@ -36,6 +36,10 @@ class FlowRepository @Inject constructor(
 
     suspend fun unsynced(): List<FlowDefinition> = dao.unsynced().map(::toModel)
 
+    /** Server-synced flows by id (local drafts excluded). */
+    suspend fun syncedSnapshot(): Map<String, FlowDefinition> =
+        dao.synced().map(::toModel).associateBy { it.id }
+
     /** Replaces a local draft with its server copy once uploaded. */
     suspend fun replace(localId: String, serverFlow: FlowDefinition) {
         if (localId != serverFlow.id) dao.delete(localId)

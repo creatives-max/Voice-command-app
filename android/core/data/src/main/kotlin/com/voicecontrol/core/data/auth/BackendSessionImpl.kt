@@ -4,6 +4,8 @@ import com.voicecontrol.core.data.settings.SettingsRepository
 import com.voicecontrol.core.network.BackendSession
 import com.voicecontrol.core.network.BuildConfig
 import com.voicecontrol.core.network.NetworkJson
+import com.voicecontrol.core.network.dto.AuthResponseDto
+import com.voicecontrol.core.network.dto.RefreshRequestDto
 import io.ktor.client.HttpClient
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody

@@ -37,7 +37,7 @@ class AndroidSpeechToText @Inject constructor(
             return@withContext ListenResult.Error("Speech recognition is not available on this device", recoverable = false)
         }
         val sr = recognizer ?: SpeechRecognizer.createSpeechRecognizer(context).also { recognizer = it }
-        suspendCancellableCoroutine { cont ->
+        suspendCancellableCoroutine<ListenResult> { cont ->
             sr.setRecognitionListener(object : RecognitionListener {
                 override fun onReadyForSpeech(params: Bundle?) = Unit
                 override fun onBeginningOfSpeech() = Unit

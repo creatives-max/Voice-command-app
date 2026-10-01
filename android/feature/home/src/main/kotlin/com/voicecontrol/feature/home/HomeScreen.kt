@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Accessibility
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
@@ -31,6 +32,7 @@ import com.voicecontrol.core.ui.mvi.CollectEffects
 @Composable
 fun HomeRoute(
     onOpenInspector: () -> Unit,
+    onOpenAccount: (signedIn: Boolean) -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -40,7 +42,7 @@ fun HomeRoute(
             HomeEffect.LaunchAccessibilitySettings -> context.startActivity(AccessibilityStatus.settingsIntent())
         }
     }
-    HomeScreen(state, viewModel::dispatch, onOpenInspector)
+    HomeScreen(state, viewModel::dispatch, onOpenInspector, onOpenAccount)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +51,7 @@ fun HomeScreen(
     state: HomeState,
     onIntent: (HomeIntent) -> Unit,
     onOpenInspector: () -> Unit,
+    onOpenAccount: (signedIn: Boolean) -> Unit = {},
 ) {
     Scaffold(topBar = { TopAppBar(title = { Text("VoiceControl") }) }) { padding ->
         Column(
@@ -76,6 +79,15 @@ fun HomeScreen(
                 ) {
                     Button(onClick = { onIntent(HomeIntent.OpenAccessibilitySettings) }) { Text("Open accessibility settings") }
                 }
+            }
+            val email = state.accountEmail
+            SectionCard(
+                title = if (email != null) "Account" else "Sign in to sync",
+                subtitle = email?.let { "Signed in as $it. Flows sync to the web dashboard." }
+                    ?: "Save flows to your account, edit them on the dashboard and enable AI understanding.",
+                icon = Icons.Filled.AccountCircle,
+            ) {
+                OutlinedButton(onClick = { onOpenAccount(email != null) }) { Text(if (email != null) "Profile & account" else "Sign in") }
             }
             SectionCard(
                 title = "Screen inspector",

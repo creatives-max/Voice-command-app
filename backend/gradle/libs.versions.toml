@@ -10,7 +10,7 @@ postgres = "42.7.5"
 flyway = "11.8.2"
 lettuce = "6.5.5.RELEASE"
 bcrypt = "0.10.2"
-testcontainers = "1.21.0"
+testcontainers = "1.21.4"
 otel = "1.50.0"
 otelInstrumentation = "2.15.0-alpha"
 otelLogback = "2.15.0-alpha"
@@ -43,6 +43,7 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 anthropic-java = { module = "com.anthropic:anthropic-java", version.ref = "anthropic" }
+java-jwt = { module = "com.auth0:java-jwt", version = "4.5.0" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version = "2.0.17" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 logstash-encoder = { module = "net.logstash.logback:logstash-logback-encoder", version.ref = "logstash" }

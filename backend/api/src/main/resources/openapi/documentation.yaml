@@ -1,0 +1,387 @@
+openapi: 3.0.3
+info:
+  title: VoiceControl API
+  version: 1.0.0
+  description: |
+    Backend for VoiceControl: authentication, user profile, the versioned flow library,
+    and AI interpretation of screen + speech. All `/v1` endpoints except auth require
+    `Authorization: Bearer <accessToken>`. Errors use `{"error": "<code>", "message": "..."}`.
+servers:
+  - url: /
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Profile
+  - name: Flows
+  - name: AI
+  - name: Ops
+paths:
+  /health:
+    get:
+      tags: [Ops]
+      security: []
+      summary: Liveness probe
+      responses:
+        "200": { description: OK }
+  /ready:
+    get:
+      tags: [Ops]
+      security: []
+      summary: Readiness probe (database + Redis)
+      responses:
+        "200": { description: Ready }
+        "503": { description: A dependency is down }
+  /v1/auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+      responses:
+        "201": { description: Registered, content: { application/json: { schema: { $ref: "#/components/schemas/AuthResponse" } } } }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+  /v1/auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200": { description: Signed in, content: { application/json: { schema: { $ref: "#/components/schemas/AuthResponse" } } } }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+  /v1/auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      description: Rotates the refresh token. The old refresh token stops working.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties: { refreshToken: { type: string } }
+      responses:
+        "200": { description: New tokens, content: { application/json: { schema: { $ref: "#/components/schemas/AuthResponse" } } } }
+        "401": { $ref: "#/components/responses/Error" }
+  /v1/auth/logout:
+    post:
+      tags: [Auth]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string }
+                everywhere: { type: boolean, description: Revoke every session of this user }
+      responses:
+        "204": { description: Signed out }
+  /v1/me:
+    get:
+      tags: [Auth]
+      responses:
+        "200": { description: Current user, content: { application/json: { schema: { $ref: "#/components/schemas/User" } } } }
+  /v1/profile:
+    get:
+      tags: [Profile]
+      responses:
+        "200": { description: Profile, content: { application/json: { schema: { $ref: "#/components/schemas/Profile" } } } }
+    put:
+      tags: [Profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Profile" }
+      responses:
+        "200": { description: Saved profile, content: { application/json: { schema: { $ref: "#/components/schemas/Profile" } } } }
+        "400": { $ref: "#/components/responses/Error" }
+  /v1/flows:
+    get:
+      tags: [Flows]
+      parameters:
+        - { name: appPackage, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        "200":
+          description: Flows, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/FlowSummary" } }
+                  limit: { type: integer }
+                  offset: { type: integer }
+    post:
+      tags: [Flows]
+      description: Upload a flow recorded on the phone. Idempotent per app + screen signature.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateFlowRequest" }
+      responses:
+        "201": { description: Created (or the existing flow), content: { application/json: { schema: { $ref: "#/components/schemas/Flow" } } } }
+        "400": { $ref: "#/components/responses/Error" }
+  /v1/flows/apps:
+    get:
+      tags: [Flows]
+      summary: Apps that have flows, with counts
+      responses:
+        "200":
+          description: Apps
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    appPackage: { type: string }
+                    flowCount: { type: integer }
+                    lastUpdated: { type: string, format: date-time }
+  /v1/flows/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Flows]
+      responses:
+        "200": { description: Flow with current steps, content: { application/json: { schema: { $ref: "#/components/schemas/Flow" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      tags: [Flows]
+      description: Saves a new version (questions, rules, defaults, skips, order, help videos). Fails with 409 if `expectedVersion` is stale.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateFlowRequest" }
+      responses:
+        "200": { description: New current version, content: { application/json: { schema: { $ref: "#/components/schemas/Flow" } } } }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [Flows]
+      responses:
+        "204": { description: Deleted }
+  /v1/flows/{id}/versions:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Flows]
+      responses:
+        "200": { description: Versions, newest first, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/FlowVersion" } } } } }
+  /v1/flows/{id}/versions/{version}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: version, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [Flows]
+      responses:
+        "200": { description: Version, content: { application/json: { schema: { $ref: "#/components/schemas/FlowVersion" } } } }
+  /v1/flows/{id}/rollback:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Flows]
+      description: Creates a new version that copies the steps of an older version.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [version], properties: { version: { type: integer } } }
+      responses:
+        "200": { description: New current version, content: { application/json: { schema: { $ref: "#/components/schemas/Flow" } } } }
+  /v1/ai/interpret:
+    post:
+      tags: [AI]
+      description: |
+        Decides what an utterance means on the current screen. Control commands are handled
+        deterministically; answers go to the configured LLM provider with offline fallback.
+        Values of sensitive fields are never accepted or returned.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InterpretRequest" }
+      responses:
+        "200": { description: Interpretation, content: { application/json: { schema: { $ref: "#/components/schemas/Interpretation" } } } }
+        "400": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string, example: validation_error }
+              message: { type: string }
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8, description: Letters and numbers }
+        name: { type: string }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string }
+        password: { type: string }
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        name: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    AuthResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresInSeconds: { type: integer }
+        user: { $ref: "#/components/schemas/User" }
+    Profile:
+      type: object
+      properties:
+        fullName: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        addressLine: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        state: { type: string, nullable: true }
+        pincode: { type: string, nullable: true, pattern: "^\\d{6}$" }
+        dateOfBirth: { type: string, nullable: true, example: 12/03/1990 }
+    ElementKind: { type: string, enum: [TEXT_FIELD, BUTTON, CHECKBOX, SWITCH, RADIO, DROPDOWN, LINK] }
+    FieldType: { type: string, enum: [TEXT, NAME, EMAIL, PHONE, NUMBER, PASSWORD, OTP, PIN, DATE, ADDRESS, PINCODE, MULTILINE, SEARCH, URL, AMOUNT] }
+    FlowStep:
+      type: object
+      required: [id, order, elementId, label, kind]
+      properties:
+        id: { type: string }
+        order: { type: integer }
+        elementId: { type: string, description: Stable element id on the screen }
+        label: { type: string }
+        kind: { $ref: "#/components/schemas/ElementKind" }
+        fieldType: { $ref: "#/components/schemas/FieldType" }
+        action: { type: string, enum: [FILL, CLICK, TOGGLE] }
+        question: { type: string, nullable: true, description: Custom spoken question }
+        rules:
+          type: array
+          items: { type: string }
+          description: "required | email | phone | pincode | digits:N | min:N | max:N | regex:<pattern> | oneOf:a|b"
+        defaultValue: { type: string, nullable: true }
+        skip: { type: boolean }
+        helpVideoUrl: { type: string, nullable: true, description: https link shown during this step }
+        profileKey: { type: string, nullable: true, enum: [FULL_NAME, FIRST_NAME, LAST_NAME, EMAIL, PHONE, ADDRESS_LINE, CITY, STATE, PINCODE, DATE_OF_BIRTH] }
+    FlowSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        appPackage: { type: string }
+        name: { type: string }
+        currentVersion: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Flow:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        version: { type: integer }
+        appPackage: { type: string }
+        name: { type: string }
+        screenSignature: { type: string }
+        steps: { type: array, items: { $ref: "#/components/schemas/FlowStep" } }
+        updatedAtMillis: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    FlowVersion:
+      type: object
+      properties:
+        version: { type: integer }
+        steps: { type: array, items: { $ref: "#/components/schemas/FlowStep" } }
+        source: { type: string, enum: [DEVICE, DASHBOARD, ROLLBACK] }
+        changeNote: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    CreateFlowRequest:
+      type: object
+      required: [appPackage, name, screenSignature, steps]
+      properties:
+        appPackage: { type: string, example: com.example.shop }
+        name: { type: string }
+        screenSignature: { type: string }
+        steps: { type: array, items: { $ref: "#/components/schemas/FlowStep" } }
+    UpdateFlowRequest:
+      type: object
+      required: [expectedVersion, steps]
+      properties:
+        expectedVersion: { type: integer }
+        name: { type: string }
+        steps: { type: array, items: { $ref: "#/components/schemas/FlowStep" } }
+        changeNote: { type: string }
+    ScreenElement:
+      type: object
+      required: [id, kind, label]
+      properties:
+        id: { type: string }
+        kind: { $ref: "#/components/schemas/ElementKind" }
+        label: { type: string }
+        fieldType: { $ref: "#/components/schemas/FieldType" }
+        hint: { type: string }
+        value: { type: string, description: Never sent for sensitive fields }
+        isSensitive: { type: boolean }
+        isEnabled: { type: boolean }
+        isChecked: { type: boolean }
+    ScreenContext:
+      type: object
+      required: [packageName, elements]
+      properties:
+        packageName: { type: string }
+        activityName: { type: string }
+        title: { type: string }
+        signature: { type: string }
+        elements: { type: array, items: { $ref: "#/components/schemas/ScreenElement" } }
+    InterpretRequest:
+      type: object
+      required: [screen, utterance]
+      properties:
+        screen: { $ref: "#/components/schemas/ScreenContext" }
+        currentFieldId: { type: string }
+        utterance: { type: string, maxLength: 500 }
+        language: { type: string, enum: [ENGLISH, HINDI, HINGLISH] }
+        question: { type: string }
+        transliterate: { type: boolean }
+    Interpretation:
+      type: object
+      properties:
+        intent: { type: string, enum: [FILL, CLICK, NEXT, PREVIOUS, SKIP, SUBMIT, BACK, SCROLL_DOWN, SCROLL_UP, REPEAT, STOP, YES, NO, CLEAR, HELP, UNKNOWN] }
+        targetId: { type: string }
+        value: { type: string }
+        extraFills:
+          type: array
+          items: { type: object, properties: { targetId: { type: string }, value: { type: string } } }
+        reply: { type: string }
+        confidence: { type: number }
+        source: { type: string, example: anthropic }

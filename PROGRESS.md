@@ -38,13 +38,13 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Tests, commit + push
 
 ## Phase 6 — Backend core
-- [ ] JWT auth (register/login/refresh/logout) with Redis sessions
-- [ ] User profile (name/email/phone/address) reused in flows
-- [ ] Redis caching
-- [ ] Flow save API + event-driven processing (Redis Streams)
-- [ ] OpenAPI docs + Swagger UI
-- [ ] Android login/profile screens + flow upload
-- [ ] Tests, commit + push
+- [x] JWT auth (register/login/refresh/logout) with Redis sessions
+- [x] User profile (name/email/phone/address) reused in flows
+- [x] Redis caching
+- [x] Flow save API + event-driven processing (Redis Streams)
+- [x] OpenAPI docs + Swagger UI
+- [x] Android login/profile screens + flow upload
+- [x] Tests, commit + push
 
 ## Phase 7 — Flow Library
 - [ ] Versioned flows (history, rollback)

@@ -21,6 +21,9 @@ interface FlowDao {
     @Query("SELECT * FROM flows WHERE synced = 0")
     suspend fun unsynced(): List<FlowEntity>
 
+    @Query("SELECT * FROM flows WHERE synced = 1")
+    suspend fun synced(): List<FlowEntity>
+
     @Upsert
     suspend fun upsert(flow: FlowEntity)
 

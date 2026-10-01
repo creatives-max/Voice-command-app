@@ -639,9 +639,19 @@ class AssistantEngine(
                 session.switchTo = flow
                 return ScreenOutcome.SWITCHED
             }
+            // The answer to "which button?" is usually just its name: "Login", "लॉगिन", "OK", "Next".
+            spokenButton(session, snapshot, heard)?.let { button ->
+                if (press(session, button, log)) return ScreenOutcome.NAVIGATED
+                return@repeat
+            }
             val interp = interpret(session, snapshot, null, heard, prompt)
             when (interp.intent) {
                 IntentKind.CLICK -> if (clickTarget(session, snapshot, interp, log)) return ScreenOutcome.NAVIGATED
+                IntentKind.NEXT, IntentKind.SUBMIT -> {
+                    val main = ButtonMatcher.primarySubmit(snapshot.elements)
+                    if (main == null) prompt = phrases.didNotCatch() + " " + prompt
+                    else if (press(session, main, log)) return ScreenOutcome.NAVIGATED
+                }
                 IntentKind.BACK -> {
                     act(session, ScreenAction.Back, phrases.wentBack())
                     return ScreenOutcome.NAVIGATED
@@ -669,6 +679,12 @@ class AssistantEngine(
         val question = plan.submitQuestion ?: phrases.confirmPress(button.label)
         repeat(MAX_ATTEMPTS) {
             val heard = askAndListen(session, question) ?: return@repeat
+            // Naming another button ("Cancel", "Edit") presses that one instead.
+            if (localCommands.commandOf(request(session, snapshot, heard)) == null) {
+                ButtonMatcher.find(heard, snapshot.elements, ButtonMatcher.STRICT)?.takeIf { it.id != button.id }?.let { other ->
+                    return if (press(session, other, log)) ScreenOutcome.NAVIGATED else ScreenOutcome.COMPLETED
+                }
+            }
             val interp = interpret(session, snapshot, null, heard, question)
             when (interp.intent) {
                 IntentKind.YES, IntentKind.SUBMIT, IntentKind.NEXT ->
@@ -1451,6 +1467,21 @@ class AssistantEngine(
             ?: runCatching { interpreter.interpret(request) }.getOrElse { localCommands.interpret(request) }
     }
 
+    private fun request(session: Session, snapshot: ScreenSnapshot, heard: String) =
+        InterpretRequest(snapshot.redacted(), null, heard, session.cfg.language, null)
+
+    /**
+     * A visible button named by [heard] when the answer is a button's name rather than a command. Words that
+     * are also commands ("next", "ok", "submit", "back", "skip", "no") count as names when such a button is
+     * on screen, so "OK" presses the OK button instead of being taken as "yes".
+     */
+    private fun spokenButton(session: Session, snapshot: ScreenSnapshot, heard: String): ScreenElement? {
+        val command = localCommands.commandOf(request(session, snapshot, heard))
+        if (command == null) return ButtonMatcher.find(heard, snapshot.elements)
+        // "back" must not press "Bank": command words need the button's own name.
+        return if (command.intent in BUTTON_WORDS) ButtonMatcher.find(heard, snapshot.elements, ButtonMatcher.STRICT) else null
+    }
+
     private suspend fun clickTarget(session: Session, snapshot: ScreenSnapshot, interp: Interpretation, log: ScreenLog): Boolean {
         val target = interp.targetId?.let(snapshot::element)
         if (target == null) {
@@ -1518,6 +1549,10 @@ class AssistantEngine(
         const val MAX_READ_PAGES = 10
         const val MAX_SCREENS = 12
         const val MAX_BUTTONS_SPOKEN = 6
+        /** Commands that are also common button labels. */
+        private val BUTTON_WORDS = setOf(
+            IntentKind.NEXT, IntentKind.SUBMIT, IntentKind.YES, IntentKind.NO, IntentKind.BACK, IntentKind.SKIP,
+        )
         const val MAX_READBACK = 40
         const val DROPDOWN_OPEN_MS = 600L
         const val VISION_FOCUS_DELAY_MS = 400L

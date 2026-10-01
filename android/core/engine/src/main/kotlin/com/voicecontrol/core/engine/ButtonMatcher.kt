@@ -15,8 +15,11 @@ object ButtonMatcher {
         "जमा", "आगे", "सबमिट", "लॉगिन", "सेव", "भेजें", "पुष्टि",
     )
 
-    /** Best button whose label matches [spoken], using exact, containment and token-overlap scoring. */
-    fun find(spoken: String, elements: List<ScreenElement>): ScreenElement? {
+    /**
+     * Best button whose label matches [spoken], using exact, containment and token-overlap scoring.
+     * [minScore] [STRICT] accepts only exact or containing matches.
+     */
+    fun find(spoken: String, elements: List<ScreenElement>, minScore: Double = MIN_SCORE): ScreenElement? {
         val target = normalize(spoken)
         if (target.isEmpty()) return null
         val clickable = elements.filter {
@@ -24,7 +27,7 @@ object ButtonMatcher {
         }
         return clickable
             .map { it to score(target, normalize(it.label)) }
-            .filter { it.second >= MIN_SCORE }
+            .filter { it.second >= minScore }
             .maxByOrNull { it.second }
             ?.first
     }
@@ -49,7 +52,8 @@ object ButtonMatcher {
     internal fun score(target: String, label: String): Double {
         if (label.isEmpty()) return 0.0
         if (target == label) return 1.0
-        if (label.contains(target) || target.contains(label)) return 0.85
+        // Whole words only: "ok" is not in "book".
+        if (" $label ".contains(" $target ") || " $target ".contains(" $label ")) return 0.85
         val a = target.split(' ').toSet()
         val b = label.split(' ').toSet()
         val overlap = a.intersect(b).size.toDouble() / a.union(b).size
@@ -72,4 +76,5 @@ object ButtonMatcher {
     }
 
     private const val MIN_SCORE = 0.6
+    const val STRICT = 0.85
 }

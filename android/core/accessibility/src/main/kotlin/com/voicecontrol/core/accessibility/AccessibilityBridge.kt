@@ -3,11 +3,16 @@ package com.voicecontrol.core.accessibility
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
+import com.voicecontrol.core.engine.port.ScreenGateway
+import com.voicecontrol.core.model.ActionResult
+import com.voicecontrol.core.model.ScreenAction
 import com.voicecontrol.core.model.ScreenSnapshot
+import com.voicecontrol.core.model.Screenshot
 import com.voicecontrol.core.screen.ScreenParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -15,6 +20,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
@@ -24,21 +31,25 @@ import javax.inject.Singleton
 /**
  * Process-wide handle to the running [VoiceControlAccessibilityService].
  *
- * The service attaches itself here; the rest of the app reads screen snapshots and
- * (from Phase 3) performs actions through this bridge without holding the service directly.
+ * The service attaches itself here; the rest of the app reads screen snapshots and performs
+ * actions through this bridge (as a [ScreenGateway]) without holding the service directly.
  */
 @Singleton
 class AccessibilityBridge @Inject constructor(
     private val parser: ScreenParser,
-) {
+) : ScreenGateway {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Volatile
     internal var service: VoiceControlAccessibilityService? = null
         private set
 
+    @Volatile
+    private var executor: ActionExecutor? = null
+
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+    override val isAvailable: StateFlow<Boolean> get() = isConnected
 
     private val _foregroundPackage = MutableStateFlow<String?>(null)
     /** Package of the app currently on screen (never VoiceControl itself or the system UI). */
@@ -52,6 +63,9 @@ class AccessibilityBridge @Inject constructor(
     /** Emits the package name whenever the foreground app's screen changed (debounced). */
     val screenChanged: SharedFlow<String> = _screenChanged.asSharedFlow()
 
+    override val screenChanges: Flow<ScreenSnapshot> =
+        _currentSnapshot.filterNotNull().distinctUntilChangedBy { it.packageName + "|" + it.signature }
+
     private val rawEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 64)
     private var currentActivity: String? = null
 
@@ -64,12 +78,14 @@ class AccessibilityBridge @Inject constructor(
 
     internal fun attach(service: VoiceControlAccessibilityService) {
         this.service = service
+        executor = ActionExecutor(service, parser, ::foregroundRoot)
         _isConnected.value = true
         rawEvents.tryEmit(Unit)
     }
 
     internal fun detach() {
         service = null
+        executor = null
         _isConnected.value = false
         _currentSnapshot.value = null
     }
@@ -86,6 +102,18 @@ class AccessibilityBridge @Inject constructor(
 
     /** Parses the current foreground app screen now. Returns null when the service is off. */
     suspend fun captureScreen(): ScreenSnapshot? = withContext(Dispatchers.Default) { refreshSnapshot() }
+
+    override suspend fun capture(): ScreenSnapshot? = captureScreen()
+
+    override suspend fun perform(action: ScreenAction): ActionResult {
+        val exec = executor ?: return ActionResult.Failure("Accessibility service is off")
+        val result = withContext(Dispatchers.Main) { exec.perform(action) }
+        // Let the app react, then refresh our view of the screen.
+        rawEvents.tryEmit(Unit)
+        return result
+    }
+
+    override suspend fun screenshot(): Screenshot? = executor?.screenshot()
 
     /** Root node of the foreground application window (excluding our own overlay and IME windows). */
     internal fun foregroundRoot(): AccessibilityNodeInfo? {

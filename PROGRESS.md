@@ -20,9 +20,9 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Unit tests, commit + push
 
 ## Phase 3 — Act on screen + floating overlay
-- [ ] Fill fields (ACTION_SET_TEXT, paste fallback), click, scroll, back, focus
-- [ ] Floating mic-button overlay (draggable, state-aware)
-- [ ] Unit tests, commit + push
+- [x] Fill fields (ACTION_SET_TEXT, paste fallback), click, scroll, back, focus
+- [x] Floating mic-button overlay (draggable, state-aware)
+- [x] Unit tests, commit + push
 
 ## Phase 4 — Voice loop
 - [ ] TTS + STT interfaces with Android implementations (swappable for cloud)

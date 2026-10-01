@@ -36,8 +36,17 @@ class ScreenParser(
         packageName: String,
         activityName: String? = null,
         capturedAtMillis: Long = 0L,
-    ): ScreenSnapshot {
-        if (root == null) return ScreenSnapshot.empty(packageName)
+    ): ScreenSnapshot = parseWithNodes(root, packageName, activityName, capturedAtMillis).snapshot
+
+    /** Like [parse] but also returns the node for every element id (used by the action executor). */
+    @Suppress("UNCHECKED_CAST")
+    fun <N : UiNode> parseWithNodes(
+        root: N?,
+        packageName: String,
+        activityName: String? = null,
+        capturedAtMillis: Long = 0L,
+    ): ParseResult<N> {
+        if (root == null) return ParseResult(ScreenSnapshot.empty(packageName), emptyMap())
 
         val candidates = mutableListOf<Candidate>()
         val texts = mutableListOf<TextNode>()
@@ -77,8 +86,11 @@ class ScreenParser(
             drafts.map { StableIdGenerator.Input(it.candidate.node.viewIdResourceName, it.candidate.kind, it.label, it.candidate.path) },
         )
 
-        val elements = drafts.mapIndexed { index, draft -> toElement(draft, ids[index]) }
-            .sortedWith(compareBy({ it.bounds.top / ROW_TOLERANCE_PX }, { it.bounds.left }))
+        val nodesById = HashMap<String, N>(drafts.size)
+        val elements = drafts.mapIndexed { index, draft ->
+            nodesById[ids[index]] = draft.candidate.node as N
+            toElement(draft, ids[index])
+        }.sortedWith(compareBy({ it.bounds.top / ROW_TOLERANCE_PX }, { it.bounds.left }))
 
         val snapshot = ScreenSnapshot(
             packageName = packageName,
@@ -88,7 +100,7 @@ class ScreenParser(
             isScrollable = anyScrollable,
             capturedAtMillis = capturedAtMillis,
         )
-        return snapshot.copy(signature = ScreenSignature.of(snapshot))
+        return ParseResult(snapshot.copy(signature = ScreenSignature.of(snapshot)), nodesById)
     }
 
     private data class Draft(val candidate: Candidate, val label: String)

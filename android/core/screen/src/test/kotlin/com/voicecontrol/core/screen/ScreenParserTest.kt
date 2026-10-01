@@ -167,3 +167,16 @@ class ScreenParserTest {
         assertEquals(FieldType.PHONE, snapshot.textFields.single().fieldType)
     }
 }
+
+class ParseWithNodesTest {
+    @Test
+    fun `every element id maps back to its live node`() {
+        val submit = button("Pay now", id = "com.pay:id/pay")
+        val field = editText(hint = "Amount", bounds = Bounds(0, 0, 900, 100))
+        val result = ScreenParser().parseWithNodes(root(field, submit), "com.pay")
+        assertEquals(2, result.nodesById.size)
+        assertTrue(result.nodesById["vid:com.pay:id/pay"] === submit)
+        val fieldId = result.snapshot.textFields.single().id
+        assertTrue(result.nodesById[fieldId] === field)
+    }
+}

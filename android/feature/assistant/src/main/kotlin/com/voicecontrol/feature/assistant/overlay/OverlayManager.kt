@@ -57,7 +57,7 @@ class OverlayManager @Inject constructor(
 
         settings.settings.map { it.showOverlay }.distinctUntilChanged().onEach { show ->
             if (show) {
-                overlay.show { onDrag ->
+                overlay.show { onDrag, alignStart ->
                     val state by controller.state.collectAsStateWithLifecycle()
                     val teaching by teach.state.collectAsStateWithLifecycle()
                     val ui = if (teaching.active) {
@@ -70,7 +70,7 @@ class OverlayManager @Inject constructor(
                     } else {
                         state
                     }
-                    VoiceControlTheme { OverlayContent(ui, actions, onDrag) }
+                    VoiceControlTheme { OverlayContent(ui, actions, onDrag, alignStart) }
                 }
             } else {
                 overlay.hide()

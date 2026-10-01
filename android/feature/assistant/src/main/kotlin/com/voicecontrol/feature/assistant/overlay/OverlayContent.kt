@@ -83,9 +83,10 @@ interface OverlayActions {
 }
 
 @Composable
-fun OverlayContent(state: OverlayUiState, actions: OverlayActions, onDrag: (Float, Float) -> Unit) {
+fun OverlayContent(state: OverlayUiState, actions: OverlayActions, onDrag: (Float, Float) -> Unit, alignStart: Boolean = false) {
     if (!state.visible) return
-    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    // The mic stays at the bottom corner nearest the screen edge; the caption and panel open toward the middle.
+    Column(horizontalAlignment = if (alignStart) Alignment.Start else Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         AnimatedVisibility(visible = state.panelOpen) { ElementPanel(state, actions) }
         AnimatedVisibility(visible = !state.panelOpen && (state.caption != null || state.heard != null)) {
             CaptionBubble(state, actions)

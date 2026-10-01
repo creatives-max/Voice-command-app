@@ -9,6 +9,8 @@ import { FlowEditorPage } from "@/features/flows/flow-editor-page";
 import { FlowsPage } from "@/features/flows/flows-page";
 import { VersionsPage } from "@/features/flows/versions-page";
 import { HistoryPage } from "@/features/history/history-page";
+import { ListingPage } from "@/features/marketplace/listing-page";
+import { MarketplacePage } from "@/features/marketplace/marketplace-page";
 import { PrivacyPage } from "@/features/legal/privacy-page";
 import { ProfilePage } from "@/features/profile/profile-page";
 import { queryClient } from "@/lib/query-client";
@@ -52,6 +54,8 @@ const profileRoute = createRoute({ getParentRoute: () => appRoute, path: "profil
 const historyRoute = createRoute({ getParentRoute: () => appRoute, path: "history", component: HistoryPage });
 const automationRoute = createRoute({ getParentRoute: () => appRoute, path: "flows/$flowId/automation", component: AutomationPage });
 const devicesRoute = createRoute({ getParentRoute: () => appRoute, path: "devices", component: DevicesPage });
+const marketplaceRoute = createRoute({ getParentRoute: () => appRoute, path: "marketplace", component: MarketplacePage });
+const listingRoute = createRoute({ getParentRoute: () => appRoute, path: "marketplace/$listingId", component: ListingPage });
 const liveRunRoute = createRoute({ getParentRoute: () => appRoute, path: "runs/$requestId", component: LiveRunPage });
 
 export const routeTree = rootRoute.addChildren([loginRoute, privacyRoute, appRoute.addChildren([
@@ -63,6 +67,8 @@ export const routeTree = rootRoute.addChildren([loginRoute, privacyRoute, appRou
     historyRoute,
     devicesRoute,
     liveRunRoute,
+    marketplaceRoute,
+    listingRoute,
   ])]);
 
 export const router = createRouter({ routeTree, context: { queryClient }, defaultPreload: "intent" });

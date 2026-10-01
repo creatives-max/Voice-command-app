@@ -6,6 +6,8 @@ plugins {
 
 android {
     namespace = "com.voicecontrol.core.data"
+    // Starter templates are bundled from the same file the backend seeds the marketplace from.
+    sourceSets["main"].assets.srcDir("../../../backend/application/src/main/resources/templates")
 }
 
 ksp {

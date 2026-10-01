@@ -1,6 +1,9 @@
 package com.voicecontrol.api
 
 import com.voicecontrol.application.ai.AiService
+import com.voicecontrol.application.marketplace.MarketplaceService
+import com.voicecontrol.application.marketplace.StarterTemplates
+import com.voicecontrol.infrastructure.persistence.JdbcMarketplaceRepository
 import com.voicecontrol.application.automation.DeviceService
 import com.voicecontrol.application.automation.RunRequestService
 import com.voicecontrol.application.automation.TriggerScheduler
@@ -60,9 +63,10 @@ class Services(
     val triggers: TriggerService,
     val runRequests: RunRequestService,
     val scheduler: TriggerScheduler,
+    val marketplace: MarketplaceService,
     val rateLimiter: RateLimiter,
     val eventBus: RedisStreamEventBus,
-    private val database: Database,
+    internal val database: Database,
     private val redis: RedisConnections,
     private val http: HttpClient,
 ) : AutoCloseable {
@@ -130,6 +134,9 @@ object Bootstrap {
         val deviceRepository = JdbcDeviceRepository(database)
         val triggerRepository = JdbcTriggerRepository(database)
         val runRequestRepository = JdbcRunRequestRepository(database)
+        val marketplaceRepository = JdbcMarketplaceRepository(database)
+        kotlinx.coroutines.runBlocking { StarterTemplates.seed(marketplaceRepository) }
+        val flowService = FlowService(flowRepository, bus)
         return Services(
             config = config,
             ai = AiService(LlmProviderFactory.create(config.llm, http), timeoutMillis = config.llm.timeoutMillis),
@@ -140,13 +147,14 @@ object Bootstrap {
                 sessions = RedisSessionStore(redis, config.jwt.refreshTtlSeconds),
             ),
             profiles = ProfileService(JdbcProfileRepository(database), cache),
-            flows = FlowService(flowRepository, bus),
+            flows = flowService,
             matcher = FlowMatchService(flowRepository, embeddingRepository, embedder, cache),
             history = HistoryService(JdbcRunRepository(database)),
             devices = DeviceService(deviceRepository),
             triggers = TriggerService(triggerRepository, flowRepository, deviceRepository),
             runRequests = RunRequestService(runRequestRepository, deviceRepository, flowRepository),
             scheduler = TriggerScheduler(triggerRepository, runRequestRepository),
+            marketplace = MarketplaceService(marketplaceRepository, flowRepository, flowService),
             rateLimiter = RedisRateLimiter(redis),
             eventBus = bus,
             database = database,

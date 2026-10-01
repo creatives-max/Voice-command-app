@@ -110,7 +110,13 @@ class JdbcTriggerRepository(private val db: Database) : TriggerRepository {
     }
 
     override suspend fun listForUser(userId: UUID): List<FlowTrigger> = db.tx {
-        query("SELECT * FROM flow_triggers WHERE user_id = ? ORDER BY created_at", userId, map = ::toTrigger)
+        query(
+            """
+            SELECT t.* FROM flow_triggers t JOIN flows f ON f.id = t.flow_id
+            WHERE t.user_id = ? AND f.deleted_at IS NULL ORDER BY t.created_at
+            """.trimIndent(),
+            userId, map = ::toTrigger,
+        )
     }
 
     override suspend fun delete(userId: UUID, id: UUID): Boolean = db.tx { update("DELETE FROM flow_triggers WHERE user_id = ? AND id = ?", userId, id) > 0 }
@@ -122,7 +128,7 @@ class JdbcTriggerRepository(private val db: Database) : TriggerRepository {
                    coalesce(t.device_id, (SELECT d.id FROM devices d WHERE d.user_id = t.user_id AND d.remote_runs
                                            ORDER BY d.last_seen_at DESC LIMIT 1)) AS target_device
             FROM flow_triggers t JOIN flows f ON f.id = t.flow_id
-            WHERE t.enabled AND t.type = 'SCHEDULE' AND t.next_run_at <= ?
+            WHERE t.enabled AND t.type = 'SCHEDULE' AND t.next_run_at <= ? AND f.deleted_at IS NULL
             ORDER BY t.next_run_at
             LIMIT ?
             FOR UPDATE OF t SKIP LOCKED

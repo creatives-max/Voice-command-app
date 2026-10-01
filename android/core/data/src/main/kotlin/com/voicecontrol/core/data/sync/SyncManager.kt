@@ -29,6 +29,7 @@ class SyncManager @Inject constructor(
     private val history: HistoryRepository,
     private val historyApi: HistoryApi,
     private val remoteRuns: com.voicecontrol.core.data.automation.RemoteRunRepository,
+    private val templates: com.voicecontrol.core.data.flows.TemplateRepository,
 ) {
     suspend fun syncAll(pullProfile: Boolean): SyncReport {
         var failures = 0
@@ -63,6 +64,7 @@ class SyncManager @Inject constructor(
             // Keeps this phone listed in the dashboard and its app-open triggers current.
             remoteRuns.register()
             remoteRuns.refreshTriggers()
+            templates.refresh()
         } catch (e: ApiException) {
             if (e.isUnauthorized) return SyncReport(uploaded, failures, unauthorized = true)
             failures++

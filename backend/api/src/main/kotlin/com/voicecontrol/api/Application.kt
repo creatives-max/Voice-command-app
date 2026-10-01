@@ -9,6 +9,7 @@ import com.voicecontrol.api.routes.aiRoutes
 import com.voicecontrol.api.routes.automationRoutes
 import com.voicecontrol.api.routes.authRoutes
 import com.voicecontrol.api.routes.flowRoutes
+import com.voicecontrol.api.routes.marketplaceRoutes
 import com.voicecontrol.api.routes.profileRoutes
 import com.voicecontrol.infrastructure.config.AppConfig
 import io.ktor.http.HttpStatusCode
@@ -51,6 +52,7 @@ fun Application.voiceControl(services: Services) {
         flowRoutes(services.flows, services.matcher)
         aiRoutes(services.ai, services.rateLimiter)
         historyRoutes(services.history)
+        marketplaceRoutes(services.marketplace)
         automationRoutes(services.devices, services.triggers, services.runRequests, services::flowApp)
     }
 }

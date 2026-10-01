@@ -60,7 +60,7 @@ data class FlowStep(
 )
 
 @Serializable
-enum class VersionSource { DEVICE, DASHBOARD, ROLLBACK }
+enum class VersionSource { DEVICE, DASHBOARD, ROLLBACK, IMPORT }
 
 data class Flow(
     val id: UUID,
@@ -71,6 +71,9 @@ data class Flow(
     val currentVersion: Int,
     val createdAt: Instant,
     val updatedAt: Instant,
+    /** Marketplace listing this flow was imported from, and which of its versions. */
+    val sourcePublishedId: UUID? = null,
+    val sourceVersion: Int? = null,
 )
 
 data class FlowVersion(
@@ -99,6 +102,8 @@ interface FlowRepository {
     suspend fun addVersion(userId: UUID, flowId: UUID, expectedVersion: Int, name: String?, next: FlowVersion): FlowWithVersion?
     suspend fun delete(userId: UUID, flowId: UUID): Boolean
     suspend fun apps(userId: UUID): List<AppSummary>
+    /** Records which marketplace listing (and version) a flow now follows. */
+    suspend fun linkSource(userId: UUID, flowId: UUID, publishedId: UUID?, version: Int?): Boolean
 }
 
 data class AppSummary(val appPackage: String, val flowCount: Int, val lastUpdated: Instant)

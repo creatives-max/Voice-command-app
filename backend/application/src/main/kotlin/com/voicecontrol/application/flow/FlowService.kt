@@ -41,6 +41,24 @@ class FlowService(
         return created
     }
 
+    /**
+     * Adds marketplace steps to the user's library: a new flow, or a new version of their flow for the
+     * same screen (their earlier steps stay in its history).
+     */
+    suspend fun importFlow(userId: UUID, appPackage: String, name: String, signature: String, steps: List<FlowStep>, note: String): FlowWithVersion {
+        val pkg = validatePackage(appPackage)
+        val sig = signature.trim().take(MAX_SIGNATURE).ifEmpty { throw DomainException.Validation("This listing has no screen to match") }
+        val clean = normalizeSteps(steps)
+        flows.findBySignature(userId, pkg, sig)?.let { existing ->
+            return update(userId, existing.flow.id, existing.flow.currentVersion, null, clean, note, VersionSource.IMPORT)
+        }
+        val now = clock.instant()
+        val flow = Flow(UUID.randomUUID(), userId, pkg, validateName(name), sig, 1, now, now)
+        val created = flows.create(flow, FlowVersion(flow.id, 1, clean, sig, VersionSource.IMPORT, note, now))
+        publish(created)
+        return created
+    }
+
     suspend fun list(userId: UUID, appPackage: String?, limit: Int, offset: Int): List<Flow> =
         flows.list(userId, appPackage?.takeIf { it.isNotBlank() }, limit.coerceIn(1, 200), offset.coerceAtLeast(0))
 

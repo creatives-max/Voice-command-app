@@ -1,5 +1,5 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type TriggerInput } from "./api";
+import { api, type MarketplaceParams, type PublishInput, type TriggerInput } from "./api";
 import type { FlowStep, Profile } from "./types";
 
 export const keys = {
@@ -14,7 +14,62 @@ export const keys = {
   devices: ["devices"] as const,
   triggers: (flowId: string) => ["flow", flowId, "triggers"] as const,
   runRequests: (flowId?: string) => ["run-requests", flowId ?? "all"] as const,
+  marketplace: (p: MarketplaceParams) => ["marketplace", "list", p] as const,
+  listing: (id: string) => ["marketplace", "listing", id] as const,
+  templates: ["marketplace", "templates"] as const,
+  categories: ["marketplace", "categories"] as const,
 };
+
+export const marketplaceQuery = (p: MarketplaceParams) => queryOptions({ queryKey: keys.marketplace(p), queryFn: () => api.marketplace(p) });
+export const listingQuery = (id: string) => queryOptions({ queryKey: keys.listing(id), queryFn: () => api.listing(id) });
+export const templatesQuery = queryOptions({ queryKey: keys.templates, queryFn: api.templates, staleTime: 10 * 60_000 });
+export const categoriesQuery = queryOptions({ queryKey: keys.categories, queryFn: api.categories, staleTime: Infinity });
+
+export function usePublishFlow(flowId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PublishInput) => api.publishFlow(flowId, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["marketplace"] }),
+  });
+}
+
+export function useImportListing() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, version }: { id: string; version?: number }) => api.importListing(id, version),
+    onSuccess: (flow) => {
+      qc.setQueryData(keys.flow(flow.id), flow);
+      void qc.invalidateQueries({ queryKey: ["marketplace"] });
+      void qc.invalidateQueries({ queryKey: ["flows"] });
+      void qc.invalidateQueries({ queryKey: keys.apps });
+    },
+  });
+}
+
+export function useUpdateFromSource(flowId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.updateFromSource(flowId),
+    onSuccess: (flow) => {
+      qc.setQueryData(keys.flow(flowId), flow);
+      void qc.invalidateQueries({ queryKey: keys.versions(flowId) });
+      void qc.invalidateQueries({ queryKey: ["marketplace"] });
+    },
+  });
+}
+
+export function useRateListing(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ stars, review }: { stars: number; review?: string }) => api.rateListing(id, stars, review),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["marketplace"] }),
+  });
+}
+
+export function useUnpublish() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => api.unpublish(id), onSuccess: () => qc.invalidateQueries({ queryKey: ["marketplace"] }) });
+}
 
 export const devicesQuery = queryOptions({ queryKey: keys.devices, queryFn: api.devices, refetchInterval: 30_000 });
 export const triggersQuery = (flowId: string) => queryOptions({ queryKey: keys.triggers(flowId), queryFn: () => api.triggers(flowId) });

@@ -1,0 +1,29 @@
+{
+  "description": "Shared vectors for starter-template matching (Android TemplateMatcher and dashboard applyTemplate). Each screen lists elements as [kind, label, fieldType|null]; expected is the template id (or null) and the step id → element label mapping.",
+  "screens": [
+    {
+      "name": "Typical sign-up",
+      "elements": [["TEXT_FIELD", "Full Name", "NAME"], ["TEXT_FIELD", "Email address", "EMAIL"], ["TEXT_FIELD", "Mobile No.", "PHONE"], ["TEXT_FIELD", "Password", "PASSWORD"], ["TEXT_FIELD", "Confirm Password", "PASSWORD"], ["CHECKBOX", "I agree to the Terms of Use", null], ["BUTTON", "Create Account", null]],
+      "expected": "6f0f3a52-5b1e-4c55-9d1a-000000000001",
+      "mapping": {"name": "Full Name", "email": "Email address", "phone": "Mobile No.", "password": "Password", "confirm": "Confirm Password", "terms": "I agree to the Terms of Use", "submit": "Create Account"}
+    },
+    {
+      "name": "Delivery address",
+      "elements": [["TEXT_FIELD", "Flat, House no., Building", "ADDRESS"], ["TEXT_FIELD", "Landmark", "TEXT"], ["TEXT_FIELD", "Town/City", "TEXT"], ["TEXT_FIELD", "State", "TEXT"], ["TEXT_FIELD", "Pincode", "PINCODE"], ["BUTTON", "Use this address", null]],
+      "expected": "6f0f3a52-5b1e-4c55-9d1a-000000000003",
+      "mapping": {"line1": "Flat, House no., Building", "landmark": "Landmark", "city": "Town/City", "state": "State", "pin": "Pincode", "save": "Use this address"}
+    },
+    {
+      "name": "Login",
+      "elements": [["TEXT_FIELD", "Email or mobile number", "EMAIL"], ["TEXT_FIELD", "Password", "PASSWORD"], ["BUTTON", "Sign in", null]],
+      "expected": "6f0f3a52-5b1e-4c55-9d1a-000000000002",
+      "mapping": {"user": "Email or mobile number", "password": "Password", "submit": "Sign in"}
+    },
+    {
+      "name": "Unrelated screen",
+      "elements": [["TEXT_FIELD", "Search products", "SEARCH"], ["BUTTON", "Go", null]],
+      "expected": null,
+      "mapping": {}
+    }
+  ]
+}

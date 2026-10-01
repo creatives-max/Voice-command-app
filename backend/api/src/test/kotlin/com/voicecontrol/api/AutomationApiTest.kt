@@ -162,9 +162,15 @@ class AutomationApiTest {
         assertEquals(null, disabled.nextRunAt)
         assertEquals(HttpStatusCode.NoContent, client.send("DELETE", "/v1/triggers/${schedule.id}", token).status)
 
+        // Deleting the flow silences its app-open trigger.
+        assertEquals(HttpStatusCode.NoContent, client.send("DELETE", "/v1/flows/${flow.id}", token).status)
+        val afterDelete: List<TriggerDto> = client.send("GET", "/v1/devices/$deviceId/triggers", token).body()
+        assertTrue(afterDelete.isEmpty())
+
         // Other users can't see or use any of it.
         val stranger = client.registerUser().accessToken
         assertEquals(HttpStatusCode.NotFound, client.send("GET", "/v1/flows/${flow.id}/triggers", stranger).status)
+        assertEquals(HttpStatusCode.NotFound, client.send("GET", "/v1/flows/${flow.id}/triggers", token).status)
         assertEquals(HttpStatusCode.NotFound, client.send("GET", "/v1/devices/$deviceId/commands", stranger).status)
         assertEquals(HttpStatusCode.Conflict, client.send("POST", "/v1/devices", stranger, mapOf("id" to deviceId, "name" to "Hijack")).status)
     }

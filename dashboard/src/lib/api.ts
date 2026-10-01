@@ -1,5 +1,9 @@
-import type { z } from "zod";
+import { z } from "zod";
 import {
+  listingDetailSchema,
+  listingPageSchema,
+  listingSchema,
+  templateSchema,
   deviceSchema,
   runEventsSchema,
   runRequestSchema,
@@ -18,6 +22,23 @@ import {
   type Profile,
 } from "./types";
 
+export interface MarketplaceParams {
+  q?: string;
+  category?: string;
+  templates?: boolean;
+  mine?: boolean;
+  sort?: "popular" | "rating" | "recent" | "relevance";
+  appPackage?: string;
+}
+
+export interface PublishInput {
+  name?: string;
+  description: string;
+  category: string;
+  tags: string[];
+  changelog?: string;
+}
+
 export interface TriggerInput {
   type: "APP_OPEN" | "SCHEDULE";
   enabled: boolean;
@@ -25,6 +46,8 @@ export interface TriggerInput {
   timezone?: string | null;
   deviceId?: string | null;
 }
+
+const zStringArray = z.array(z.string());
 
 /** Error from the backend (or the proxy) with its machine-readable code. */
 export class ApiError extends Error {
@@ -101,6 +124,26 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args)) {
     runEvents: (id: string, after: number, wait: number, signal?: AbortSignal) =>
       request(runEventsSchema, `/run-requests/${id}/events?after=${after}&wait=${wait}`, { signal }),
     cancelRun: (id: string) => request(runRequestSchema, `/run-requests/${id}/cancel`, { method: "POST", body: json({}) }),
+
+    marketplace: (p: MarketplaceParams) => {
+      const qs = new URLSearchParams({ limit: "60" });
+      if (p.q?.trim()) qs.set("q", p.q.trim());
+      if (p.category) qs.set("category", p.category);
+      if (p.templates !== undefined) qs.set("templates", String(p.templates));
+      if (p.mine) qs.set("mine", "true");
+      if (p.sort) qs.set("sort", p.sort);
+      if (p.appPackage) qs.set("appPackage", p.appPackage);
+      return request(listingPageSchema, `/marketplace?${qs.toString()}`);
+    },
+    categories: () => request(zStringArray, "/marketplace/categories"),
+    listing: (id: string) => request(listingDetailSchema, `/marketplace/${id}`),
+    templates: () => request(templateSchema.array(), "/marketplace/templates"),
+    importListing: (id: string, version?: number) => request(flowSchema, `/marketplace/${id}/import`, { method: "POST", body: json({ version }) }),
+    rateListing: (id: string, stars: number, review?: string) =>
+      request(listingSchema, `/marketplace/${id}/rating`, { method: "PUT", body: json({ stars, review: review || undefined }) }),
+    unpublish: (id: string) => request(null, `/marketplace/${id}`, { method: "DELETE" }),
+    publishFlow: (flowId: string, input: PublishInput) => request(listingSchema, `/flows/${flowId}/publish`, { method: "POST", body: json(input) }),
+    updateFromSource: (flowId: string) => request(flowSchema, `/flows/${flowId}/update-from-source`, { method: "POST", body: json({}) }),
 
     profile: () => request(profileSchema, "/profile"),
     saveProfile: (profile: Profile) => request(profileSchema, "/profile", { method: "PUT", body: json(profile) }),

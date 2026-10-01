@@ -23,6 +23,8 @@ data class AppSettings(
     val remoteRuns: Boolean = true,
     /** Name shown for this phone in the dashboard; blank = the device model. */
     val deviceName: String = "",
+    /** On screens without a saved flow, use a matching starter template (sign-up, login, address…). */
+    val useTemplates: Boolean = true,
     val backendUrl: String = "",
     /** Web dashboard where flows are edited; blank = the default for this build. */
     val dashboardUrl: String = "",

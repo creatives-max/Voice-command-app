@@ -55,6 +55,9 @@ import kotlinx.serialization.Serializable
     val updatedAtMillis: Long,
     val createdAt: String,
     val updatedAt: String,
+    /** Marketplace listing this flow was imported from, and which version. */
+    val sourcePublishedId: String? = null,
+    val sourceVersion: Int? = null,
 ) {
     companion object {
         fun from(fv: FlowWithVersion) = FlowDto(
@@ -67,6 +70,8 @@ import kotlinx.serialization.Serializable
             updatedAtMillis = fv.flow.updatedAt.toEpochMilli(),
             createdAt = fv.flow.createdAt.toString(),
             updatedAt = fv.flow.updatedAt.toString(),
+            sourcePublishedId = fv.flow.sourcePublishedId?.toString(),
+            sourceVersion = fv.flow.sourceVersion,
         )
     }
 }

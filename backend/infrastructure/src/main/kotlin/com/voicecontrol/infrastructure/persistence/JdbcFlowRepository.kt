@@ -19,8 +19,12 @@ class JdbcFlowRepository(private val db: Database) : FlowRepository {
 
     override suspend fun create(flow: Flow, firstVersion: FlowVersion): FlowWithVersion = db.tx {
         update(
-            "INSERT INTO flows (id, user_id, app_package, name, screen_signature, current_version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            """
+            INSERT INTO flows (id, user_id, app_package, name, screen_signature, current_version, created_at, updated_at, source_published_id, source_version)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
             flow.id, flow.userId, flow.appPackage, flow.name, flow.screenSignature, flow.currentVersion, flow.createdAt, flow.updatedAt,
+            flow.sourcePublishedId, flow.sourceVersion,
         )
         insertVersion(firstVersion)
         FlowWithVersion(flow, firstVersion)
@@ -102,6 +106,13 @@ class JdbcFlowRepository(private val db: Database) : FlowRepository {
         ) { AppSummary(it.getString("app_package"), it.getInt("n"), it.instant("last")) }
     }
 
+    override suspend fun linkSource(userId: UUID, flowId: UUID, publishedId: UUID?, version: Int?): Boolean = db.tx {
+        update(
+            "UPDATE flows SET source_published_id = ?, source_version = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            publishedId, version, flowId, userId,
+        ) > 0
+    }
+
     private fun Connection.insertVersion(v: FlowVersion) {
         update(
             "INSERT INTO flow_versions (flow_id, version, steps, screen_signature, source, change_note, created_at) VALUES (?, ?, ?::jsonb, ?, ?, ?, ?)",
@@ -118,6 +129,8 @@ class JdbcFlowRepository(private val db: Database) : FlowRepository {
         currentVersion = rs.getInt("current_version"),
         createdAt = rs.instant("created_at"),
         updatedAt = rs.instant("updated_at"),
+        sourcePublishedId = rs.getObject("source_published_id", UUID::class.java),
+        sourceVersion = rs.getObject("source_version") as Int?,
     )
 
     private fun toVersion(rs: ResultSet, signatureColumn: String, createdColumn: String) = FlowVersion(

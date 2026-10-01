@@ -63,6 +63,7 @@ private val toggles = listOf(
     Triple(Option.SKIP_FILLED, "Skip fields that already have a value", "Otherwise VoiceControl asks whether to keep them."),
     Triple(Option.TRANSLITERATE, "Type Hindi names in English letters", "राहुल → Rahul for name, email and address fields."),
     Triple(Option.AUTO_START, "Start automatically on saved screens", "Begin asking when an app with a saved flow opens."),
+    Triple(Option.USE_TEMPLATES, "Use starter templates", "On new screens, use the sign-up, login or address template that fits."),
     Triple(Option.REMOTE_RUNS, "Allow runs from the dashboard", "\"Run now\" and schedules can start flows on this phone. Needs sign-in."),
     Triple(Option.SAVE_HISTORY, "Keep session history", "What happened to each field, never the values."),
     Triple(Option.LOCAL_ONLY, "Local-only mode", "Never contact the server: on-device understanding only, no sync."),

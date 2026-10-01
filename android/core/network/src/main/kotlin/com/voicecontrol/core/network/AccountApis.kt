@@ -99,3 +99,9 @@ class AutomationApi @Inject constructor(private val api: ApiClient) {
     suspend fun report(requestId: String, report: com.voicecontrol.core.network.dto.RunReportDto): com.voicecontrol.core.network.dto.RunRequestDto =
         api.post<com.voicecontrol.core.network.dto.RunReportDto, com.voicecontrol.core.network.dto.RunRequestDto>("/v1/run-requests/$requestId/report", report)
 }
+
+@Singleton
+class MarketplaceApi @Inject constructor(private val api: ApiClient) {
+    /** Built-in starter templates with their matching keywords. */
+    suspend fun templates(): List<com.voicecontrol.core.network.dto.TemplateDto> = api.get("/v1/marketplace/templates")
+}

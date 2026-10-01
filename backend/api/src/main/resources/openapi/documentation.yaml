@@ -498,6 +498,85 @@ paths:
         "200": { description: Updated, content: { application/json: { schema: { $ref: "#/components/schemas/RunRequest" } } } }
         "403": { description: Run belongs to another device }
         "409": { description: Already finished }
+  /v1/marketplace:
+    get:
+      tags: [Marketplace]
+      summary: Browse and search published flows and starter templates
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: Full-text search over name, description, app and tags }
+        - { name: category, in: query, schema: { type: string } }
+        - { name: appPackage, in: query, schema: { type: string } }
+        - { name: templates, in: query, schema: { type: boolean } }
+        - { name: mine, in: query, schema: { type: boolean } }
+        - { name: sort, in: query, schema: { type: string, enum: [popular, rating, recent, relevance] } }
+        - { name: limit, in: query, schema: { type: integer, default: 24 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        "200": { description: Listings, content: { application/json: { schema: { type: object, properties: { items: { type: array, items: { $ref: "#/components/schemas/Listing" } }, limit: { type: integer }, offset: { type: integer } } } } } }
+  /v1/marketplace/categories:
+    get:
+      tags: [Marketplace]
+      responses:
+        "200": { description: Category ids, content: { application/json: { schema: { type: array, items: { type: string } } } } }
+  /v1/marketplace/templates:
+    get:
+      tags: [Marketplace]
+      summary: Starter templates with their steps and per-step matching keywords
+      responses:
+        "200":
+          description: Templates
+          content: { application/json: { schema: { type: array, items: { type: object, properties: { listing: { $ref: "#/components/schemas/Listing" }, steps: { type: array, items: { $ref: "#/components/schemas/FlowStep" } }, keywords: { type: object, additionalProperties: { type: array, items: { type: string } } } } } } } }
+  /v1/marketplace/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Marketplace]
+      summary: Listing with latest steps, versions, reviews and your imported copy
+      responses:
+        "200": { description: Listing detail, content: { application/json: { schema: { $ref: "#/components/schemas/ListingDetail" } } } }
+    delete:
+      tags: [Marketplace]
+      summary: Unpublish (owner); importers keep their copies
+      responses:
+        "204": { description: Unpublished }
+  /v1/marketplace/{id}/import:
+    post:
+      tags: [Marketplace]
+      summary: Import into your flows (or as a new version of your flow for the same screen)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody: { content: { application/json: { schema: { type: object, properties: { version: { type: integer } } } } } }
+      responses:
+        "201": { description: Your flow, content: { application/json: { schema: { $ref: "#/components/schemas/Flow" } } } }
+        "400": { description: Templates are applied, not imported }
+  /v1/marketplace/{id}/rating:
+    put:
+      tags: [Marketplace]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [stars], properties: { stars: { type: integer, minimum: 1, maximum: 5 }, review: { type: string, maxLength: 500 } } } } } }
+      responses:
+        "200": { description: Listing with updated rating, content: { application/json: { schema: { $ref: "#/components/schemas/Listing" } } } }
+  /v1/flows/{id}/publish:
+    post:
+      tags: [Marketplace]
+      summary: Publish the flow's current version (default values are removed); publishing again adds a version
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [category], properties: { name: { type: string }, description: { type: string, maxLength: 1000 }, category: { type: string }, tags: { type: array, maxItems: 8, items: { type: string, maxLength: 24 } }, changelog: { type: string } } } } }
+      responses:
+        "200": { description: Listing, content: { application/json: { schema: { $ref: "#/components/schemas/Listing" } } } }
+  /v1/flows/{id}/update-from-source:
+    post:
+      tags: [Marketplace]
+      summary: Update an imported flow to the listing's latest version (as a new version)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Updated flow, content: { application/json: { schema: { $ref: "#/components/schemas/Flow" } } } }
+        "409": { description: Already up to date }
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
@@ -512,6 +591,36 @@ components:
               error: { type: string, example: validation_error }
               message: { type: string }
   schemas:
+    Listing:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        appPackage: { type: string, description: "\"*\" for templates" }
+        category: { type: string }
+        tags: { type: array, items: { type: string } }
+        isTemplate: { type: boolean }
+        ownerName: { type: string, nullable: true }
+        mine: { type: boolean }
+        latestVersion: { type: integer }
+        installCount: { type: integer }
+        ratingAverage: { type: number, nullable: true }
+        ratingCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ListingDetail:
+      type: object
+      properties:
+        listing: { $ref: "#/components/schemas/Listing" }
+        steps: { type: array, items: { $ref: "#/components/schemas/FlowStep" } }
+        keywords: { type: object, additionalProperties: { type: array, items: { type: string } } }
+        versions: { type: array, items: { type: object, properties: { version: { type: integer }, changelog: { type: string, nullable: true }, stepCount: { type: integer }, createdAt: { type: string, format: date-time } } } }
+        myRating: { type: object, nullable: true, properties: { stars: { type: integer }, review: { type: string, nullable: true } } }
+        reviews: { type: array, items: { type: object, properties: { stars: { type: integer }, review: { type: string, nullable: true }, userName: { type: string }, updatedAt: { type: string, format: date-time } } } }
+        importedFlowId: { type: string, nullable: true }
+        importedVersion: { type: integer, nullable: true }
+        updateAvailable: { type: boolean }
     RegisterDevice:
       type: object
       required: [id, name]
@@ -678,12 +787,14 @@ components:
         updatedAtMillis: { type: integer, format: int64 }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+        sourcePublishedId: { type: string, nullable: true, description: Marketplace listing this flow was imported from }
+        sourceVersion: { type: integer, nullable: true }
     FlowVersion:
       type: object
       properties:
         version: { type: integer }
         steps: { type: array, items: { $ref: "#/components/schemas/FlowStep" } }
-        source: { type: string, enum: [DEVICE, DASHBOARD, ROLLBACK] }
+        source: { type: string, enum: [DEVICE, DASHBOARD, ROLLBACK, IMPORT] }
         changeNote: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
     CreateFlowRequest:

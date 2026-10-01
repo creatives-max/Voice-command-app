@@ -1,0 +1,629 @@
+{
+  "templates": [
+    {
+      "id": "6f0f3a52-5b1e-4c55-9d1a-000000000001",
+      "name": "Sign-up form",
+      "category": "signup",
+      "tags": [
+        "account",
+        "register"
+      ],
+      "description": "Name, email, mobile and password with sensible checks. The password is always typed by you.",
+      "steps": [
+        {
+          "id": "name",
+          "elementId": "template:name",
+          "label": "Full name",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "full name",
+            "your name",
+            "name",
+            "नाम"
+          ],
+          "fieldType": "NAME",
+          "question": "What is your full name?",
+          "rules": [
+            "required",
+            "min:2"
+          ],
+          "profileKey": "FULL_NAME",
+          "order": 0
+        },
+        {
+          "id": "email",
+          "elementId": "template:email",
+          "label": "Email",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "email",
+            "e-mail",
+            "mail id",
+            "ईमेल"
+          ],
+          "fieldType": "EMAIL",
+          "question": "What is your email address?",
+          "rules": [
+            "required",
+            "email"
+          ],
+          "profileKey": "EMAIL",
+          "order": 1
+        },
+        {
+          "id": "phone",
+          "elementId": "template:phone",
+          "label": "Mobile number",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "mobile",
+            "phone",
+            "contact number",
+            "मोबाइल",
+            "फ़ोन"
+          ],
+          "fieldType": "PHONE",
+          "question": "What is your 10 digit mobile number?",
+          "rules": [
+            "required",
+            "phone"
+          ],
+          "profileKey": "PHONE",
+          "order": 2
+        },
+        {
+          "id": "password",
+          "elementId": "template:password",
+          "label": "Password",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "password",
+            "पासवर्ड"
+          ],
+          "fieldType": "PASSWORD",
+          "order": 3
+        },
+        {
+          "id": "confirm",
+          "elementId": "template:confirm",
+          "label": "Confirm password",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "confirm password",
+            "re-enter password",
+            "retype password"
+          ],
+          "fieldType": "PASSWORD",
+          "order": 4
+        },
+        {
+          "id": "terms",
+          "elementId": "template:terms",
+          "label": "I agree to the terms",
+          "kind": "CHECKBOX",
+          "keywords": [
+            "terms",
+            "agree",
+            "conditions",
+            "policy"
+          ],
+          "question": "Do you agree to the terms and conditions?",
+          "action": "TOGGLE",
+          "order": 5
+        },
+        {
+          "id": "submit",
+          "elementId": "template:submit",
+          "label": "Sign up",
+          "kind": "BUTTON",
+          "keywords": [
+            "sign up",
+            "register",
+            "create account",
+            "continue",
+            "submit"
+          ],
+          "question": "All done. Shall I create the account?",
+          "action": "CLICK",
+          "order": 6
+        }
+      ]
+    },
+    {
+      "id": "6f0f3a52-5b1e-4c55-9d1a-000000000002",
+      "name": "Login",
+      "category": "login",
+      "tags": [
+        "sign in"
+      ],
+      "description": "Email or mobile and password. Never reads the password aloud.",
+      "steps": [
+        {
+          "id": "user",
+          "elementId": "template:user",
+          "label": "Email or mobile",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "email",
+            "username",
+            "user id",
+            "mobile",
+            "login id",
+            "phone"
+          ],
+          "fieldType": "TEXT",
+          "question": "What is your email or mobile number?",
+          "rules": [
+            "required"
+          ],
+          "profileKey": "EMAIL",
+          "order": 0
+        },
+        {
+          "id": "password",
+          "elementId": "template:password",
+          "label": "Password",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "password",
+            "पासवर्ड"
+          ],
+          "fieldType": "PASSWORD",
+          "order": 1
+        },
+        {
+          "id": "remember",
+          "elementId": "template:remember",
+          "label": "Remember me",
+          "kind": "CHECKBOX",
+          "keywords": [
+            "remember",
+            "keep me signed in",
+            "stay signed in"
+          ],
+          "question": "Should I keep you signed in?",
+          "action": "TOGGLE",
+          "order": 2
+        },
+        {
+          "id": "submit",
+          "elementId": "template:submit",
+          "label": "Log in",
+          "kind": "BUTTON",
+          "keywords": [
+            "log in",
+            "login",
+            "sign in",
+            "continue"
+          ],
+          "action": "CLICK",
+          "skip": true,
+          "order": 3
+        }
+      ]
+    },
+    {
+      "id": "6f0f3a52-5b1e-4c55-9d1a-000000000003",
+      "name": "Address form",
+      "category": "address",
+      "tags": [
+        "delivery",
+        "shipping",
+        "billing"
+      ],
+      "description": "House and street, city, state and 6-digit PIN code, filled from your profile when you say yes.",
+      "steps": [
+        {
+          "id": "line1",
+          "elementId": "template:line1",
+          "label": "Address line",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "address",
+            "house",
+            "flat",
+            "street",
+            "building",
+            "पता"
+          ],
+          "fieldType": "ADDRESS",
+          "question": "What is your house number and street?",
+          "rules": [
+            "required",
+            "min:5"
+          ],
+          "profileKey": "ADDRESS_LINE",
+          "order": 0
+        },
+        {
+          "id": "landmark",
+          "elementId": "template:landmark",
+          "label": "Landmark",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "landmark",
+            "near"
+          ],
+          "fieldType": "TEXT",
+          "question": "Any landmark nearby? Say skip if none.",
+          "order": 1
+        },
+        {
+          "id": "city",
+          "elementId": "template:city",
+          "label": "City",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "city",
+            "town",
+            "शहर"
+          ],
+          "fieldType": "TEXT",
+          "question": "Which city?",
+          "rules": [
+            "required"
+          ],
+          "profileKey": "CITY",
+          "order": 2
+        },
+        {
+          "id": "state",
+          "elementId": "template:state",
+          "label": "State",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "state",
+            "राज्य"
+          ],
+          "fieldType": "TEXT",
+          "question": "Which state?",
+          "rules": [
+            "required"
+          ],
+          "profileKey": "STATE",
+          "order": 3
+        },
+        {
+          "id": "pin",
+          "elementId": "template:pin",
+          "label": "PIN code",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "pin code",
+            "pincode",
+            "postal code",
+            "zip",
+            "पिन"
+          ],
+          "fieldType": "PINCODE",
+          "question": "What is the 6 digit PIN code?",
+          "rules": [
+            "required",
+            "pincode"
+          ],
+          "profileKey": "PINCODE",
+          "order": 4
+        },
+        {
+          "id": "save",
+          "elementId": "template:save",
+          "label": "Save address",
+          "kind": "BUTTON",
+          "keywords": [
+            "save",
+            "continue",
+            "deliver here",
+            "use this address"
+          ],
+          "action": "CLICK",
+          "order": 5
+        }
+      ]
+    },
+    {
+      "id": "6f0f3a52-5b1e-4c55-9d1a-000000000004",
+      "name": "Quick sign-up (no OTP)",
+      "category": "signup",
+      "tags": [
+        "otp-less",
+        "mobile",
+        "quick"
+      ],
+      "description": "For forms that only need your name, mobile and consent — no one-time password step.",
+      "steps": [
+        {
+          "id": "name",
+          "elementId": "template:name",
+          "label": "Name",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "name",
+            "नाम"
+          ],
+          "fieldType": "NAME",
+          "question": "What name should I enter?",
+          "rules": [
+            "required"
+          ],
+          "profileKey": "FULL_NAME",
+          "order": 0
+        },
+        {
+          "id": "phone",
+          "elementId": "template:phone",
+          "label": "Mobile number",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "mobile",
+            "phone",
+            "whatsapp",
+            "मोबाइल"
+          ],
+          "fieldType": "PHONE",
+          "question": "What is your mobile number?",
+          "rules": [
+            "required",
+            "digits:10"
+          ],
+          "profileKey": "PHONE",
+          "order": 1
+        },
+        {
+          "id": "consent",
+          "elementId": "template:consent",
+          "label": "I agree to be contacted",
+          "kind": "CHECKBOX",
+          "keywords": [
+            "agree",
+            "consent",
+            "contact me",
+            "whatsapp updates",
+            "authorize"
+          ],
+          "question": "Can they contact you on this number?",
+          "action": "TOGGLE",
+          "order": 2
+        },
+        {
+          "id": "submit",
+          "elementId": "template:submit",
+          "label": "Continue",
+          "kind": "BUTTON",
+          "keywords": [
+            "continue",
+            "get started",
+            "submit",
+            "proceed"
+          ],
+          "action": "CLICK",
+          "order": 3
+        }
+      ]
+    },
+    {
+      "id": "6f0f3a52-5b1e-4c55-9d1a-000000000005",
+      "name": "Contact form",
+      "category": "contact",
+      "tags": [
+        "support",
+        "enquiry"
+      ],
+      "description": "Name, email, phone and your message.",
+      "steps": [
+        {
+          "id": "name",
+          "elementId": "template:name",
+          "label": "Name",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "name",
+            "नाम"
+          ],
+          "fieldType": "NAME",
+          "question": "What is your name?",
+          "rules": [
+            "required"
+          ],
+          "profileKey": "FULL_NAME",
+          "order": 0
+        },
+        {
+          "id": "email",
+          "elementId": "template:email",
+          "label": "Email",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "email",
+            "mail"
+          ],
+          "fieldType": "EMAIL",
+          "question": "What email should they reply to?",
+          "rules": [
+            "email"
+          ],
+          "profileKey": "EMAIL",
+          "order": 1
+        },
+        {
+          "id": "phone",
+          "elementId": "template:phone",
+          "label": "Phone",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "phone",
+            "mobile"
+          ],
+          "fieldType": "PHONE",
+          "question": "And your phone number? Say skip if you'd rather not.",
+          "rules": [
+            "phone"
+          ],
+          "profileKey": "PHONE",
+          "order": 2
+        },
+        {
+          "id": "subject",
+          "elementId": "template:subject",
+          "label": "Subject",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "subject",
+            "topic",
+            "regarding"
+          ],
+          "fieldType": "TEXT",
+          "question": "What is it about?",
+          "order": 3
+        },
+        {
+          "id": "message",
+          "elementId": "template:message",
+          "label": "Message",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "message",
+            "comments",
+            "query",
+            "details",
+            "description"
+          ],
+          "fieldType": "MULTILINE",
+          "question": "What would you like to say?",
+          "rules": [
+            "required",
+            "min:10"
+          ],
+          "order": 4
+        },
+        {
+          "id": "send",
+          "elementId": "template:send",
+          "label": "Send",
+          "kind": "BUTTON",
+          "keywords": [
+            "send",
+            "submit"
+          ],
+          "action": "CLICK",
+          "order": 5
+        }
+      ]
+    },
+    {
+      "id": "6f0f3a52-5b1e-4c55-9d1a-000000000006",
+      "name": "Payment details",
+      "category": "payment",
+      "tags": [
+        "card",
+        "checkout",
+        "billing"
+      ],
+      "description": "Card holder name and billing details. Card number, expiry and CVV are always typed by you.",
+      "steps": [
+        {
+          "id": "holder",
+          "elementId": "template:holder",
+          "label": "Name on card",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "name on card",
+            "card holder",
+            "cardholder"
+          ],
+          "fieldType": "NAME",
+          "question": "What is the name on the card?",
+          "rules": [
+            "required"
+          ],
+          "profileKey": "FULL_NAME",
+          "order": 0
+        },
+        {
+          "id": "card",
+          "elementId": "template:card",
+          "label": "Card number",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "card number",
+            "card no"
+          ],
+          "fieldType": "PIN",
+          "order": 1
+        },
+        {
+          "id": "expiry",
+          "elementId": "template:expiry",
+          "label": "Expiry",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "expiry",
+            "valid thru",
+            "mm/yy"
+          ],
+          "fieldType": "PIN",
+          "order": 2
+        },
+        {
+          "id": "cvv",
+          "elementId": "template:cvv",
+          "label": "CVV",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "cvv",
+            "cvc",
+            "security code"
+          ],
+          "fieldType": "PIN",
+          "order": 3
+        },
+        {
+          "id": "pin",
+          "elementId": "template:pin",
+          "label": "Billing PIN code",
+          "kind": "TEXT_FIELD",
+          "keywords": [
+            "billing pin",
+            "pin code",
+            "zip",
+            "postal"
+          ],
+          "fieldType": "PINCODE",
+          "question": "What is the billing PIN code?",
+          "rules": [
+            "pincode"
+          ],
+          "profileKey": "PINCODE",
+          "order": 4
+        },
+        {
+          "id": "save",
+          "elementId": "template:save",
+          "label": "Save card for later",
+          "kind": "CHECKBOX",
+          "keywords": [
+            "save card",
+            "remember card",
+            "securely save"
+          ],
+          "question": "Should the app save this card for later?",
+          "action": "TOGGLE",
+          "order": 5
+        },
+        {
+          "id": "pay",
+          "elementId": "template:pay",
+          "label": "Pay",
+          "kind": "BUTTON",
+          "keywords": [
+            "pay",
+            "place order",
+            "proceed to pay"
+          ],
+          "question": "Shall I press Pay?",
+          "action": "CLICK",
+          "order": 6
+        }
+      ]
+    }
+  ]
+}

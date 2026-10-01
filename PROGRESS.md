@@ -77,10 +77,10 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Tests, commit + push
 
 ## Phase 11 — Flow marketplace
-- [ ] Publish / browse / search / import (version-aware, update from source), ratings
-- [ ] Starter template library (signup, login, address, OTP-less, contact, payment details)
-- [ ] Dashboard marketplace pages + publish flow; Android template import
-- [ ] Tests, commit + push
+- [x] Publish / browse / search / import (version-aware, update from source), ratings
+- [x] Starter template library (signup, login, address, OTP-less, contact, payment details)
+- [x] Dashboard marketplace pages + publish flow; Android template import
+- [x] Tests, commit + push
 
 ## Phase 12 — Voice & AI upgrades
 - [ ] Streaming partial results with early command detection

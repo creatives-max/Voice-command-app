@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CalendarClock, FlaskConical, History, Layers, Save, Trash2, Undo2 } from "lucide-react";
+import { CalendarClock, FlaskConical, History, Layers, Save, Share2, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ import { flowQuery, flowsQuery, useDeleteFlow, useUpdateFlow } from "@/lib/queri
 import type { Flow } from "@/lib/types";
 import { editorReducer, initialEditor, toUpdatePayload, validateSteps, type LogicAction } from "./editor";
 import { ACTION_LABELS } from "./logic";
+import { PublishDialog } from "@/features/marketplace/publish-dialog";
+import { SourceBanner } from "@/features/marketplace/listing-page";
 import { SimulatorPanel } from "./simulator-panel";
 import { StepCard } from "./step-card";
 
@@ -36,6 +38,7 @@ function FlowEditor({ flow }: { flow: Flow }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [testing, setTesting] = useState(false);
   const [appendOpen, setAppendOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
   const update = useUpdateFlow(flow.id);
   const remove = useDeleteFlow();
   const navigate = useNavigate();
@@ -100,6 +103,9 @@ function FlowEditor({ flow }: { flow: Flow }) {
                 <CalendarClock /> Run &amp; triggers
               </Link>
             </Button>
+            <Button variant="outline" onClick={() => setPublishOpen(true)}>
+              <Share2 /> Publish
+            </Button>
             <Button variant={testing ? "default" : "outline"} onClick={() => setTesting((t) => !t)} aria-pressed={testing}>
               <FlaskConical /> Test run
             </Button>
@@ -112,6 +118,7 @@ function FlowEditor({ flow }: { flow: Flow }) {
           Drag steps to change the order VoiceControl asks them. Add conditions, computed values, loops for lists, and further screens or
           apps. Password, OTP and PIN fields are always typed by the user.
         </p>
+        <SourceBanner flow={flow} />
         <div className="flex flex-wrap gap-2">
           <NativeSelect
             aria-label="Add a logic step"
@@ -148,6 +155,8 @@ function FlowEditor({ flow }: { flow: Flow }) {
           </div>
         )}
       </div>
+
+      <PublishDialog flow={flow} open={publishOpen} onOpenChange={setPublishOpen} dirty={state.dirty} />
 
       <AppendFlowDialog
         open={appendOpen}

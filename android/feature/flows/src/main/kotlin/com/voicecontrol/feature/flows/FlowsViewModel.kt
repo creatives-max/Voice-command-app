@@ -3,12 +3,14 @@ package com.voicecontrol.feature.flows
 import androidx.lifecycle.viewModelScope
 import com.voicecontrol.core.data.automation.RemoteRunRepository
 import com.voicecontrol.core.data.flows.FlowLibrary
+import com.voicecontrol.core.data.flows.TemplateRepository
 import com.voicecontrol.core.engine.port.FlowLauncher
 import com.voicecontrol.core.data.settings.SettingsRepository
 import com.voicecontrol.core.ui.mvi.MviViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -17,6 +19,7 @@ class FlowsViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val launcher: FlowLauncher,
     remoteRuns: RemoteRunRepository,
+    templates: TemplateRepository,
 ) : MviViewModel<FlowsState, FlowsIntent, FlowsEffect>(FlowsState()) {
 
     init {
@@ -29,6 +32,10 @@ class FlowsViewModel @Inject constructor(
                 )
             }
         }.launchIn(viewModelScope)
+        templates.templates.onEach { list ->
+            setState { copy(templates = list.map { TemplateSummary(it.template.id, it.template.name, it.description, it.template.steps.size) }) }
+        }.launchIn(viewModelScope)
+        viewModelScope.launch { templates.load() }
         remoteRuns.appOpenTriggers.onEach { triggers ->
             setState { copy(appOpenFlowIds = triggers.map { it.flowId }.toSet()) }
         }.launchIn(viewModelScope)

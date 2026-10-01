@@ -100,7 +100,7 @@ fun FlowsScreen(state: FlowsState, snackbar: SnackbarHostState, onBack: () -> Un
         when {
             state.loading -> LoadingBox(Modifier.padding(padding))
             selected != null -> FlowDetail(selected, selected.id in state.appOpenFlowIds, Modifier.padding(padding), onIntent)
-            state.apps.isEmpty() -> EmptyState(
+            state.apps.isEmpty() && state.templates.isEmpty() -> EmptyState(
                 "No flows yet. Run VoiceControl on any app; each form you fill is saved here and can be edited on the dashboard.",
                 Modifier.padding(padding),
                 Icons.Filled.ViewList,
@@ -116,7 +116,40 @@ fun FlowsScreen(state: FlowsState, snackbar: SnackbarHostState, onBack: () -> Un
                     }
                     items(app.flows, key = { it.id }) { flow -> FlowCard(flow) { onIntent(FlowsIntent.Open(flow.id)) } }
                 }
+                if (state.apps.isEmpty()) {
+                    item(key = "no-flows") {
+                        Text(
+                            "No saved flows yet. Run VoiceControl on any app; each form you fill is saved here and can be edited on the dashboard.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                if (state.templates.isNotEmpty()) {
+                    item(key = "templates-header") {
+                        Column(Modifier.padding(top = 16.dp)) {
+                            Text("Starter templates", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                            Text(
+                                "Used automatically on screens without a saved flow when they fit. Turn off in Settings.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    items(state.templates, key = { "t-" + it.id }) { t -> TemplateCard(t) }
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun TemplateCard(template: TemplateSummary) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(template.name, style = MaterialTheme.typography.titleMedium)
+            Text(template.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${template.stepCount} steps", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
         }
     }
 }

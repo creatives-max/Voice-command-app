@@ -140,6 +140,21 @@ Flows are more than an ordered list of questions:
   runs the scheduler; each tick claims due rows with `SELECT … FOR UPDATE SKIP LOCKED`, creates the run request and
   advances `next_run_at` in one transaction, so each due time fires exactly once.
 
+## Marketplace and starter templates
+
+- **Publishing** copies a flow's current version into `published_flows` / `published_flow_versions` with default values
+  removed (they may be personal). Publishing the same flow again adds a version. Listings are searchable with Postgres
+  full-text search (weighted name, description, app and tags), filterable by category/app, sortable by imports, rating
+  or recency, and rated 1–5 stars (one rating per user, not on your own listing).
+- **Importing** creates a flow in the importer's account (or a new version of their flow for the same screen) that
+  remembers `source_published_id` + `source_version`; when the publisher releases a newer version the dashboard offers
+  "update from source", applied as a new version (history keeps the old steps).
+- **Starter templates** (sign-up, login, address, OTP-less sign-up, contact, payment) live in
+  `backend/application/src/main/resources/templates/starter-templates.json`, seeded idempotently at startup and also
+  bundled into the app. Each step has keywords; on screens without a saved flow the phone fits the best template to
+  the screen (`TemplateMatcher`), and the dashboard can apply a template to an existing flow. Both matchers share
+  `docs/spec/template-matching.json`.
+
 ## Observability
 
 - OpenTelemetry SDK (autoconfigured) with Ktor server instrumentation; spans for every request and for each event

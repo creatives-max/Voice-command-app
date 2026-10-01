@@ -39,6 +39,8 @@ class SettingsRepository @Inject constructor(
         val deviceName = stringPreferencesKey("device_name")
         val deviceId = stringPreferencesKey("device_id")
         val appOpenTriggers = stringPreferencesKey("app_open_triggers")
+        val templates = stringPreferencesKey("starter_templates")
+        val useTemplates = booleanPreferencesKey("use_templates")
     }
 
     val settings: Flow<AppSettings> = store.data.map(::read)
@@ -69,6 +71,12 @@ class SettingsRepository @Inject constructor(
         store.edit { it[Keys.appOpenTriggers] = json }
     }
 
+    suspend fun templatesJson(): String? = store.data.first()[Keys.templates]
+
+    suspend fun saveTemplatesJson(json: String) {
+        store.edit { it[Keys.templates] = json }
+    }
+
     suspend fun update(transform: (AppSettings) -> AppSettings) {
         store.edit { p ->
             val next = transform(read(p))
@@ -87,6 +95,7 @@ class SettingsRepository @Inject constructor(
             p[Keys.dashboardUrl] = next.dashboardUrl.trim().trimEnd('/')
             p[Keys.remoteRuns] = next.remoteRuns
             p[Keys.deviceName] = next.deviceName.trim().take(60)
+            p[Keys.useTemplates] = next.useTemplates
         }
     }
 
@@ -108,6 +117,7 @@ class SettingsRepository @Inject constructor(
             dashboardUrl = p[Keys.dashboardUrl] ?: d.dashboardUrl,
             remoteRuns = p[Keys.remoteRuns] ?: d.remoteRuns,
             deviceName = p[Keys.deviceName] ?: d.deviceName,
+            useTemplates = p[Keys.useTemplates] ?: d.useTemplates,
         )
     }
 }

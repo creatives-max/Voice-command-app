@@ -4,6 +4,7 @@ import com.voicecontrol.core.data.StorageJson
 import com.voicecontrol.core.data.db.FlowDao
 import com.voicecontrol.core.data.db.FlowEntity
 import com.voicecontrol.core.engine.FlowGenerator
+import com.voicecontrol.core.engine.TemplateMatcher
 import com.voicecontrol.core.model.FlowDefinition
 import com.voicecontrol.core.model.FlowStep
 import com.voicecontrol.core.model.ScreenSnapshot
@@ -19,6 +20,7 @@ import javax.inject.Singleton
 @Singleton
 class FlowRepository @Inject constructor(
     private val dao: FlowDao,
+    private val templates: TemplateRepository,
 ) {
     private val stepsSerializer = ListSerializer(FlowStep.serializer())
 
@@ -47,16 +49,20 @@ class FlowRepository @Inject constructor(
     }
 
     /**
-     * Creates local flows for screens handled without a saved flow, so the next run on the same screen
-     * reuses the same order and questions. Screens that already have a flow keep it (and its edits).
+     * Creates local flows for screens handled without a saved flow (or by a starter template), so the next
+     * run on the same screen reuses the same order and questions. Screens that already have a flow keep it.
      */
     suspend fun createFromSession(summary: SessionSummary, nowMillis: Long): List<FlowDefinition> {
         val created = mutableListOf<FlowDefinition>()
         for (screen in summary.screens) {
-            if (screen.flowId != null || screen.steps.isEmpty()) continue
+            val template = screen.flowId?.takeIf { it.startsWith(TemplateMatcher.TEMPLATE_PREFIX) }?.let { id ->
+                templates.current().firstOrNull { TemplateMatcher.TEMPLATE_PREFIX + it.id == id }
+            }
+            // Screens handled by a template are saved as the user's own flow, keeping the template's questions.
+            if ((screen.flowId != null && template == null) || screen.steps.isEmpty()) continue
             val existing = dao.byPackage(screen.appPackage).any { it.screenSignature == screen.screenSignature }
             if (existing) continue
-            val flow = FlowGenerator.fromScreen(screen, FlowDefinition.LOCAL_PREFIX + UUID.randomUUID(), nowMillis)
+            val flow = FlowGenerator.fromScreen(screen, FlowDefinition.LOCAL_PREFIX + UUID.randomUUID(), nowMillis, template)
             dao.upsert(toEntity(flow, synced = false))
             created += flow
         }

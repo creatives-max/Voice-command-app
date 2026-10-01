@@ -67,6 +67,8 @@ export const flowSchema = z.object({
   updatedAtMillis: z.number(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  sourcePublishedId: z.string().nullish(),
+  sourceVersion: z.number().nullish(),
 });
 export type Flow = z.infer<typeof flowSchema>;
 
@@ -85,7 +87,7 @@ export const flowPageSchema = z.object({ items: z.array(flowSummarySchema), limi
 export const flowVersionSchema = z.object({
   version: z.number(),
   steps: z.array(flowStepSchema),
-  source: z.enum(["DEVICE", "DASHBOARD", "ROLLBACK"]),
+  source: z.enum(["DEVICE", "DASHBOARD", "ROLLBACK", "IMPORT"]),
   changeNote: z.string().nullish(),
   createdAt: z.string(),
 });
@@ -198,3 +200,39 @@ export type RunRequest = z.infer<typeof runRequestSchema>;
 export const runEventSchema = z.object({ id: z.number(), at: z.string(), kind: z.string(), message: z.string() });
 export type RunEvent = z.infer<typeof runEventSchema>;
 export const runEventsSchema = z.object({ request: runRequestSchema, events: z.array(runEventSchema) });
+
+export const listingSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  appPackage: z.string(),
+  category: z.string(),
+  tags: z.array(z.string()),
+  isTemplate: z.boolean(),
+  ownerName: z.string().nullish(),
+  mine: z.boolean(),
+  latestVersion: z.number(),
+  installCount: z.number(),
+  ratingAverage: z.number().nullish(),
+  ratingCount: z.number(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type Listing = z.infer<typeof listingSchema>;
+export const listingPageSchema = z.object({ items: z.array(listingSchema), limit: z.number(), offset: z.number() });
+export const ratingSchema = z.object({ stars: z.number(), review: z.string().nullish(), userName: z.string().nullish(), updatedAt: z.string() });
+export type ListingRating = z.infer<typeof ratingSchema>;
+export const listingDetailSchema = z.object({
+  listing: listingSchema,
+  steps: z.array(flowStepSchema),
+  keywords: z.record(z.array(z.string())).default({}),
+  versions: z.array(z.object({ version: z.number(), changelog: z.string().nullish(), stepCount: z.number(), createdAt: z.string() })),
+  myRating: ratingSchema.nullish(),
+  reviews: z.array(ratingSchema),
+  importedFlowId: z.string().nullish(),
+  importedVersion: z.number().nullish(),
+  updateAvailable: z.boolean(),
+});
+export type ListingDetail = z.infer<typeof listingDetailSchema>;
+export const templateSchema = z.object({ listing: listingSchema, steps: z.array(flowStepSchema), keywords: z.record(z.array(z.string())) });
+export type Template = z.infer<typeof templateSchema>;

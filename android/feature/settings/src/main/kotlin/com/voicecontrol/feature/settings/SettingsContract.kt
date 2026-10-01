@@ -23,7 +23,7 @@ sealed interface SettingsIntent {
     data object TestVoice : SettingsIntent
 }
 
-enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START, REMOTE_RUNS }
+enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START, REMOTE_RUNS, USE_TEMPLATES }
 
 sealed interface SettingsEffect {
     data class Message(val text: String) : SettingsEffect
@@ -41,6 +41,7 @@ fun AppSettings.with(option: Option, enabled: Boolean): AppSettings = when (opti
     Option.VISION_FALLBACK -> copy(visionFallback = enabled, localOnly = if (enabled) false else localOnly)
     Option.AUTO_START -> copy(autoStartWithFlow = enabled)
     Option.REMOTE_RUNS -> copy(remoteRuns = enabled)
+    Option.USE_TEMPLATES -> copy(useTemplates = enabled)
 }
 
 fun AppSettings.isOn(option: Option): Boolean = when (option) {
@@ -54,6 +55,7 @@ fun AppSettings.isOn(option: Option): Boolean = when (option) {
     Option.VISION_FALLBACK -> visionFallback
     Option.AUTO_START -> autoStartWithFlow
     Option.REMOTE_RUNS -> remoteRuns
+    Option.USE_TEMPLATES -> useTemplates
 }
 
 /** Accepts http(s) URLs only; blank means "use the build default". */

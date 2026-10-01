@@ -61,7 +61,7 @@ const clearCookies: SetCookie[] = [
   { name: REFRESH_COOKIE, value: "", maxAge: 0 },
 ];
 
-const ALLOWED_PREFIXES = ["flows", "profile", "me", "ai", "runs", "devices", "triggers", "run-requests"];
+const ALLOWED_PREFIXES = ["flows", "profile", "me", "ai", "runs", "devices", "triggers", "run-requests", "marketplace"];
 
 export async function handleProxy(req: ProxyRequest, backendUrl: string, fetcher: typeof fetch = fetch): Promise<ProxyResponse> {
   const base = backendUrl.replace(/\/$/, "");

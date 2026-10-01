@@ -10,7 +10,11 @@ data class FlowsState(
     val selected: FlowDefinition? = null,
     /** Flows that start by themselves when their app opens (set on the dashboard). */
     val appOpenFlowIds: Set<String> = emptySet(),
+    /** Starter templates used on screens without a saved flow. */
+    val templates: List<TemplateSummary> = emptyList(),
 )
+
+data class TemplateSummary(val id: String, val name: String, val description: String, val stepCount: Int)
 
 sealed interface FlowsIntent {
     data class Open(val flowId: String) : FlowsIntent

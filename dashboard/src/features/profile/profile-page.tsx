@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { profileQuery, useSaveProfile } from "@/lib/queries";
 import type { Profile } from "@/lib/types";
+import { SecurityCard } from "./security-card";
 
 const FIELDS: { key: keyof Profile; label: string; placeholder?: string; type?: string }[] = [
   { key: "fullName", label: "Full name" },
@@ -73,6 +74,7 @@ export function ProfilePage() {
           </form>
         </CardContent>
       </Card>
+      <SecurityCard />
       <YourData />
     </div>
   );

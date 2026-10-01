@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getCareLinkId } from "./care";
 import { getOrgId } from "./org";
 import {
+  sessionSchema,
   orgUsageSchema,
   careEventSchema,
   careInviteSchema,
@@ -254,6 +255,10 @@ export function createApi(
       return res.text();
     },
     deleteAccount: (password: string) => request(null, "/me", { method: "DELETE", body: json({ password }) }),
+    changePassword: (currentPassword: string, newPassword: string) =>
+      request(null, "/me/password", { method: "POST", body: json({ currentPassword, newPassword }) }),
+    sessions: () => request(z.array(sessionSchema), "/me/sessions"),
+    endSession: (id: string) => request(null, `/me/sessions/${encodeURIComponent(id)}`, { method: "DELETE" }),
     crashes: () => request(crashGroupSchema.array(), "/crashes"),
 
     // Caregiving (always the caller's own; see lib/care.ts)

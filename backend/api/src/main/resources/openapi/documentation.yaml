@@ -71,6 +71,7 @@ paths:
   /v1/auth/login:
     post:
       tags: [Auth]
+      description: After 10 wrong passwords for one account within 15 minutes, sign-in for that account answers 429 until the 15 minutes are over.
       security: []
       requestBody:
         required: true
@@ -115,6 +116,55 @@ paths:
       tags: [Auth]
       responses:
         "200": { description: Current user, content: { application/json: { schema: { $ref: "#/components/schemas/User" } } } }
+    delete:
+      tags: [Auth]
+      summary: Delete your account and data (GDPR erasure)
+      description: Organizations where you are the only member are deleted; your organization flows move to another admin. Fails with 409 while you are the only admin of an organization with other members.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [password], properties: { password: { type: string } } } } } }
+      responses:
+        "204": { description: Deleted; all sessions signed out }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /v1/me/password:
+    post:
+      tags: [Auth]
+      summary: Change your password (signs out every other session)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [currentPassword, newPassword], properties: { currentPassword: { type: string }, newPassword: { type: string, minLength: 8 } } }
+      responses:
+        "204": { description: Changed }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+  /v1/me/sessions:
+    get:
+      tags: [Auth]
+      summary: Browsers and phones signed in to your account, most recently used first
+      responses:
+        "200":
+          description: Sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string }
+                    client: { type: string, nullable: true, example: Chrome on Windows }
+                    createdAt: { type: string, format: date-time }
+                    lastUsedAt: { type: string, format: date-time }
+                    current: { type: boolean, description: The session making this request }
+  /v1/me/sessions/{id}:
+    delete:
+      tags: [Auth]
+      summary: Sign out one session
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        "204": { description: Signed out }
+        "404": { $ref: "#/components/responses/Error" }
   /v1/profile:
     get:
       tags: [Profile]
@@ -1068,16 +1118,6 @@ paths:
       summary: Download all your data as JSON (GDPR access)
       responses:
         "200": { description: JSON document (account, profile, flows with versions, history, devices, triggers, remote runs, listings, ratings, organizations, comments, API keys created, audit entries, crash reports) }
-  /v1/me:
-    delete:
-      tags: [Auth]
-      summary: Delete your account and data (GDPR erasure)
-      description: Organizations where you are the only member are deleted; your organization flows move to another admin. Fails with 409 while you are the only admin of an organization with other members.
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [password], properties: { password: { type: string } } } } } }
-      responses:
-        "204": { description: Deleted; all sessions signed out }
-        "403": { $ref: "#/components/responses/Error" }
-        "409": { $ref: "#/components/responses/Error" }
   /v1/crashes:
     get:
       tags: [Ops]
@@ -1395,6 +1435,7 @@ components:
         email: { type: string }
         name: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
+        passwordChangedAt: { type: string, format: date-time, nullable: true }
     AuthResponse:
       type: object
       properties:

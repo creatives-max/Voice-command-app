@@ -75,4 +75,18 @@ class ApiClientTest {
         assertEquals("validation_error", e.code)
         assertEquals(400, e.status)
     }
+
+    @Test
+    fun `the phone introduces itself without personal details`() = runTest {
+        assertEquals("VoiceControl-Android/1.4.0 (Pixel 8; Android 15)", clientUserAgent("1.4.0", "Pixel 8", "15"))
+        assertEquals("VoiceControl-Android/0", clientUserAgent(null, " ", null))
+        assertEquals("VoiceControl-Android/1.0 (EvilModel)", clientUserAgent("1.0", "Evil\r\nModel()", null))
+        var seen: String? = null
+        val engine = MockEngine { req ->
+            seen = req.headers[HttpHeaders.UserAgent]
+            respond("""{"intent":"FILL","targetId":"n","value":"Rahul","source":"anthropic"}""", HttpStatusCode.OK, json)
+        }
+        AiApi(ApiClient(createHttpClient(engine, debug = false, userAgent = clientUserAgent("1.4.0", "Pixel 8", "15")), FakeSession())).interpret(request)
+        assertEquals("VoiceControl-Android/1.4.0 (Pixel 8; Android 15)", seen)
+    }
 }

@@ -46,9 +46,13 @@ class MainActivity : FragmentActivity() {
     /** Set when the overlay opened the app to review a "teach by doing" recording. */
     private val reviewTeaching = MutableStateFlow(false)
 
+    /** Set when a launcher shortcut opened the app. */
+    private val shortcut = MutableStateFlow<AppShortcut?>(null)
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action == OverlayManager.ACTION_REVIEW_TEACHING) reviewTeaching.value = true
+        AppShortcut.fromAction(intent.action)?.let { shortcut.value = it }
     }
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -56,6 +60,8 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         if (savedInstanceState == null && intent?.action == OverlayManager.ACTION_REVIEW_TEACHING) reviewTeaching.value = true
+        if (savedInstanceState == null) shortcut.value = AppShortcut.fromAction(intent?.action)
+        AppShortcut.publish(this)
         // With the app lock on, keep VoiceControl's screens out of screenshots and the recent-apps preview.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
@@ -71,6 +77,7 @@ class MainActivity : FragmentActivity() {
                 val onboardingDone by appViewModel.onboardingDone.collectAsStateWithLifecycle()
                 val signedIn by appViewModel.signedIn.collectAsStateWithLifecycle()
                 val review by reviewTeaching.collectAsStateWithLifecycle()
+                val openShortcut by shortcut.collectAsStateWithLifecycle()
                 val wide = calculateWindowSizeClass(this).widthSizeClass != WindowWidthSizeClass.Compact
                 // Decided once per launch, so finishing the tutorial doesn't rebuild the navigation graph.
                 var startWithOnboarding by remember { mutableStateOf<Boolean?>(null) }
@@ -86,6 +93,8 @@ class MainActivity : FragmentActivity() {
                                 signedIn = signedIn,
                                 reviewTeaching = review && start == false,
                                 onReviewOpened = { reviewTeaching.value = false },
+                                shortcut = openShortcut.takeIf { start == false && locked == false },
+                                onShortcutOpened = { shortcut.value = null },
                             ) }
                     }
                     if (locked == true) LockScreen(onUnlocked = lock::unlocked)

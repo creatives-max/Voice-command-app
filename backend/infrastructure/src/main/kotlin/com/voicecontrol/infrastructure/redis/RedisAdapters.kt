@@ -2,6 +2,8 @@ package com.voicecontrol.infrastructure.redis
 
 import com.voicecontrol.domain.event.Cache
 import com.voicecontrol.domain.event.RateLimiter
+import com.voicecontrol.domain.user.ConsumedSession
+import com.voicecontrol.domain.user.SessionInfo
 import com.voicecontrol.domain.user.SessionStore
 import io.lettuce.core.ScanArgs
 import io.lettuce.core.ScanCursor
@@ -9,6 +11,8 @@ import io.lettuce.core.SetArgs
 import kotlinx.coroutines.future.await
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.time.Clock
+import java.time.Instant
 import java.util.Base64
 import java.util.UUID
 
@@ -35,44 +39,116 @@ class RedisCache(private val redis: RedisConnections) : Cache {
 
 /**
  * Refresh-token sessions. Only SHA-256 hashes of tokens are stored; refreshing consumes the old token
- * (rotation), so a stolen refresh token stops working as soon as the real client refreshes.
+ * (rotation), so a stolen refresh token stops working as soon as the real client refreshes. Each session
+ * keeps an id, a client description and its times across rotations so people can see and end them.
+ *
+ * Keys: `vc:refresh:<hash>` → "<userId>|<sessionId>"; `vc:session:<id>` → hash (user, client, created,
+ * used, token); `vc:user-sessions:<userId>` → token hashes; `vc:user-session-ids:<userId>` → session ids.
  */
-class RedisSessionStore(private val redis: RedisConnections, private val ttlSeconds: Long) : SessionStore {
+class RedisSessionStore(
+    private val redis: RedisConnections,
+    private val ttlSeconds: Long,
+    private val clock: Clock = Clock.systemUTC(),
+) : SessionStore {
     private val random = SecureRandom()
 
-    override suspend fun create(userId: UUID): String {
+    override suspend fun create(userId: UUID, sessionId: String, client: String?, createdAt: Instant?): String {
         val bytes = ByteArray(32).also(random::nextBytes)
         val token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
         val hash = hash(token)
-        redis.commands.set(tokenKey(hash), userId.toString(), SetArgs.Builder.ex(ttlSeconds)).await()
-        redis.commands.sadd(userKey(userId), hash).await()
-        redis.commands.expire(userKey(userId), ttlSeconds).await()
+        val now = clock.instant()
+        val c = redis.commands
+        c.set(tokenKey(hash), "$userId|$sessionId", SetArgs.Builder.ex(ttlSeconds)).await()
+        c.sadd(userKey(userId), hash).await()
+        c.expire(userKey(userId), ttlSeconds).await()
+        val meta = buildMap {
+            put("user", userId.toString())
+            put("created", (createdAt ?: now).toEpochMilli().toString())
+            put("used", now.toEpochMilli().toString())
+            put("token", hash)
+            client?.let { put("client", it.take(MAX_CLIENT)) }
+        }
+        c.hset(sessionKey(sessionId), meta).await()
+        c.expire(sessionKey(sessionId), ttlSeconds).await()
+        c.sadd(sessionIdsKey(userId), sessionId).await()
+        c.expire(sessionIdsKey(userId), ttlSeconds).await()
         return token
     }
 
-    override suspend fun consume(refreshToken: String): UUID? {
+    override suspend fun consume(refreshToken: String): ConsumedSession? {
         val hash = hash(refreshToken)
-        val userId = redis.commands.getdel(tokenKey(hash)).await() ?: return null
-        val id = runCatching { UUID.fromString(userId) }.getOrNull() ?: return null
+        val value = redis.commands.getdel(tokenKey(hash)).await() ?: return null
+        // Tokens issued before sessions had ids hold only the user id.
+        val userPart = value.substringBefore('|')
+        val id = runCatching { UUID.fromString(userPart) }.getOrNull() ?: return null
         redis.commands.srem(userKey(id), hash).await()
-        return id
+        val sessionId = value.substringAfter('|', "").ifEmpty { UUID.randomUUID().toString() }
+        val meta = redis.commands.hgetall(sessionKey(sessionId)).await().orEmpty()
+        val createdAt = meta["created"]?.toLongOrNull()?.let(Instant::ofEpochMilli)
+        return ConsumedSession(id, sessionId, meta["client"], createdAt)
     }
 
     override suspend fun revoke(refreshToken: String) {
-        consume(refreshToken)
+        val session = consume(refreshToken) ?: return
+        forget(session.userId, session.sessionId)
     }
 
     override suspend fun revokeAll(userId: UUID) {
-        val hashes = redis.commands.smembers(userKey(userId)).await()
-        if (hashes.isNotEmpty()) redis.commands.del(*hashes.map(::tokenKey).toTypedArray()).await()
-        redis.commands.del(userKey(userId)).await()
+        val c = redis.commands
+        val hashes = c.smembers(userKey(userId)).await()
+        if (hashes.isNotEmpty()) c.del(*hashes.map(::tokenKey).toTypedArray()).await()
+        val ids = c.smembers(sessionIdsKey(userId)).await()
+        if (ids.isNotEmpty()) c.del(*ids.map(::sessionKey).toTypedArray()).await()
+        c.del(userKey(userId), sessionIdsKey(userId)).await()
+    }
+
+    override suspend fun list(userId: UUID): List<SessionInfo> {
+        val c = redis.commands
+        val result = mutableListOf<SessionInfo>()
+        for (id in c.smembers(sessionIdsKey(userId)).await()) {
+            val meta = c.hgetall(sessionKey(id)).await().orEmpty()
+            val token = meta["token"]
+            // Sessions whose refresh token expired or was used up without a new one are gone.
+            val alive = meta["user"] == userId.toString() && token != null && c.exists(tokenKey(token)).await() > 0
+            if (!alive) {
+                c.srem(sessionIdsKey(userId), id).await()
+                c.del(sessionKey(id)).await()
+                continue
+            }
+            val created = meta["created"]?.toLongOrNull()?.let(Instant::ofEpochMilli) ?: continue
+            val used = meta["used"]?.toLongOrNull()?.let(Instant::ofEpochMilli) ?: created
+            result += SessionInfo(id, meta["client"], created, used)
+        }
+        return result.sortedByDescending { it.lastUsedAt }
+    }
+
+    override suspend fun revokeSession(userId: UUID, sessionId: String): Boolean {
+        val meta = redis.commands.hgetall(sessionKey(sessionId)).await().orEmpty()
+        if (meta["user"] != userId.toString()) return false
+        meta["token"]?.let { token ->
+            redis.commands.del(tokenKey(token)).await()
+            redis.commands.srem(userKey(userId), token).await()
+        }
+        forget(userId, sessionId)
+        return true
+    }
+
+    private suspend fun forget(userId: UUID, sessionId: String) {
+        redis.commands.del(sessionKey(sessionId)).await()
+        redis.commands.srem(sessionIdsKey(userId), sessionId).await()
     }
 
     private fun tokenKey(hash: String) = "vc:refresh:$hash"
     private fun userKey(userId: UUID) = "vc:user-sessions:$userId"
+    private fun sessionKey(sessionId: String) = "vc:session:$sessionId"
+    private fun sessionIdsKey(userId: UUID) = "vc:user-session-ids:$userId"
 
     private fun hash(token: String): String =
         MessageDigest.getInstance("SHA-256").digest(token.toByteArray()).joinToString("") { "%02x".format(it) }
+
+    private companion object {
+        const val MAX_CLIENT = 120
+    }
 }
 
 /** Fixed-window counter shared by all backend replicas. */

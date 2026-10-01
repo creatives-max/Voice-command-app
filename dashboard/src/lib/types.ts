@@ -20,8 +20,19 @@ export const userSchema = z.object({
   email: z.string(),
   name: z.string().nullish(),
   createdAt: z.string().optional(),
+  passwordChangedAt: z.string().nullish(),
 });
 export type User = z.infer<typeof userSchema>;
+
+/** A browser or phone signed in to the account. */
+export const sessionSchema = z.object({
+  id: z.string(),
+  client: z.string().nullish(),
+  createdAt: z.string(),
+  lastUsedAt: z.string(),
+  current: z.boolean(),
+});
+export type Session = z.infer<typeof sessionSchema>;
 
 export const repeatSpecSchema = z.object({
   stepIds: z.array(z.string()).default([]),

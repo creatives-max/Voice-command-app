@@ -97,6 +97,9 @@ those terms, API inputs are not used to train their models by default, and we do
 ## Storage and security
 
 - Server data is stored in PostgreSQL; sessions and caches in Redis. Passwords are stored as bcrypt hashes.
+- Each signed-in session stores a short description of the browser or app (from its User-Agent, e.g. “Chrome on
+  Windows” or “VoiceControl app 1.4.0 on Android”), when it signed in and when it was last used, so you can review
+  and end sessions on the dashboard (Profile → Security). It is deleted when the session ends.
 - Access tokens on the phone are encrypted with a key held in the Android Keystore; the dashboard keeps tokens in
   httpOnly, SameSite=Strict cookies.
 - All traffic uses HTTPS. Observability traces never include request bodies or authorization headers.

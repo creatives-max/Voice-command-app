@@ -7,6 +7,7 @@ import com.voicecontrol.domain.user.User
 import com.voicecontrol.domain.user.UserRepository
 import java.sql.ResultSet
 import java.sql.SQLException
+import java.time.Instant
 import java.util.UUID
 
 class JdbcUserRepository(private val db: Database) : UserRepository {
@@ -28,7 +29,14 @@ class JdbcUserRepository(private val db: Database) : UserRepository {
         query("SELECT * FROM users WHERE id = ?", id, map = ::toUser).firstOrNull()
     }
 
-    private fun toUser(rs: ResultSet) = User(rs.uuid("id"), rs.getString("email"), rs.getString("name"), rs.getString("password_hash"), rs.instant("created_at"))
+    override suspend fun updatePassword(id: UUID, passwordHash: String, at: Instant): Boolean = db.tx {
+        update("UPDATE users SET password_hash = ?, password_changed_at = ? WHERE id = ?", passwordHash, at, id) > 0
+    }
+
+    private fun toUser(rs: ResultSet) = User(
+        rs.uuid("id"), rs.getString("email"), rs.getString("name"), rs.getString("password_hash"), rs.instant("created_at"),
+        rs.getTimestamp("password_changed_at")?.toInstant(),
+    )
 }
 
 class JdbcProfileRepository(private val db: Database) : ProfileRepository {

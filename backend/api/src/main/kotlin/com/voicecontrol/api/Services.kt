@@ -236,6 +236,7 @@ object Bootstrap {
                 hasher = BcryptPasswordHasher(bcryptCost),
                 issuer = JwtIssuer(config.jwt),
                 sessions = RedisSessionStore(redis, config.jwt.refreshTtlSeconds),
+                failures = cache,
             ),
             profiles = ProfileService(JdbcProfileRepository(database), cache),
             flows = flowService,

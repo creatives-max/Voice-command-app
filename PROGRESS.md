@@ -208,6 +208,11 @@ phase notes say which earlier phase covered the rest.
 - [x] Phone theme choice (same as phone / light / dark); English and Hindi strings for the new dashboard parts
 - [x] Tests, commit + push
 
-## Phase 28 — Security & platform polish (gaps; Phase 16)
-- [ ] Gap-fill, tests, commit + push
+## Phase 28 — Security & platform polish (gaps; biometric lock, on-device-only mode, GDPR export/delete, crash reports, onboarding, widget, quick-settings tile, tablet layout and the emulator test were done in Phase 16)
+- [x] Signed-in sessions: each browser/phone keeps an id and a description across token rotation (access tokens carry `sid`); list and sign out one or all others
+- [x] Password change (checks the current one, signs out other sessions; migration V13 `password_changed_at`)
+- [x] Per-account sign-in lockout after 10 wrong passwords for 15 minutes (on top of the per-IP limit)
+- [x] Dashboard Profile → Security card; the proxy forwards the browser's User-Agent on sign-in/refresh; the phone sends `VoiceControl-Android/<version> (<model>; Android <n>)`
+- [x] Phone launcher shortcuts (Insights, My flows, Get flows, Settings); emulator test independent of window focus
+- [x] OpenAPI (also merged a duplicate `/v1/me` entry), privacy policy, README; tests, commit + push
 

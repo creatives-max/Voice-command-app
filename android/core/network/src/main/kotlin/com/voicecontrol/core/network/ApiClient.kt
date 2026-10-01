@@ -4,6 +4,7 @@ import com.voicecontrol.core.network.dto.ApiErrorDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.UserAgent
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
@@ -28,9 +29,20 @@ val NetworkJson = Json {
     explicitNulls = false
 }
 
+/**
+ * How the phone introduces itself, so people recognise it in their signed-in sessions
+ * ("VoiceControl app 1.4.0 on Android"). Only the app version and phone model, nothing personal.
+ */
+fun clientUserAgent(appVersion: String?, model: String?, androidRelease: String?): String {
+    val clean = { v: String? -> v?.replace(Regex("[^\\w .\\-]"), "")?.trim()?.take(40)?.takeIf { it.isNotEmpty() } }
+    val details = listOfNotNull(clean(model), clean(androidRelease)?.let { "Android $it" }).joinToString("; ")
+    return "VoiceControl-Android/${clean(appVersion) ?: "0"}" + if (details.isEmpty()) "" else " ($details)"
+}
+
 /** Builds the shared Ktor client; the engine is injected so tests can use MockEngine. */
-fun createHttpClient(engine: io.ktor.client.engine.HttpClientEngine, debug: Boolean): HttpClient = HttpClient(engine) {
+fun createHttpClient(engine: io.ktor.client.engine.HttpClientEngine, debug: Boolean, userAgent: String? = null): HttpClient = HttpClient(engine) {
     expectSuccess = false
+    if (userAgent != null) install(UserAgent) { agent = userAgent }
     install(ContentNegotiation) { json(NetworkJson) }
     install(HttpTimeout) {
         connectTimeoutMillis = 5_000

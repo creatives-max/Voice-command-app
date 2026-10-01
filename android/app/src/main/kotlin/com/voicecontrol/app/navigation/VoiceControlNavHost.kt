@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.navigation.NavDestination
+import androidx.navigation.toRoute
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -50,7 +51,8 @@ import kotlinx.serialization.Serializable
 @Serializable data object AuthDestination
 @Serializable data object ProfileDestination
 @Serializable data object FlowsDestination
-@Serializable data object HistoryDestination
+/** [insights] opens the Insights tab (launcher shortcut). */
+@Serializable data class HistoryDestination(val insights: Boolean = false)
 @Serializable data object SettingsDestination
 @Serializable data object PrivacyDestination
 @Serializable data object OnboardingDestination
@@ -74,8 +76,24 @@ fun VoiceControlNavHost(
     signedIn: Boolean = false,
     reviewTeaching: Boolean = false,
     onReviewOpened: () -> Unit = {},
+    shortcut: com.voicecontrol.app.AppShortcut? = null,
+    onShortcutOpened: () -> Unit = {},
 ) {
     val navController = rememberNavController()
+    // A launcher shortcut opens its place on top of Home.
+    LaunchedEffect(shortcut) {
+        val target: Any = when (shortcut ?: return@LaunchedEffect) {
+            com.voicecontrol.app.AppShortcut.INSIGHTS -> HistoryDestination(insights = true)
+            com.voicecontrol.app.AppShortcut.FLOWS -> FlowsDestination
+            com.voicecontrol.app.AppShortcut.MARKETPLACE -> MarketplaceDestination
+            com.voicecontrol.app.AppShortcut.SETTINGS -> SettingsDestination
+        }
+        navController.navigate(target) {
+            popUpTo(HomeDestination)
+            launchSingleTop = true
+        }
+        onShortcutOpened()
+    }
     // A finished "teach by doing" recording opens its review screen.
     LaunchedEffect(reviewTeaching) {
         if (reviewTeaching) {
@@ -90,7 +108,7 @@ fun VoiceControlNavHost(
         val items = listOf(
             RailItem("Home", Icons.Filled.Home, { it?.hasRoute(HomeDestination::class) == true }) { HomeDestination },
             RailItem("Flows", Icons.Filled.ViewList, { it?.hasRoute(FlowsDestination::class) == true }) { FlowsDestination },
-            RailItem("History", Icons.Filled.History, { it?.hasRoute(HistoryDestination::class) == true }) { HistoryDestination },
+            RailItem("History", Icons.Filled.History, { it?.hasRoute(HistoryDestination::class) == true }) { HistoryDestination() },
             RailItem(
                 "Account",
                 Icons.Filled.AccountCircle,
@@ -142,7 +160,7 @@ private fun Graph(navController: NavHostController, startWithOnboarding: Boolean
                 onOpenInspector = { navController.navigate(InspectorDestination) },
                 onOpenAccount = { signedIn -> navController.navigate(if (signedIn) ProfileDestination else AuthDestination) },
                 onOpenFlows = { navController.navigate(FlowsDestination) },
-                onOpenHistory = { navController.navigate(HistoryDestination) },
+                onOpenHistory = { navController.navigate(HistoryDestination()) },
                 onOpenSettings = { navController.navigate(SettingsDestination) },
                 onOpenProfile = { navController.navigate(ProfileDestination) },
                 onOpenTutorial = { navController.navigate(OnboardingDestination) },
@@ -155,8 +173,8 @@ private fun Graph(navController: NavHostController, startWithOnboarding: Boolean
                 navController.navigate(FlowsDestination) { popUpTo(TeachReviewDestination) { inclusive = true } }
             })
         }
-        composable<HistoryDestination> {
-            HistoryRoute(onBack = { navController.popBackStack() })
+        composable<HistoryDestination> { entry ->
+            HistoryRoute(onBack = { navController.popBackStack() }, openInsights = entry.toRoute<HistoryDestination>().insights)
         }
         composable<SettingsDestination> {
             SettingsRoute(

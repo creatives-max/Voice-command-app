@@ -90,6 +90,10 @@ val ApplicationCall.ownUserId: UUID
         ?: principal<ApiKeyPrincipal>()?.actingUserId
         ?: throw DomainException.Unauthorized()
 
+/** The signed-in session making the call (the access token's `sid`), or null for API keys and older tokens. */
+val ApplicationCall.sessionId: String?
+    get() = principal<JWTPrincipal>()?.payload?.getClaim("sid")?.takeIf { !it.isNull && !it.isMissing }?.asString()
+
 /** Set while a caregiver works on the account of the person they help (see [CARE_HEADER]). */
 val ApplicationCall.actingAs: ActingAs?
     get() = attributes.getOrNull(ActingAsKey)

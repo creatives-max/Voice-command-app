@@ -33,6 +33,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,8 +54,16 @@ import java.text.DateFormat
 import java.util.Date
 
 @Composable
-fun HistoryRoute(onBack: () -> Unit, viewModel: HistoryViewModel = hiltViewModel()) {
+fun HistoryRoute(onBack: () -> Unit, openInsights: Boolean = false, viewModel: HistoryViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Opened from the launcher's "Insights" shortcut: start on that tab (once per visit).
+    var insightsOpened by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(openInsights) {
+        if (openInsights && !insightsOpened) {
+            insightsOpened = true
+            viewModel.dispatch(HistoryIntent.SelectTab(HistoryTab.INSIGHTS))
+        }
+    }
     val snackbar = remember { SnackbarHostState() }
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {

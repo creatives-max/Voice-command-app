@@ -27,6 +27,8 @@ export interface ProxyRequest {
   orgId?: string | null;
   /** Care link of the person a caregiver is helping (`X-Care-Link`). */
   careLink?: string | null;
+  /** The browser's User-Agent, so the account's sessions list can say "Chrome on Windows". */
+  userAgent?: string | null;
 }
 
 export interface SetCookie {
@@ -76,10 +78,13 @@ export async function handleProxy(req: ProxyRequest, backendUrl: string, fetcher
   const call = (path: string, init: RequestInit) =>
     fetcher(`${base}${path}`, { ...init, headers: { "Content-Type": "application/json", ...(init.headers ?? {}) }, cache: "no-store" });
   const [head, ...rest] = req.path;
+  // Only sign-ins and refreshes need it (they create or continue a session); no control characters.
+  const cleanAgent = [...(req.userAgent ?? "")].filter((c) => c >= " " && c !== "\u007f").join("").slice(0, 300);
+  const agent: Record<string, string> = cleanAgent ? { "User-Agent": cleanAgent } : {};
 
   try {
     if (head === "auth" && (rest[0] === "login" || rest[0] === "register") && req.method === "POST") {
-      const res = await call(`/v1/auth/${rest[0]}`, { method: "POST", body: req.body ?? "{}" });
+      const res = await call(`/v1/auth/${rest[0]}`, { method: "POST", headers: agent, body: req.body ?? "{}" });
       const body = await res.text();
       if (!res.ok) return { status: res.status, body, setCookies: [] };
       const tokens = JSON.parse(body) as TokenResponse;
@@ -117,7 +122,7 @@ export async function handleProxy(req: ProxyRequest, backendUrl: string, fetcher
 
     let res = await forward(access);
     if (res.status === 401 && refresh) {
-      const refreshed = await call("/v1/auth/refresh", { method: "POST", body: JSON.stringify({ refreshToken: refresh }) });
+      const refreshed = await call("/v1/auth/refresh", { method: "POST", headers: agent, body: JSON.stringify({ refreshToken: refresh }) });
       if (!refreshed.ok) return json(401, { error: "unauthorized", message: "Session expired, please sign in again" }, clearCookies);
       const tokens = (await refreshed.json()) as TokenResponse;
       setCookies.push(...tokenCookies(tokens));

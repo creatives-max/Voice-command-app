@@ -209,6 +209,11 @@ transcript plus the next pending question.
   dashboard's Devices page.
 - **First-run tutorial** with a practice form the accessibility service can fill, a **home-screen widget** and a
   **quick-settings tile** to start talking, and a navigation rail with list-detail flows on tablets.
+- **Account security** (dashboard Profile → Security): change the password (other sessions are signed out), see
+  every signed-in browser and phone ("Chrome on Windows", "VoiceControl app 1.4.0 on Android") with when it was last
+  used, and sign out any of them. After 10 wrong passwords an account pauses sign-in for 15 minutes (on top of the
+  per-address limit). API: `POST /v1/me/password`, `GET /v1/me/sessions`, `DELETE /v1/me/sessions/{id}`.
+- **Launcher shortcuts**: long-press the app icon for Insights, My flows, Get flows and Settings.
 - CI runs the app on an **Android emulator** (`android-e2e` job, `./gradlew :app:connectedDebugAndroidTest`).
 
 ## Kubernetes

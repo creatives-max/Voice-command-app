@@ -79,4 +79,25 @@ describe("handleProxy", () => {
     const res = await handleProxy(req({}), "http://b", fetcher as typeof fetch);
     expect(res.status).toBe(502);
   });
+
+  it("passes the browser's User-Agent on sign-in and refresh only, without control characters", async () => {
+    const seen: { url: string; agent?: string }[] = [];
+    const fetcher = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      seen.push({ url: String(url), agent: headers["User-Agent"] });
+      if (String(url).endsWith("/v1/auth/refresh") || String(url).endsWith("/v1/auth/login")) return new Response(JSON.stringify(tokens), { status: 200 });
+      if (headers.Authorization === "Bearer A1") return new Response("{}", { status: 401 });
+      return new Response("[]", { status: 200 });
+    });
+    const ua = "Mozilla/5.0 Chrome/129\r\nX-Evil: 1";
+    await handleProxy(req({ method: "POST", path: ["auth", "login"], body: "{}", userAgent: ua }), "http://b", fetcher as typeof fetch);
+    const cookies = { get: (n: string) => (n === ACCESS_COOKIE ? "A1" : "R1") };
+    await handleProxy(req({ path: ["me", "sessions"], cookies, userAgent: ua }), "http://b", fetcher as typeof fetch);
+    expect(seen.map((s) => [s.url, s.agent])).toEqual([
+      ["http://b/v1/auth/login", "Mozilla/5.0 Chrome/129X-Evil: 1"],
+      ["http://b/v1/me/sessions", undefined],
+      ["http://b/v1/auth/refresh", "Mozilla/5.0 Chrome/129X-Evil: 1"],
+      ["http://b/v1/me/sessions", undefined],
+    ]);
+  });
 });

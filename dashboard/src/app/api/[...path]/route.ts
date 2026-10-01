@@ -18,6 +18,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       cookies: { get: (name) => jar.get(name)?.value },
       orgId: request.headers.get("x-org-id"),
       careLink: request.headers.get("x-care-link"),
+      userAgent: request.headers.get("user-agent"),
     },
     backendUrl(),
   );

@@ -19,9 +19,10 @@ class BcryptPasswordHasher(private val cost: Int = 12) : PasswordHasher {
 class JwtIssuer(private val config: AppConfig.JwtConfig, private val clock: Clock = Clock.systemUTC()) : AccessTokenIssuer {
     val algorithm: Algorithm = Algorithm.HMAC256(config.secret)
 
-    override fun issue(user: User): Pair<String, Long> {
+    override fun issue(user: User, sessionId: String?): Pair<String, Long> {
         val now = clock.instant()
         val token = JWT.create()
+            .apply { if (sessionId != null) withClaim(SESSION_CLAIM, sessionId) }
             .withIssuer(config.issuer)
             .withAudience(config.audience)
             .withSubject(user.id.toString())
@@ -30,5 +31,9 @@ class JwtIssuer(private val config: AppConfig.JwtConfig, private val clock: Cloc
             .withExpiresAt(Date.from(now.plusSeconds(config.accessTtlSeconds)))
             .sign(algorithm)
         return token to config.accessTtlSeconds
+    }
+
+    companion object {
+        const val SESSION_CLAIM = "sid"
     }
 }

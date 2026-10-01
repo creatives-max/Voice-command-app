@@ -16,9 +16,22 @@ import kotlinx.serialization.Serializable
 @Serializable data class RefreshRequest(val refreshToken: String)
 @Serializable data class LogoutRequest(val refreshToken: String? = null, val everywhere: Boolean = false)
 
-@Serializable data class UserDto(val id: String, val email: String, val name: String? = null, val createdAt: String) {
+@Serializable data class UserDto(
+    val id: String,
+    val email: String,
+    val name: String? = null,
+    val createdAt: String,
+    val passwordChangedAt: String? = null,
+) {
     companion object {
-        fun from(u: User) = UserDto(u.id.toString(), u.email, u.name, u.createdAt.toString())
+        fun from(u: User) = UserDto(u.id.toString(), u.email, u.name, u.createdAt.toString(), u.passwordChangedAt?.toString())
+    }
+}
+@Serializable data class ChangePasswordRequest(val currentPassword: String, val newPassword: String)
+@Serializable data class SessionDto(val id: String, val client: String? = null, val createdAt: String, val lastUsedAt: String, val current: Boolean) {
+    companion object {
+        fun from(v: com.voicecontrol.application.auth.SessionView) =
+            SessionDto(v.info.id, v.info.client, v.info.createdAt.toString(), v.info.lastUsedAt.toString(), v.current)
     }
 }
 

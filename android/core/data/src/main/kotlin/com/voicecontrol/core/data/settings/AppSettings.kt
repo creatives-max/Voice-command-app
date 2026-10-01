@@ -31,6 +31,8 @@ data class AppSettings(
     val confirmLowConfidence: Boolean = true,
     /** Listen for [wakeWord] while idle and start a session when it is heard. */
     val wakeWordEnabled: Boolean = false,
+    /** Ask before pressing buttons that can't be undone (pay, delete, sign out…). */
+    val confirmDestructive: Boolean = true,
     val wakeWord: String = "hey voice control",
     val backendUrl: String = "",
     /** Web dashboard where flows are edited; blank = the default for this build. */
@@ -47,5 +49,6 @@ data class AppSettings(
         visionFallback = visionFallback,
         bargeIn = bargeIn,
         confirmLowConfidence = confirmLowConfidence,
+        confirmDestructive = confirmDestructive,
     )
 }

@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.Card
@@ -68,6 +70,10 @@ interface OverlayActions {
     fun onBack()
     fun onClosePanel()
     fun onHelpVideo(url: String)
+    /** Screen-reader mode: read the whole screen aloud and navigate it by voice. */
+    fun onReadScreen()
+    /** Revert the last fill, toggle or button press. */
+    fun onUndo()
 }
 
 @Composable
@@ -178,6 +184,8 @@ private fun ElementPanel(state: OverlayUiState, actions: OverlayActions) {
                 IconButton(onClick = actions::onScrollUp) { Icon(Icons.Filled.KeyboardArrowUp, "Scroll up") }
                 IconButton(onClick = actions::onScrollDown) { Icon(Icons.Filled.KeyboardArrowDown, "Scroll down") }
                 IconButton(onClick = actions::onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                IconButton(onClick = actions::onUndo) { Icon(Icons.AutoMirrored.Filled.Undo, "Undo last action") }
+                IconButton(onClick = actions::onReadScreen) { Icon(Icons.Filled.RecordVoiceOver, "Read screen aloud") }
             }
         }
     }

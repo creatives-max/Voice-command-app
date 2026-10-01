@@ -140,6 +140,39 @@ class AssistantEngine(
         job = scope.launch { runSession(flow) }
     }
 
+    /** Starts screen-reader mode: reads the whole screen and lets the user move and activate by voice. */
+    fun startReader() {
+        if (isActive) return
+        job = scope.launch { runReaderSession() }
+    }
+
+    /** What can be reverted, most recent last (fills, toggles and button presses of the last session). */
+    private data class UndoEntry(val elementId: String, val label: String, val previousValue: String?, val previousChecked: Boolean?, val wasPress: Boolean)
+
+    private val undoStack = ArrayDeque<UndoEntry>()
+
+    val canUndo: Boolean get() = undoStack.isNotEmpty()
+
+    /**
+     * Reverts the last fill (previous text), toggle (previous state) or button press (goes back).
+     * Returns the label of what was undone, or null when there is nothing to undo or it failed.
+     */
+    suspend fun undoLast(): String? {
+        val entry = undoStack.removeLastOrNull() ?: return null
+        val action = when {
+            entry.wasPress -> ScreenAction.Back
+            entry.previousChecked != null -> ScreenAction.SetChecked(entry.elementId, entry.previousChecked)
+            else -> ScreenAction.SetText(entry.elementId, entry.previousValue.orEmpty())
+        }
+        return if (perform(action).isSuccess) entry.label else null
+    }
+
+    private fun recordUndo(element: ScreenElement, wasPress: Boolean = false, checkedBefore: Boolean? = null) {
+        if (element.isSensitive) return
+        undoStack += UndoEntry(element.id, element.label, element.value, checkedBefore, wasPress)
+        if (undoStack.size > MAX_UNDO) undoStack.removeFirst()
+    }
+
     fun stop() {
         stt.cancel()
         tts.stop()
@@ -180,6 +213,8 @@ class AssistantEngine(
         val memory = mutableListOf<MemoryItem>()
         /** Recognizer confidence of the last answer (null when the recognizer gives none). */
         var lastConfidence: Float? = null
+        /** Hybrid-vision results per screen signature, so a screen is sent to the model once per session. */
+        val hybrid = HashMap<String, HybridVision.Result>()
         /** Signature of the screen as last seen (loops can change it by adding rows). */
         var currentSignature: String = ""
 
@@ -227,6 +262,7 @@ class AssistantEngine(
     private suspend fun runSession(preselected: FlowDefinition?) {
         val cfg = config.current()
         val session = Session(cfg)
+        undoStack.clear()
         _state.value = EngineState(status = EngineStatus.STARTING, active = true)
         emit(EngineEvent.STATUS, if (preselected != null) "Started “${preselected.name}”" else "Session started")
         try {
@@ -356,7 +392,7 @@ class AssistantEngine(
     private suspend fun readScreen(session: Session): ScreenSnapshot? {
         val snapshot = screen.capture()
         visionElements = emptyMap()
-        if (snapshot != null && snapshot.hasReadableElements) return snapshot
+        if (snapshot != null && snapshot.hasReadableElements) return withHybridVision(session, snapshot)
         val detector = vision ?: return snapshot
         if (!session.cfg.visionFallback || session.cfg.localOnly) return snapshot
         setStatus(EngineStatus.THINKING, caption = session.phrases.lookingAtScreen())
@@ -369,6 +405,26 @@ class AssistantEngine(
         visionElements = elements.associateBy { it.id }
         val base = ScreenSnapshot(packageName = pkg, activityName = snapshot?.activityName, title = snapshot?.title, elements = elements, capturedAtMillis = clock())
         return base.copy(signature = com.voicecontrol.core.screen.ScreenSignature.of(base))
+    }
+
+    /**
+     * Partly readable screens (unlabelled inputs, custom-drawn or web content): merge the screenshot
+     * model's detections into the accessibility elements. The signature stays the accessibility one, so
+     * flow matching is unaffected.
+     */
+    private suspend fun withHybridVision(session: Session, snapshot: ScreenSnapshot): ScreenSnapshot {
+        val detector = vision ?: return snapshot
+        if (!session.cfg.visionFallback || session.cfg.localOnly || !HybridVision.needsHelp(snapshot)) return snapshot
+        val result = session.hybrid[snapshot.signature] ?: run {
+            setStatus(EngineStatus.THINKING, caption = session.phrases.lookingAtScreen())
+            val shot = screen.screenshot() ?: return snapshot
+            val detected = runCatching { detector.detect(shot, snapshot.packageName, session.cfg.language) }.getOrNull()
+                ?.filter { it.id.startsWith(VisionDetector.VISION_ID_PREFIX) }
+                .orEmpty()
+            HybridVision.merge(snapshot.elements, detected).also { session.hybrid[snapshot.signature] = it }
+        }
+        visionElements = result.added.associateBy { it.id }
+        return snapshot.copy(elements = result.elements)
     }
 
     /**
@@ -525,6 +581,8 @@ class AssistantEngine(
                 }
                 IntentKind.STOP, IntentKind.NO -> return ScreenOutcome.STOPPED
                 IntentKind.HELP -> prompt = phrases.help()
+                IntentKind.UNDO -> say(session, undoLast()?.let(phrases::undone) ?: phrases.nothingToUndo())
+                IntentKind.READ_SCREEN -> if (runReader(session, snapshot, log)) return ScreenOutcome.NAVIGATED
                 else -> prompt = phrases.didNotCatch() + " " + prompt
             }
         }
@@ -551,6 +609,8 @@ class AssistantEngine(
                     act(session, ScreenAction.Back, phrases.wentBack())
                     return ScreenOutcome.NAVIGATED
                 }
+                IntentKind.UNDO -> say(session, undoLast()?.let(phrases::undone) ?: phrases.nothingToUndo())
+                IntentKind.READ_SCREEN -> if (runReader(session, snapshot, log)) return ScreenOutcome.NAVIGATED
                 else -> Unit
             }
         }
@@ -747,6 +807,137 @@ class AssistantEngine(
     }
 
     // ---------------------------------------------------------------------------------------------
+    // Screen reader
+
+    /** A session that only runs the screen reader (started from the overlay or a "read screen" command). */
+    private suspend fun runReaderSession() {
+        val session = Session(config.current())
+        _state.value = EngineState(status = EngineStatus.STARTING, active = true)
+        emit(EngineEvent.STATUS, "Screen reader started")
+        try {
+            if (!screen.isAvailable.value) {
+                say(session, session.phrases.serviceOff())
+                session.status = RunStatus.FAILED
+                return
+            }
+            val snapshot = readScreen(session)
+            if (snapshot == null || (!snapshot.hasReadableElements && snapshot.texts.isEmpty() && snapshot.title == null)) {
+                say(session, session.phrases.cannotRead())
+                session.status = RunStatus.FAILED
+                return
+            }
+            session.appPackage = snapshot.packageName
+            session.profile = runCatching { profiles.profile() }.getOrNull()
+            val log = ScreenLog(snapshot, null, null)
+            try {
+                runReader(session, snapshot, log, standalone = true)
+            } finally {
+                if (log.steps.isNotEmpty()) session.screens += log.toRecord()
+            }
+            say(session, session.phrases.stopped())
+        } catch (e: UserStop) {
+            session.status = RunStatus.STOPPED
+        } catch (e: CancellationException) {
+            session.status = RunStatus.STOPPED
+            throw e
+        } catch (e: Exception) {
+            session.status = RunStatus.FAILED
+            _state.update { it.copy(status = EngineStatus.ERROR, caption = e.message ?: session.phrases.actionFailed()) }
+        } finally {
+            withContext(NonCancellable) { finish(session) }
+        }
+    }
+
+    /**
+     * Reads the screen item by item: "next", "previous", "repeat", "read all", "select" (press a button,
+     * flip a switch, or answer a field), a button's name, back/scroll, undo, "stop". Inside a form session
+     * it returns to the form on "stop"; returns true when the screen changed (the caller re-plans).
+     */
+    private suspend fun runReader(session: Session, initial: ScreenSnapshot, log: ScreenLog, standalone: Boolean = false): Boolean {
+        val phrases = session.phrases
+        var snapshot = initial
+        var items = ScreenReader.items(snapshot)
+        var index = 0
+        var navigated = false
+        _state.update { it.copy(progress = null) }
+        say(session, phrases.readerStart(items.size))
+        suspend fun refresh(announce: Boolean) {
+            delay(screenSettleMillis)
+            snapshot = readScreen(session) ?: snapshot
+            items = ScreenReader.items(snapshot)
+            index = 0
+            navigated = true
+            if (announce) say(session, phrases.newScreen() + " " + phrases.readerStart(items.size))
+        }
+        while (true) {
+            if (items.isEmpty()) {
+                say(session, phrases.cannotRead())
+                return navigated
+            }
+            val item = items[index.coerceIn(0, items.lastIndex)]
+            _state.update { it.copy(progress = "${index + 1} / ${items.size}") }
+            val heard = askAndListen(session, ScreenReader.describe(item, phrases)) ?: continue
+            val request = InterpretRequest(snapshot.redacted(), null, heard, session.cfg.language, null)
+            val command = localCommands.commandOf(request)
+            when (command?.intent) {
+                IntentKind.NEXT, IntentKind.SKIP -> if (index < items.lastIndex) index++ else say(session, phrases.readerEnd())
+                IntentKind.PREVIOUS -> index = (index - 1).coerceAtLeast(0)
+                IntentKind.REPEAT -> Unit
+                IntentKind.READ_SCREEN -> {
+                    for (i in index + 1..items.lastIndex) say(session, ScreenReader.describe(items[i], phrases))
+                    index = items.lastIndex
+                    say(session, phrases.readerEnd())
+                }
+                IntentKind.YES, IntentKind.SUBMIT -> if (activate(session, snapshot, item, log)) refresh(announce = true) else {
+                    // A field or switch changed: read it again from the live screen.
+                    snapshot = screen.capture() ?: snapshot
+                    items = ScreenReader.items(snapshot)
+                }
+                IntentKind.CLICK -> if (clickTarget(session, snapshot, command, log)) refresh(announce = true)
+                IntentKind.BACK -> if (act(session, ScreenAction.Back, phrases.wentBack())) refresh(announce = true)
+                IntentKind.SCROLL_DOWN, IntentKind.SCROLL_UP -> {
+                    scroll(session, command.intent)
+                    refresh(announce = false)
+                }
+                IntentKind.UNDO -> say(session, undoLast()?.let(phrases::undone) ?: phrases.nothingToUndo())
+                IntentKind.HELP -> say(session, phrases.readerStart(items.size))
+                IntentKind.STOP, IntentKind.NO -> {
+                    if (standalone) throw UserStop()
+                    _state.update { it.copy(progress = null) }
+                    return navigated
+                }
+                else -> say(session, phrases.didNotCatch())
+            }
+        }
+    }
+
+    /** "Select" on the current item. Returns true when a button was pressed (the screen may change). */
+    private suspend fun activate(session: Session, snapshot: ScreenSnapshot, item: ReaderItem, log: ScreenLog): Boolean {
+        val element = (item as? ReaderItem.Element)?.element ?: return false
+        val phrases = session.phrases
+        return when {
+            element.kind == ElementKind.BUTTON || element.kind == ElementKind.LINK -> press(session, element, log)
+            element.kind.isToggle -> {
+                val checked = element.isChecked != true
+                if (act(session, ScreenAction.SetChecked(element.id, checked), phrases.describeToggle(element.label, checked))) {
+                    recordUndo(element, checkedBefore = !checked)
+                }
+                false
+            }
+            element.isSensitive -> {
+                perform(ScreenAction.Focus(element.id))
+                say(session, phrases.sensitiveManual(element.label))
+                false
+            }
+            else -> {
+                val step = PlanBuilder(phrases).build(snapshot.copy(elements = listOf(element)), null, session.profile).steps.firstOrNull() ?: return false
+                handleStep(session, snapshot, step, log, mutableSetOf())
+                false
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
     // Step
 
     private suspend fun handleStep(
@@ -879,6 +1070,13 @@ class AssistantEngine(
                     if (result != null) return result
                     attempts++
                 }
+                IntentKind.UNDO -> {
+                    val undone = undoLast()
+                    say(session, undone?.let(phrases::undone) ?: phrases.nothingToUndo())
+                    // Undoing an earlier field goes back to it so it can be answered again.
+                    if (undone != null && undone != step.label) return StepResult.Previous
+                }
+                IntentKind.READ_SCREEN -> if (runReader(session, snapshot, log)) return StepResult.Navigated
                 IntentKind.UNKNOWN -> {
                     say(session, phrases.didNotCatch())
                     attempts++
@@ -907,6 +1105,7 @@ class AssistantEngine(
             say(session, session.phrases.actionFailed())
             return null
         }
+        recordUndo(step.element)
         for ((id, extraValue) in extras) {
             val target = snapshot?.element(id) ?: continue
             if (target.isSensitive || id == step.elementId) continue
@@ -920,6 +1119,7 @@ class AssistantEngine(
 
     private suspend fun toggle(session: Session, step: PlanStep, checked: Boolean, log: ScreenLog, question: String): StepResult {
         val ok = act(session, ScreenAction.SetChecked(step.elementId, checked), null)
+        if (ok) recordUndo(step.element, checkedBefore = step.element.isChecked ?: !checked)
         log.put(step, if (ok) StepOutcome.TOGGLED else StepOutcome.FAILED, question)
         if (ok) remember(session, step, yesNo(checked))
         return StepResult.Done
@@ -1124,8 +1324,19 @@ class AssistantEngine(
     }
 
     private suspend fun press(session: Session, button: ScreenElement, log: ScreenLog): Boolean {
+        if (session.cfg.confirmDestructive && DestructiveActions.isDestructive(button.label)) {
+            val context = screen.capture() ?: ScreenSnapshot.empty(session.appPackage)
+            if (askYesNoOr(session, context, session.phrases.confirmDestructive(button.label), default = false) != true) {
+                say(session, session.phrases.notPressed(button.label))
+                emit(EngineEvent.STEP, "Not pressed (needs confirmation): ${button.label}")
+                return false
+            }
+        }
         val ok = act(session, ScreenAction.Click(button.id), session.phrases.pressed(button.label))
-        if (ok) log.putClick(button)
+        if (ok) {
+            log.putClick(button)
+            recordUndo(button, wasPress = true)
+        }
         return ok
     }
 
@@ -1173,6 +1384,7 @@ class AssistantEngine(
         const val SCREEN_POLL_MS = 500L
         const val MAX_REPEAT = 50
         const val MAX_MEMORY = 12
+        const val MAX_UNDO = 30
         const val LOW_CONFIDENCE = 0.5f
         const val EARLY_COMMAND_STABLE_MS = 500L
         const val CONTEXT_SOURCE = "context"

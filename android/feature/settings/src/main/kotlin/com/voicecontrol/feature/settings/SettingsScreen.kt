@@ -65,6 +65,7 @@ private val toggles = listOf(
     Triple(Option.SKIP_FILLED, "Skip fields that already have a value", "Otherwise VoiceControl asks whether to keep them."),
     Triple(Option.TRANSLITERATE, "Type Hindi names in English letters", "राहुल → Rahul for name, email and address fields."),
     Triple(Option.AUTO_START, "Start automatically on saved screens", "Begin asking when an app with a saved flow opens."),
+    Triple(Option.CONFIRM_DESTRUCTIVE, "Confirm risky buttons", "Ask before pressing Pay, Delete, Sign out and other buttons that can't be undone."),
     Triple(Option.BARGE_IN, "Interrupt by speaking", "Start answering while VoiceControl is still talking; it stops and listens."),
     Triple(Option.CONFIRM_LOW_CONFIDENCE, "Check unclear answers", "Ask \"Did you say …?\" when speech recognition is unsure."),
     Triple(Option.WAKE_WORD, "Wake phrase", "Start a session by saying your wake phrase while VoiceControl is on. Uses the microphone in the background."),

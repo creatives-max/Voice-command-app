@@ -115,4 +115,14 @@ class AssistantControllerTest {
         assertEquals(com.voicecontrol.core.engine.port.LaunchResult.STARTED, controller.launch(flow))
         assertEquals(com.voicecontrol.core.engine.port.LaunchResult.BUSY, controller.launch(flow))
     }
+
+    @Test
+    fun `undo from the panel reverts the last fill and read screen starts the reader`() = runTest(dispatcher) {
+        val controller = controller()
+        controller.onUndo()
+        runCurrent()
+        assertEquals("Nothing to undo", controller.state.value.caption)
+        controller.onReadScreen()
+        assertTrue(controller.sessionActive)
+    }
 }

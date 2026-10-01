@@ -27,9 +27,19 @@ object CommandParser {
         VoiceCommand.ScrollUp to setOf("scroll up", "up", "upar", "oopar", "upar scroll", "ऊपर", "ऊपर स्क्रॉल", "वर", "மேலே", "mele", "పైకి", "paiki", "উপরে", "upore", "ઉપર"),
         VoiceCommand.Repeat to setOf("repeat", "again", "say again", "what", "pardon", "phir se", "fir se", "dobara", "dubara", "फिर से", "दोबारा", "क्या", "पुन्हा", "परत सांगा", "punha", "மீண்டும்", "திரும்ப சொல்", "meendum", "మళ్ళీ", "మళ్లీ", "మళ్లీ చెప్పు", "malli", "আবার", "আবার বলো", "abar", "ફરીથી", "ફરી", "farithi"),
         VoiceCommand.Stop to setOf("stop", "cancel", "exit", "quit", "band", "ruko", "ruk", "bas", "बंद", "रुको", "रुक", "बस", "थांबा", "बंद करा", "thamba", "நிறுத்து", "நிறுத்துங்கள்", "niruthu", "ఆపు", "ఆపండి", "aapu", "থামো", "থামুন", "বন্ধ করো", "thamo", "બંધ", "રોકો", "અટકો", "roko"),
-        VoiceCommand.Yes to setOf("yes", "ok", "okay", "yeah", "yep", "yup", "sure", "correct", "right", "haan", "han", "ha", "haa", "hanji", "haanji", "theek", "theek hai", "thik hai", "sahi", "हाँ", "हां", "हा", "ठीक", "ठीक है", "सही", "हांजी", "होय", "हो", "ho", "hoy", "ஆம்", "ஆமாம்", "சரி", "aamaa", "aam", "sari", "అవును", "సరే", "avunu", "sare", "হ্যাঁ", "হ্যা", "হাঁ", "ঠিক আছে", "hyan", "thik ache", "હા", "હાં", "બરાબર"),
+        VoiceCommand.Yes to setOf("yes", "ok", "okay", "yeah", "yep", "yup", "sure", "correct", "right", "haan", "han", "ha", "haa", "hanji", "haanji", "theek", "theek hai", "thik hai", "sahi", "हाँ", "हां", "हा", "ठीक", "ठीक है", "सही", "हांजी", "होय", "हो", "ho", "hoy", "ஆம்", "ஆமாம்", "சரி", "aamaa", "aam", "sari", "అవును", "సరే", "avunu", "sare", "হ্যাঁ", "হ্যা", "হাঁ", "ঠিক আছে", "hyan", "thik ache", "હા", "હાં", "બરાબર", "select", "select this", "select it", "this one", "choose this", "activate", "press this", "press it", "open this", "tap this", "chuno", "ise chuno", "ise dabao", "yahi", "चुनो", "इसे चुनो", "इसे दबाओ", "यही", "निवडा", "हे निवडा", "தேர்வு", "இதைத் தேர்வு செய்", "ఎంచుకో", "ఇది ఎంచుకో", "বেছে নাও", "এটা বেছে নাও", "પસંદ કરો", "આ પસંદ કરો"),
         VoiceCommand.No to setOf("no", "nope", "wrong", "nahi", "nahin", "nai", "mat", "galat", "नहीं", "नही", "मत", "गलत", "नाही", "இல்லை", "வேண்டாம்", "illai", "vendam", "కాదు", "వద్దు", "లేదు", "kaadu", "vaddu", "না", "ના", "નહીં"),
         VoiceCommand.Clear to setOf("clear", "erase", "delete", "clear it", "mitao", "hatao", "मिटाओ", "हटाओ", "साफ", "पुसा", "काढा", "அழி", "நீக்கு", "తుడిచివేయి", "తొలగించు", "মুছে ফেলো", "মোছো", "ભૂંસો", "કાઢી નાખો"),
+        VoiceCommand.Undo to setOf(
+            "undo", "undo that", "undo it", "undo karo", "wapas lo", "vapas lo", "pehle jaisa karo", "पूर्ववत", "पहले जैसा करो", "वापस लो", "अनडू",
+            "पूर्ववत करा", "செயல்தவிர்", "முன்பு போல", "రద్దు చేయి", "ముందులా చేయి", "আনডু", "আগের অবস্থায় ফেরাও", "પૂર્વવત્ કરો", "અનડૂ",
+        ),
+        VoiceCommand.ReadScreen to setOf(
+            "read screen", "read the screen", "read all", "read everything", "read", "what's on the screen", "what is on the screen", "what is on screen",
+            "screen padho", "sab padho", "padho", "padh ke sunao", "स्क्रीन पढ़ो", "सब पढ़ो", "पढ़ो", "पढ़कर सुनाओ",
+            "स्क्रीन वाचा", "सर्व वाचा", "वाचा", "திரையைப் படி", "அனைத்தையும் படி", "படி", "స్క్రీన్ చదువు", "అన్నీ చదువు", "చదువు",
+            "স্ক্রিন পড়ো", "সব পড়ো", "পড়ো", "સ્ક્રીન વાંચો", "બધું વાંચો", "વાંચો",
+        ),
         VoiceCommand.Help to setOf("help", "madad", "sahayata", "मदद", "सहायता", "मदत", "உதவி", "udhavi", "సహాయం", "sahayam", "সাহায্য", "sahajjo", "મદદ"),
     )
 
@@ -42,10 +52,10 @@ object CommandParser {
     fun parse(utterance: String): VoiceCommand? {
         val simple = TextCleanup.simplify(utterance)
         if (simple.isEmpty()) return null
-        parsePress(simple)?.let { return it }
         val core = simple.split(' ').filter { it !in politeness }.joinToString(" ")
-        if (core.isEmpty()) return null
-        return phrases.firstOrNull { (_, set) -> core in set }?.first
+        // Whole-utterance commands first, so "press it" / "इसे चुनो" select the current item instead of a button named "it".
+        if (core.isNotEmpty()) phrases.firstOrNull { (_, set) -> core in set }?.first?.let { return it }
+        return parsePress(simple)
     }
 
     private fun parsePress(simple: String): VoiceCommand.Press? {

@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 /** What the user meant by an utterance, decided locally or by the backend LLM. */
 @Serializable
 enum class IntentKind {
-    FILL, CLICK, NEXT, PREVIOUS, SKIP, SUBMIT, BACK, SCROLL_DOWN, SCROLL_UP, REPEAT, STOP, YES, NO, CLEAR, HELP, UNKNOWN
+    FILL, CLICK, NEXT, PREVIOUS, SKIP, SUBMIT, BACK, SCROLL_DOWN, SCROLL_UP, REPEAT, STOP, YES, NO, CLEAR, HELP, UNDO, READ_SCREEN, UNKNOWN
 }
 
 @Serializable

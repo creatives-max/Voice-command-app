@@ -45,6 +45,7 @@ class SettingsRepository @Inject constructor(
         val confirmLowConfidence = booleanPreferencesKey("confirm_low_confidence")
         val wakeWordEnabled = booleanPreferencesKey("wake_word_enabled")
         val wakeWord = stringPreferencesKey("wake_word")
+        val confirmDestructive = booleanPreferencesKey("confirm_destructive")
     }
 
     val settings: Flow<AppSettings> = store.data.map(::read)
@@ -104,6 +105,7 @@ class SettingsRepository @Inject constructor(
             p[Keys.confirmLowConfidence] = next.confirmLowConfidence
             p[Keys.wakeWordEnabled] = next.wakeWordEnabled
             p[Keys.wakeWord] = next.wakeWord.trim().take(60)
+            p[Keys.confirmDestructive] = next.confirmDestructive
         }
     }
 
@@ -130,6 +132,7 @@ class SettingsRepository @Inject constructor(
             confirmLowConfidence = p[Keys.confirmLowConfidence] ?: d.confirmLowConfidence,
             wakeWordEnabled = p[Keys.wakeWordEnabled] ?: d.wakeWordEnabled,
             wakeWord = p[Keys.wakeWord]?.takeIf { it.isNotBlank() } ?: d.wakeWord,
+            confirmDestructive = p[Keys.confirmDestructive] ?: d.confirmDestructive,
         )
     }
 }

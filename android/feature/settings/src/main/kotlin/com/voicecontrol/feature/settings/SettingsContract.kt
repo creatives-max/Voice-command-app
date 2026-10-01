@@ -26,7 +26,7 @@ sealed interface SettingsIntent {
     data object TestVoice : SettingsIntent
 }
 
-enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START, REMOTE_RUNS, USE_TEMPLATES, BARGE_IN, CONFIRM_LOW_CONFIDENCE, WAKE_WORD }
+enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START, REMOTE_RUNS, USE_TEMPLATES, BARGE_IN, CONFIRM_LOW_CONFIDENCE, WAKE_WORD, CONFIRM_DESTRUCTIVE }
 
 sealed interface SettingsEffect {
     data class Message(val text: String) : SettingsEffect
@@ -48,6 +48,7 @@ fun AppSettings.with(option: Option, enabled: Boolean): AppSettings = when (opti
     Option.BARGE_IN -> copy(bargeIn = enabled)
     Option.CONFIRM_LOW_CONFIDENCE -> copy(confirmLowConfidence = enabled)
     Option.WAKE_WORD -> copy(wakeWordEnabled = enabled)
+    Option.CONFIRM_DESTRUCTIVE -> copy(confirmDestructive = enabled)
 }
 
 fun AppSettings.isOn(option: Option): Boolean = when (option) {
@@ -65,6 +66,7 @@ fun AppSettings.isOn(option: Option): Boolean = when (option) {
     Option.BARGE_IN -> bargeIn
     Option.CONFIRM_LOW_CONFIDENCE -> confirmLowConfidence
     Option.WAKE_WORD -> wakeWordEnabled
+    Option.CONFIRM_DESTRUCTIVE -> confirmDestructive
 }
 
 /** Accepts http(s) URLs only; blank means "use the build default". */

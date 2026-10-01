@@ -175,6 +175,20 @@ Flows are more than an ordered list of questions:
   transliterated to Latin letters (Bengali/Gujarati/Tamil/Telugu map onto Devanagari by Unicode block, keeping
   Telugu/Tamil final vowels).
 
+## Accessibility power
+
+- **Screen reader** ("read screen" in any language, or the overlay button): the parser also keeps visible text that is
+  not a field label (`ScreenSnapshot.texts`, on-device only). `ScreenReader` lists title, text and controls in reading
+  order; the user moves with next/previous/repeat, says "read all", or "select" to press a button, flip a switch or
+  answer a field (private fields are only described, never read). Pressing a button re-reads the new screen.
+- **Undo**: fills, toggles and button presses are recorded (never sensitive fields); "undo" (or the overlay button)
+  restores the previous text / state, or goes back after a press, and re-asks the field.
+- **Destructive-action guard**: buttons such as Pay, Delete, Cancel order, Sign out (and their Indian-language forms)
+  are confirmed before pressing — even in flows set to press automatically; unattended runs leave them unpressed.
+- **Hybrid vision**: when a readable screen has unlabelled controls or almost nothing to fill (web/custom-drawn
+  content) and screenshot fallback is on, the screenshot model's detections are merged in: overlapping detections
+  repair labels/types of readable elements, the rest are added as tap-operated elements (once per screen per session).
+
 ## Observability
 
 - OpenTelemetry SDK (autoconfigured) with Ktor server instrumentation; spans for every request and for each event

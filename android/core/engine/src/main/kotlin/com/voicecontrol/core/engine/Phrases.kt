@@ -27,6 +27,8 @@ class Phrases(private val language: Language) {
 
     fun whichButton(buttons: List<String>) = whichButtonOf(buttons.joinToString(", "))
 
+    fun describeToggle(label: String, checked: Boolean) = if (checked) describeChecked(label) else describeUnchecked(label)
+
 
     fun start(fieldCount: Int) = t(
         "I found $fieldCount fields. Let's fill them.",
@@ -434,5 +436,139 @@ class Phrases(private val language: Language) {
         "$label తుడిచేశాను.",
         "$label মুছে ফেলা হয়েছে।",
         "$label ભૂંસી નાખ્યું.",
+    )
+
+    /** Screen reader: how many items and how to move between them. */
+    fun readerStart(count: Int) = t(
+        "This screen has $count items. Say next, previous, select, read all, or stop.",
+        "इस स्क्रीन पर $count चीज़ें हैं। आगे, पिछला, चुनो, सब पढ़ो या रुको बोलिए।",
+        "Is screen par $count cheezein hain. Next, pichla, select, sab padho ya stop boliye.",
+        "या स्क्रीनवर $count गोष्टी आहेत. पुढे, मागील, निवडा, सर्व वाचा किंवा थांबा म्हणा.",
+        "இந்தத் திரையில் $count உருப்படிகள் உள்ளன. அடுத்து, முந்தைய, தேர்வு, அனைத்தையும் படி அல்லது நிறுத்து என்று சொல்லுங்கள்.",
+        "ఈ స్క్రీన్‌లో $count అంశాలు ఉన్నాయి. తరువాత, మునుపటి, ఎంచుకో, అన్నీ చదువు లేదా ఆపు అని చెప్పండి.",
+        "এই স্ক্রিনে ${count}টি জিনিস আছে। পরের, আগের, বেছে নাও, সব পড়ো বা থামো বলুন।",
+        "આ સ્ક્રીન પર $count વસ્તુઓ છે. આગળ, પાછલું, પસંદ કરો, બધું વાંચો અથવા રોકો કહો.",
+    )
+
+    fun readerEnd() = t(
+        "End of screen.",
+        "स्क्रीन खत्म।",
+        "Screen khatam.",
+        "स्क्रीन संपली.",
+        "திரை முடிந்தது.",
+        "స్క్రీన్ ముగిసింది.",
+        "স্ক্রিন শেষ।",
+        "સ્ક્રીન પૂરી.",
+    )
+
+    fun describeButton(label: String) = t(
+        "Button, $label.",
+        "बटन, $label।",
+        "Button, $label.",
+        "बटण, $label.",
+        "பொத்தான், $label.",
+        "బటన్, $label.",
+        "বোতাম, $label।",
+        "બટન, $label.",
+    )
+
+    fun describeFilled(label: String, value: String) = t(
+        "$label field, contains $value.",
+        "$label खाना, इसमें $value है।",
+        "$label field, ismein $value hai.",
+        "$label रकाना, यात $value आहे.",
+        "$label புலம், இதில் $value உள்ளது.",
+        "$label ఖాళీ, ఇందులో $value ఉంది.",
+        "$label ঘর, এতে $value আছে।",
+        "$label ખાનું, એમાં $value છે.",
+    )
+
+    fun describeEmpty(label: String) = t(
+        "$label field, empty.",
+        "$label खाना, खाली।",
+        "$label field, khaali.",
+        "$label रकाना, रिकामा.",
+        "$label புலம், காலியாக உள்ளது.",
+        "$label ఖాళీ, ఏమీ లేదు.",
+        "$label ঘর, খালি।",
+        "$label ખાનું, ખાલી.",
+    )
+
+    fun describePrivate(label: String) = t(
+        "$label field, private.",
+        "$label खाना, निजी।",
+        "$label field, private.",
+        "$label रकाना, खाजगी.",
+        "$label புலம், தனிப்பட்டது.",
+        "$label ఖాళీ, ప్రైవేట్.",
+        "$label ঘর, ব্যক্তিগত।",
+        "$label ખાનું, ખાનગી.",
+    )
+
+    private fun describeChecked(label: String) = t(
+        "$label, checked.",
+        "$label, चुना हुआ।",
+        "$label, selected.",
+        "$label, निवडलेले.",
+        "$label, தேர்ந்தெடுக்கப்பட்டது.",
+        "$label, ఎంచుకోబడింది.",
+        "$label, বেছে নেওয়া।",
+        "$label, પસંદ કરેલું.",
+    )
+
+    private fun describeUnchecked(label: String) = t(
+        "$label, not checked.",
+        "$label, नहीं चुना।",
+        "$label, select nahi.",
+        "$label, निवडलेले नाही.",
+        "$label, தேர்ந்தெடுக்கப்படவில்லை.",
+        "$label, ఎంచుకోలేదు.",
+        "$label, বেছে নেওয়া হয়নি।",
+        "$label, પસંદ નથી.",
+    )
+
+    fun undone(label: String) = t(
+        "Undid $label.",
+        "$label पहले जैसा कर दिया।",
+        "$label undo kar diya.",
+        "$label पूर्ववत केले.",
+        "$label மாற்றம் திரும்பப் பெறப்பட்டது.",
+        "$label మార్పు రద్దు చేశాను.",
+        "$label আগের মতো করা হয়েছে।",
+        "$label પૂર્વવત્ કર્યું.",
+    )
+
+    fun nothingToUndo() = t(
+        "There is nothing to undo.",
+        "वापस लेने को कुछ नहीं है।",
+        "Undo karne ko kuch nahi hai.",
+        "पूर्ववत करण्यासारखे काही नाही.",
+        "திரும்பப் பெற எதுவும் இல்லை.",
+        "రద్దు చేయడానికి ఏమీ లేదు.",
+        "ফেরানোর মতো কিছু নেই।",
+        "પૂર્વવત્ કરવા જેવું કંઈ નથી.",
+    )
+
+    /** Guard before a button that can't be undone (pay, delete, …). */
+    fun confirmDestructive(label: String) = t(
+        "$label can't be undone. Are you sure?",
+        "$label वापस नहीं हो सकता। पक्का?",
+        "$label wapas nahi ho sakta. Pakka?",
+        "$label परत करता येणार नाही. नक्की?",
+        "$label ஐத் திரும்பப் பெற முடியாது. உறுதியா?",
+        "$label వెనక్కి తీసుకోలేము. ఖచ్చితంగానా?",
+        "$label ফেরানো যাবে না। নিশ্চিত?",
+        "$label પાછું નહીં થાય. ચોક્કસ?",
+    )
+
+    fun notPressed(label: String) = t(
+        "Okay, I didn't press $label.",
+        "ठीक है, $label नहीं दबाया।",
+        "Theek hai, $label nahi dabaya.",
+        "ठीक आहे, $label दाबले नाही.",
+        "சரி, $label அழுத்தவில்லை.",
+        "సరే, $label నొక్కలేదు.",
+        "ঠিক আছে, $label চাপিনি।",
+        "બરાબર, $label દબાવ્યું નહીં.",
     )
 }

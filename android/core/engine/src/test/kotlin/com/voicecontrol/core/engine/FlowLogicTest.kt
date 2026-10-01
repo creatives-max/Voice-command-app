@@ -213,10 +213,12 @@ class FlowLogicTest {
             step("p", 3, pay, StepAction.CLICK).copy(skip = true),
             pkg = "com.shop",
         )
-        engine(screen, ScriptedStt("500"), tts, f).start()
+        // "Pay" can't be undone, so it is confirmed even though the flow presses it automatically.
+        engine(screen, ScriptedStt("500", "haan"), tts, f).start()
         advanceUntilIdle()
         assertTrue(ScreenAction.LaunchApp("com.pay") in screen.actions)
         assertEquals("Order 500", screen.valueOf("pay:note"))
+        assertTrue(tts.spoken.contains("Pay can't be undone. Are you sure?"))
         assertTrue(ScreenAction.Click("pay:go") in screen.actions)
         assertTrue(tts.spoken.contains("Opening PayApp."))
     }

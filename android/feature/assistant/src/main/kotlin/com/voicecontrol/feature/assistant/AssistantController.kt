@@ -114,6 +114,28 @@ class AssistantController @Inject constructor(
         return LaunchResult.STARTED
     }
 
+    override fun onReadScreen() {
+        if (engine.isActive) return
+        if (!micPermission.granted()) {
+            flashCaption(MIC_PERMISSION_TEXT, BubbleMode.ERROR)
+            _effects.tryEmit(OverlayEffect.RequestMicPermission)
+            return
+        }
+        local.update { it.copy(panelOpen = false, flashCaption = null, flashMode = null) }
+        engine.startReader()
+    }
+
+    override fun onUndo() {
+        scope.launch {
+            val undone = engine.undoLast()
+            flashCaption(if (undone != null) "Undid $undone" else "Nothing to undo", if (undone != null) BubbleMode.IDLE else BubbleMode.ERROR)
+            if (local.value.panelOpen) {
+                delay(SCREEN_SETTLE_MS)
+                local.update { it.copy(panelElements = screen.capture()?.elements.orEmpty()) }
+            }
+        }
+    }
+
     override fun onMicLongPress() {
         if (local.value.panelOpen) {
             onClosePanel()

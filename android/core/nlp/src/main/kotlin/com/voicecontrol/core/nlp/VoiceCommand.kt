@@ -15,6 +15,10 @@ sealed interface VoiceCommand {
     data object No : VoiceCommand
     data object Clear : VoiceCommand
     data object Help : VoiceCommand
+    /** Revert the last fill, toggle or button press. */
+    data object Undo : VoiceCommand
+    /** Screen reader: read the whole screen (or everything from the current item). */
+    data object ReadScreen : VoiceCommand
     /** "press Login", "Login dabao", "लॉगिन पर क्लिक करो". */
     data class Press(val target: String) : VoiceCommand
 }

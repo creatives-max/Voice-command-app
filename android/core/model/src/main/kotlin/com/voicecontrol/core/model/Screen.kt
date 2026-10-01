@@ -65,6 +65,10 @@ data class ScreenElement(
     fun redacted(): ScreenElement = if (isSensitive) copy(value = null) else this
 }
 
+/** Static text on screen (headings, paragraphs, values) that is not the label of a field; read aloud by the screen reader. */
+@Serializable
+data class ScreenText(val text: String, val bounds: Bounds = Bounds.Zero)
+
 /** Everything VoiceControl understood about the screen at one moment. */
 @Serializable
 data class ScreenSnapshot(
@@ -76,6 +80,8 @@ data class ScreenSnapshot(
     val capturedAtMillis: Long = 0L,
     /** Normalized text describing the screen's structure; used for caching and flow matching. */
     val signature: String = "",
+    /** Other visible text, in reading order. Used only on the device (screen reader); never sent to the backend. */
+    val texts: List<ScreenText> = emptyList(),
 ) {
     val fields: List<ScreenElement> get() = elements.filter { it.kind.isInput || it.kind.isToggle }
     val textFields: List<ScreenElement> get() = elements.filter { it.kind == ElementKind.TEXT_FIELD }

@@ -40,6 +40,8 @@ class LocalInterpreter : Interpreter {
             VoiceCommand.No -> IntentKind.NO
             VoiceCommand.Clear -> IntentKind.CLEAR
             VoiceCommand.Help -> IntentKind.HELP
+            VoiceCommand.Undo -> IntentKind.UNDO
+            VoiceCommand.ReadScreen -> IntentKind.READ_SCREEN
             is VoiceCommand.Press -> {
                 val button = ButtonMatcher.find(command.target, request.screen.elements)
                     ?: return Interpretation(IntentKind.CLICK, targetId = null, value = command.target, source = SOURCE)

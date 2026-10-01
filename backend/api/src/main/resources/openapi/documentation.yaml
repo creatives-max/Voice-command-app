@@ -888,7 +888,7 @@ components:
     Interpretation:
       type: object
       properties:
-        intent: { type: string, enum: [FILL, CLICK, NEXT, PREVIOUS, SKIP, SUBMIT, BACK, SCROLL_DOWN, SCROLL_UP, REPEAT, STOP, YES, NO, CLEAR, HELP, UNKNOWN] }
+        intent: { type: string, enum: [FILL, CLICK, NEXT, PREVIOUS, SKIP, SUBMIT, BACK, SCROLL_DOWN, SCROLL_UP, REPEAT, STOP, YES, NO, CLEAR, HELP, UNDO, READ_SCREEN, UNKNOWN] }
         targetId: { type: string }
         value: { type: string }
         extraFills:

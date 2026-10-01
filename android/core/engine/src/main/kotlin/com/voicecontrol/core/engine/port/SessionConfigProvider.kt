@@ -22,6 +22,8 @@ data class SessionConfig(
     val bargeIn: Boolean = false,
     /** Ask "Did you say …?" when the recognizer is unsure. */
     val confirmLowConfidence: Boolean = true,
+    /** Ask before pressing buttons that can't be undone (pay, delete, sign out…). */
+    val confirmDestructive: Boolean = true,
 )
 
 fun interface SessionConfigProvider {

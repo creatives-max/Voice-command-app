@@ -92,11 +92,11 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Tests, commit + push
 
 ## Phase 13 — Accessibility power
-- [ ] Screen-reader mode (read whole screen, navigate, activate)
-- [ ] Undo last action
-- [ ] Confirm before destructive actions
-- [ ] Hybrid vision (merge screenshot model with partly readable screens)
-- [ ] Tests, commit + push
+- [x] Screen-reader mode (read whole screen, navigate, activate)
+- [x] Undo last action
+- [x] Confirm before destructive actions
+- [x] Hybrid vision (merge screenshot model with partly readable screens)
+- [x] Tests, commit + push
 
 ## Phase 14 — Teams & multi-tenant backend
 - [ ] Organizations, memberships, invitations, RBAC (admin/editor/viewer), per-org flows

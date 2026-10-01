@@ -26,6 +26,8 @@ class RulesInterpreter {
             VoiceCommand.No -> IntentKind.NO
             VoiceCommand.Clear -> IntentKind.CLEAR
             VoiceCommand.Help -> IntentKind.HELP
+            VoiceCommand.Undo -> IntentKind.UNDO
+            VoiceCommand.ReadScreen -> IntentKind.READ_SCREEN
             is VoiceCommand.Press -> {
                 val button = ButtonMatcher.find(parsed.target, command.screen.elements)
                 return Interpretation(IntentKind.CLICK, targetId = button?.id, value = if (button == null) parsed.target else null, source = SOURCE)

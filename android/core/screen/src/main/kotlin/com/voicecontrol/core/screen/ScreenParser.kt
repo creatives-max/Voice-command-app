@@ -4,6 +4,7 @@ import com.voicecontrol.core.model.Bounds
 import com.voicecontrol.core.model.ElementKind
 import com.voicecontrol.core.model.ScreenElement
 import com.voicecontrol.core.model.ScreenSnapshot
+import com.voicecontrol.core.model.ScreenText
 
 /**
  * Turns an accessibility node tree into a [ScreenSnapshot] of fields and buttons.
@@ -92,6 +93,10 @@ class ScreenParser(
             toElement(draft, ids[index])
         }.sortedWith(compareBy({ it.bounds.top / ROW_TOLERANCE_PX }, { it.bounds.left }))
 
+        // Text not used as a field label, for the screen reader (reading order; the title is read separately).
+        val screenTexts = texts.filter { it !in consumedTexts && it.text != title }
+            .sortedWith(compareBy({ it.bounds.top / ROW_TOLERANCE_PX }, { it.bounds.left }))
+            .map { ScreenText(it.text, it.bounds) }
         val snapshot = ScreenSnapshot(
             packageName = packageName,
             activityName = activityName,
@@ -99,6 +104,7 @@ class ScreenParser(
             elements = elements,
             isScrollable = anyScrollable,
             capturedAtMillis = capturedAtMillis,
+            texts = screenTexts,
         )
         return ParseResult(snapshot.copy(signature = ScreenSignature.of(snapshot)), nodesById)
     }

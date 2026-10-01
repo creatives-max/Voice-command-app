@@ -2,6 +2,7 @@ package com.voicecontrol.feature.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -40,6 +41,7 @@ fun HomeRoute(
     onOpenFlows: () -> Unit = {},
     onOpenHistory: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenProfile: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -49,7 +51,7 @@ fun HomeRoute(
             HomeEffect.LaunchAccessibilitySettings -> context.startActivity(AccessibilityStatus.settingsIntent())
         }
     }
-    HomeScreen(state, viewModel::dispatch, onOpenInspector, onOpenAccount, onOpenFlows, onOpenHistory, onOpenSettings)
+    HomeScreen(state, viewModel::dispatch, onOpenInspector, onOpenAccount, onOpenFlows, onOpenHistory, onOpenSettings, onOpenProfile)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,6 +64,7 @@ fun HomeScreen(
     onOpenFlows: () -> Unit = {},
     onOpenHistory: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenProfile: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -107,7 +110,13 @@ fun HomeScreen(
                     ?: "Save flows to your account, edit them on the dashboard and enable AI understanding.",
                 icon = Icons.Filled.AccountCircle,
             ) {
-                OutlinedButton(onClick = { onOpenAccount(email != null) }) { Text(if (email != null) "Profile & account" else "Sign in") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { onOpenAccount(email != null) }) { Text(if (email != null) "Profile & account" else "Sign in") }
+                    if (email == null) {
+                        // Profile values also work offline (local-only mode): they stay on this phone.
+                        OutlinedButton(onClick = onOpenProfile) { Text("Edit profile") }
+                    }
+                }
             }
             SectionCard(
                 title = "Saved flows",

@@ -34,6 +34,7 @@ fun VoiceControlNavHost() {
                 onOpenFlows = { navController.navigate(FlowsDestination) },
                 onOpenHistory = { navController.navigate(HistoryDestination) },
                 onOpenSettings = { navController.navigate(SettingsDestination) },
+                onOpenProfile = { navController.navigate(ProfileDestination) },
             )
         }
         composable<HistoryDestination> {

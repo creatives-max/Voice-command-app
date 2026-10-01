@@ -572,6 +572,56 @@ class Phrases(private val language: Language) {
         "બરાબર, $label દબાવ્યું નહીં.",
     )
 
+    fun readerHelp() = t(
+        "Say next or previous, next button or next field, top or bottom, select, read all or read everything, where am I, find and a word, faster or slower, undo, or stop.",
+        "अगला या पिछला, अगला बटन या अगला खाना, सबसे ऊपर या सबसे नीचे, चुनो, सब पढ़ो या पूरा पढ़ो, मैं कहाँ हूँ, कोई शब्द और ढूंढो, तेज़ या धीरे, वापस करो, या रुको बोलिए।",
+        "Agla ya pichhla, agla button ya agla khana, sabse upar ya sabse neeche, select, sab padho ya poora padho, main kahan hoon, koi shabd aur dhundo, tez ya dheere, undo, ya ruko boliye.",
+        "पुढचा किंवा मागचा, पुढचे बटण किंवा पुढचा रकाना, सबसे वर किंवा शेवटचा, निवडा, सगळे वाचा, मी कुठे आहे, शब्द आणि शोधा, वेगाने किंवा हळू बोला, किंवा थांबा म्हणा.",
+        "அடுத்து அல்லது முந்தையது, next button அல்லது next field, top அல்லது bottom, தேர்ந்தெடு, எல்லாம் படி, where am I, find மற்றும் ஒரு சொல், faster அல்லது slower, அல்லது நிறுத்து என்று சொல்லுங்கள்.",
+        "తదుపరి లేదా మునుపటి, next button లేదా next field, top లేదా bottom, ఎంచుకో, అన్నీ చదువు, where am I, find మరియు ఒక పదం, faster లేదా slower, లేదా ఆపు అని చెప్పండి.",
+        "পরের বা আগের, next button বা next field, top বা bottom, বেছে নিন, সব পড়ো, where am I, find আর একটি শব্দ, faster বা slower, বা থামো বলুন।",
+        "આગળ કે પાછળ, next button કે next field, top કે bottom, પસંદ કરો, બધું વાંચો, where am I, find અને એક શબ્દ, faster કે slower, અથવા રોકો કહો.",
+    )
+
+    fun noMoreOfThat() = t(
+        "There are no more of those.",
+        "इसके आगे ऐसा कुछ नहीं है।",
+        "Iske aage aisa kuch nahi hai.",
+        "यापुढे असे काही नाही.",
+        "இதற்கு மேல் அப்படி எதுவும் இல்லை.",
+        "ఇంకా అలాంటివి లేవు.",
+        "এরকম আর কিছু নেই।",
+        "આવું બીજું કંઈ નથી.",
+    )
+
+    fun whereAmI(screen: String, position: Int, total: Int, fields: Int, empty: Int, buttons: Int) = t(
+        "$screen. Item $position of $total. $fields fields, $empty empty, and $buttons buttons.",
+        "$screen। $total में से $position। $fields खाने, $empty खाली, और $buttons बटन।",
+        "$screen. $total mein se $position. $fields fields, $empty khaali, aur $buttons buttons.",
+        "$screen. $total पैकी $position. $fields रकाने, $empty रिकामे, आणि $buttons बटणे.",
+        "$screen. $total இல் $position. $fields புலங்கள், $empty காலி, $buttons பொத்தான்கள்.",
+        "$screen. $total లో $position. $fields ఖాళీలు, $empty ఖాళీగా, $buttons బటన్లు.",
+        "$screen। $total এর মধ্যে $position। $fields ঘর, $empty খালি, আর $buttons বোতাম।",
+        "$screen. $total માંથી $position. $fields ખાના, $empty ખાલી, અને $buttons બટન.",
+    )
+
+    fun notFoundOnScreen(query: String) = t(
+        "I couldn't find $query on this screen.",
+        "इस स्क्रीन पर $query नहीं मिला।",
+        "Is screen par $query nahi mila.",
+        "या स्क्रीनवर $query सापडले नाही.",
+        "இந்தத் திரையில் $query கிடைக்கவில்லை.",
+        "ఈ స్క్రీన్‌పై $query కనిపించలేదు.",
+        "এই স্ক্রিনে $query পাওয়া যায়নি।",
+        "આ સ્ક્રીન પર $query મળ્યું નહીં.",
+    )
+
+    fun rateChanged(faster: Boolean) = if (faster) {
+        t("Speaking faster.", "अब तेज़ बोलूँगा।", "Ab tez bolunga.", "आता वेगाने बोलतो.", "வேகமாகப் பேசுகிறேன்.", "వేగంగా మాట్లాడుతాను.", "এখন দ্রুত বলব।", "હવે ઝડપથી બોલીશ.")
+    } else {
+        t("Speaking slower.", "अब धीरे बोलूँगा।", "Ab dheere bolunga.", "आता हळू बोलतो.", "மெதுவாகப் பேசுகிறேன்.", "నెమ్మదిగా మాట్లాడుతాను.", "এখন ধীরে বলব।", "હવે ધીમે બોલીશ.")
+    }
+
     fun offlinePackMissing(language: String) = t(
         "Speech for $language isn't downloaded for offline use. Connect to the internet, or download it in Settings, Offline languages.",
         "$language की आवाज़ ऑफ़लाइन के लिए डाउनलोड नहीं है। इंटरनेट चालू करें, या सेटिंग्स में ऑफ़लाइन भाषाएँ से डाउनलोड करें।",

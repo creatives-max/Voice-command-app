@@ -174,8 +174,12 @@ phase notes say which earlier phase covered the rest.
 - [x] Pack status logic (tag matching, summary) in the engine with tests
 - [x] Tests, commit + push
 
-## Phase 23 — Accessibility narrator (gaps; Phase 13)
-- [ ] Gap-fill, tests, commit + push
+## Phase 23 — Accessibility narrator (gaps; reading, navigating, activating, undo and confirm-before-risky were done in Phase 13)
+- [x] Jump by kind: next/previous button, field, switch or text ("agla khana", "पिछला बटन"); top/bottom
+- [x] "Where am I" (screen, position, fields, empty fields, buttons); "find <words>" / "<words> kahan hai"
+- [x] Speaking speed by voice ("faster", "dheere") for the session
+- [x] "Read everything": reads to the end and keeps scrolling the page, never repeating what was read
+- [x] Spoken narrator help in 8 languages; tests, commit + push
 
 ## Phase 24 — Voice & AI upgrades (gaps; Phase 12)
 - [ ] Gap-fill, tests, commit + push

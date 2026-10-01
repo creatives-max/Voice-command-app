@@ -225,6 +225,8 @@ class AssistantEngine(
         var offline = cfg.preferOffline
         /** The missing-language-pack hint was already spoken. */
         var toldPackMissing = false
+        /** Speaking speed; the narrator's "faster" / "slower" change it for this session. */
+        var rate = cfg.speechRate
 
         fun lookup(name: String): Any? = vars[name] ?: profileVar(name) ?: screenVars[name]
 
@@ -927,6 +929,50 @@ class AssistantEngine(
             val item = items[index.coerceIn(0, items.lastIndex)]
             _state.update { it.copy(progress = "${index + 1} / ${items.size}") }
             val heard = askAndListen(session, ScreenReader.describe(item, phrases)) ?: continue
+            val narrator = NarratorCommands.parse(heard)
+            if (narrator != null) {
+                when (narrator) {
+                    is NarratorCommand.Jump -> NarratorCommands.jump(items, index, narrator.kind, narrator.forward)
+                        ?.let { index = it } ?: say(session, phrases.noMoreOfThat())
+                    is NarratorCommand.Edge -> index = if (narrator.first) 0 else items.lastIndex
+                    NarratorCommand.WhereAmI -> {
+                        val fields = snapshot.elements.filter { it.kind.isInput }
+                        say(
+                            session,
+                            phrases.whereAmI(
+                                snapshot.title?.takeIf { it.isNotBlank() } ?: snapshot.packageName.substringAfterLast('.'),
+                                index + 1, items.size, fields.size, fields.count { it.isEmpty && !it.isSensitive },
+                                snapshot.elements.count { it.kind == ElementKind.BUTTON || it.kind == ElementKind.LINK },
+                            ),
+                        )
+                    }
+                    is NarratorCommand.Find -> NarratorCommands.find(items, index, narrator.query) { ScreenReader.describe(it, phrases) }
+                        ?.let { index = it } ?: say(session, phrases.notFoundOnScreen(narrator.query))
+                    is NarratorCommand.Rate -> {
+                        session.rate = (session.rate + if (narrator.faster) RATE_STEP else -RATE_STEP).coerceIn(MIN_RATE, MAX_RATE)
+                        say(session, phrases.rateChanged(narrator.faster))
+                    }
+                    NarratorCommand.ReadEverything -> {
+                        val seen = items.map { ScreenReader.describe(it, phrases) }.toMutableSet()
+                        for (i in index + 1..items.lastIndex) say(session, ScreenReader.describe(items[i], phrases))
+                        // Keep scrolling down and read what is new, until the page stops moving.
+                        for (page in 1..MAX_READ_PAGES) {
+                            if (!perform(ScreenAction.Scroll(ScrollDirection.DOWN)).isSuccess) break
+                            delay(screenSettleMillis)
+                            val next = readScreen(session) ?: break
+                            val fresh = ScreenReader.items(next).filter { seen.add(ScreenReader.describe(it, phrases)) }
+                            snapshot = next
+                            items = ScreenReader.items(next)
+                            navigated = true
+                            if (fresh.isEmpty()) break
+                            fresh.forEach { say(session, ScreenReader.describe(it, phrases)) }
+                        }
+                        index = items.lastIndex
+                        say(session, phrases.readerEnd())
+                    }
+                }
+                continue
+            }
             val request = InterpretRequest(snapshot.redacted(), null, heard, session.cfg.language, null)
             val command = localCommands.commandOf(request)
             when (command?.intent) {
@@ -950,7 +996,7 @@ class AssistantEngine(
                     refresh(announce = false)
                 }
                 IntentKind.UNDO -> say(session, undoLast()?.let(phrases::undone) ?: phrases.nothingToUndo())
-                IntentKind.HELP -> say(session, phrases.readerStart(items.size))
+                IntentKind.HELP -> say(session, phrases.readerHelp())
                 IntentKind.STOP, IntentKind.NO -> {
                     if (standalone) throw UserStop()
                     _state.update { it.copy(progress = null) }
@@ -1315,7 +1361,7 @@ class AssistantEngine(
     private suspend fun sayInterruptible(session: Session, text: String, detector: SpeechDetector) {
         setStatus(EngineStatus.SPEAKING, caption = text)
         coroutineScope {
-            val speaking = async { tts.speak(text, session.cfg.language.voiceTag, session.cfg.speechRate) }
+            val speaking = async { tts.speak(text, session.cfg.language.voiceTag, session.rate) }
             val interrupted = async { detector.awaitSpeech() }
             select<Unit> {
                 speaking.onAwait { interrupted.cancel() }
@@ -1422,7 +1468,7 @@ class AssistantEngine(
 
     private suspend fun say(session: Session, text: String) {
         setStatus(EngineStatus.SPEAKING, caption = text)
-        tts.speak(text, session.cfg.language.voiceTag, session.cfg.speechRate)
+        tts.speak(text, session.cfg.language.voiceTag, session.rate)
     }
 
     private fun setStatus(status: EngineStatus, caption: String? = _state.value.caption) {
@@ -1438,6 +1484,11 @@ class AssistantEngine(
     companion object {
         const val MAX_ATTEMPTS = 3
         const val MAX_SILENT_FAILURES = 4
+        const val RATE_STEP = 0.25f
+        const val MIN_RATE = 0.5f
+        const val MAX_RATE = 2f
+        /** "Read everything" scrolls at most this many pages. */
+        const val MAX_READ_PAGES = 10
         const val MAX_SCREENS = 12
         const val MAX_BUTTONS_SPOKEN = 6
         const val MAX_READBACK = 40

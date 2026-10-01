@@ -127,6 +127,14 @@ floating panel (or the record icon in *Saved flows*), fill the form by touch acr
 red bubble. Review the steps, choose which typed values to keep as defaults (never passwords, OTPs or PINs) and save.
 Next time VoiceControl asks for each field in that order.
 
+## Narrator (screen reader mode)
+
+Tap the read-aloud button in the panel or say "read screen": VoiceControl reads the title, text and controls in
+order (never private values). Say *next*/*previous*, *next button*/*next field* (*agla khana*), *top*/*bottom*,
+*select* to press, toggle or answer, *read all* or *read everything* (keeps scrolling to the end of the page),
+*where am I*, *find <words>* (*OTP kahan hai*), *faster*/*slower*, *undo* or *stop*. Risky buttons (pay, delete…)
+are confirmed first.
+
 ## Offline languages
 
 *Settings → Offline languages* shows, for English, Hindi, Hinglish, Marathi, Tamil, Telugu, Bengali and Gujarati,

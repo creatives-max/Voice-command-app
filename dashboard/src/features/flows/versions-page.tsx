@@ -1,3 +1,4 @@
+import type { FlowVersion } from "@/lib/types";
 import { useState } from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -9,6 +10,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { flowQuery, useRollback, versionsQuery } from "@/lib/queries";
 import { describeChanges } from "./editor";
+
+/** How each version was made. */
+export const VERSION_SOURCE_LABELS: Record<FlowVersion["source"], string> = {
+  DEVICE: "recorded by voice",
+  DASHBOARD: "edited on dashboard",
+  ROLLBACK: "rollback",
+  IMPORT: "imported",
+  RECORDED: "taught on phone",
+};
 
 export function VersionsPage() {
   const { flowId } = useParams({ from: "/app/flows/$flowId/versions" });
@@ -44,7 +54,7 @@ export function VersionsPage() {
                   <CardTitle className="flex items-center gap-2 text-base">
                     Version {v.version}
                     {current && <Badge>current</Badge>}
-                    <Badge variant="outline">{v.source.toLowerCase()}</Badge>
+                    <Badge variant="outline">{VERSION_SOURCE_LABELS[v.source]}</Badge>
                   </CardTitle>
                   <CardDescription>
                     {new Date(v.createdAt).toLocaleString()}

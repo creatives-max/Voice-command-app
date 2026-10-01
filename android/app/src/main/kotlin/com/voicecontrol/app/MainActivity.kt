@@ -1,5 +1,6 @@
 package com.voicecontrol.app
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.compose.setContent
@@ -27,7 +28,9 @@ import com.voicecontrol.app.lock.AppLockController
 import com.voicecontrol.app.lock.LockScreen
 import com.voicecontrol.app.navigation.VoiceControlNavHost
 import com.voicecontrol.core.ui.theme.VoiceControlTheme
+import com.voicecontrol.feature.assistant.overlay.OverlayManager
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -39,10 +42,19 @@ class MainActivity : FragmentActivity() {
 
     private val appViewModel: AppViewModel by viewModels()
 
+    /** Set when the overlay opened the app to review a "teach by doing" recording. */
+    private val reviewTeaching = MutableStateFlow(false)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.action == OverlayManager.ACTION_REVIEW_TEACHING) reviewTeaching.value = true
+    }
+
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (savedInstanceState == null && intent?.action == OverlayManager.ACTION_REVIEW_TEACHING) reviewTeaching.value = true
         // With the app lock on, keep VoiceControl's screens out of screenshots and the recent-apps preview.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
@@ -56,6 +68,7 @@ class MainActivity : FragmentActivity() {
                 val locked by lock.locked.collectAsStateWithLifecycle()
                 val onboardingDone by appViewModel.onboardingDone.collectAsStateWithLifecycle()
                 val signedIn by appViewModel.signedIn.collectAsStateWithLifecycle()
+                val review by reviewTeaching.collectAsStateWithLifecycle()
                 val wide = calculateWindowSizeClass(this).widthSizeClass != WindowWidthSizeClass.Compact
                 // Decided once per launch, so finishing the tutorial doesn't rebuild the navigation graph.
                 var startWithOnboarding by remember { mutableStateOf<Boolean?>(null) }
@@ -65,7 +78,13 @@ class MainActivity : FragmentActivity() {
                     // Content stays composed under the lock (navigation is kept) but is hidden from everyone.
                     if (start != null && locked != null) {
                         val hidden = if (locked == true) Modifier.clearAndSetSemantics { } else Modifier
-                        Box(hidden) { VoiceControlNavHost(startWithOnboarding = start, wide = wide, signedIn = signedIn) }
+                        Box(hidden) { VoiceControlNavHost(
+                                startWithOnboarding = start,
+                                wide = wide,
+                                signedIn = signedIn,
+                                reviewTeaching = review && start == false,
+                                onReviewOpened = { reviewTeaching.value = false },
+                            ) }
                     }
                     if (locked == true) LockScreen(onUnlocked = lock::unlocked)
                 }

@@ -20,6 +20,7 @@ class FlowsViewModel @Inject constructor(
     private val library: FlowLibrary,
     private val settings: SettingsRepository,
     private val launcher: FlowLauncher,
+    private val teach: com.voicecontrol.core.engine.port.TeachLauncher,
     remoteRuns: RemoteRunRepository,
     templates: TemplateRepository,
 ) : MviViewModel<FlowsState, FlowsIntent, FlowsEffect>(FlowsState()) {
@@ -55,6 +56,10 @@ class FlowsViewModel @Inject constructor(
         when (intent) {
             is FlowsIntent.Open -> setState { copy(selected = apps.flatMap { it.flows }.firstOrNull { it.id == intent.flowId }) }
             FlowsIntent.CloseDetail -> setState { copy(selected = null, editing = null) }
+            FlowsIntent.Teach -> {
+                val result = teach.startTeaching()
+                teachMessage(result)?.let { sendEffect(FlowsEffect.Message(it)) } ?: sendEffect(FlowsEffect.GoHome)
+            }
             FlowsIntent.StartEdit -> setState { copy(editing = selected) }
             FlowsIntent.CancelEdit -> setState { copy(editing = null) }
             is FlowsIntent.Rename -> setState { copy(editing = editing?.copy(name = intent.name.take(120))) }

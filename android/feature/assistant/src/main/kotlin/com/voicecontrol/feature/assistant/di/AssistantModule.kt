@@ -52,6 +52,9 @@ abstract class AssistantModule {
     @Binds
     abstract fun flowLauncher(controller: AssistantController): FlowLauncher
 
+    @Binds
+    abstract fun teachLauncher(controller: com.voicecontrol.feature.assistant.teach.TeachController): com.voicecontrol.core.engine.port.TeachLauncher
+
     companion object {
         @Provides
         @Singleton

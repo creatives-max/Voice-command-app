@@ -22,6 +22,9 @@ abstract class AccessibilityModule {
     @Binds
     abstract fun screenGateway(bridge: AccessibilityBridge): ScreenGateway
 
+    @Binds
+    abstract fun interactionSource(bridge: AccessibilityBridge): com.voicecontrol.core.engine.port.InteractionSource
+
     companion object {
         @Provides
         @Singleton

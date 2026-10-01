@@ -43,3 +43,8 @@ enum class LaunchResult { STARTED, BUSY, SERVICE_OFF, NO_MIC_PERMISSION }
 fun interface FlowLauncher {
     fun launch(flow: com.voicecontrol.core.model.FlowDefinition): LaunchResult
 }
+
+/** Starts "teach by doing": VoiceControl watches the user fill a form by touch and turns it into a flow. */
+fun interface TeachLauncher {
+    fun startTeaching(): LaunchResult
+}

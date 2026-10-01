@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedButton
@@ -15,6 +16,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.VerticalDivider
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -80,6 +82,10 @@ fun FlowsRoute(onBack: () -> Unit, viewModel: FlowsViewModel = hiltViewModel()) 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             is FlowsEffect.Message -> snackbar.showSnackbar(effect.text)
+            FlowsEffect.GoHome -> {
+                context.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                Toast.makeText(context, "Recording. Open the app, fill the form by touch, then tap the red button.", Toast.LENGTH_LONG).show()
+            }
             is FlowsEffect.OpenUrl -> runCatching {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(effect.url)))
             }.onFailure { snackbar.showSnackbar("No browser available") }
@@ -110,6 +116,7 @@ fun FlowsScreen(state: FlowsState, snackbar: SnackbarHostState, onBack: () -> Un
                     }
                 },
                 actions = {
+                    IconButton(onClick = { onIntent(FlowsIntent.Teach) }) { Icon(Icons.Filled.FiberManualRecord, "Teach a new flow by doing it") }
                     IconButton(onClick = { onIntent(FlowsIntent.OpenDashboard) }) { Icon(Icons.Filled.OpenInBrowser, "Open dashboard") }
                     IconButton(onClick = { onIntent(FlowsIntent.Sync) }) { Icon(Icons.Filled.Sync, "Sync") }
                 },

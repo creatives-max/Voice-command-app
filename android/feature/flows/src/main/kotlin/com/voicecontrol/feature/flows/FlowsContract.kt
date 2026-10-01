@@ -36,11 +36,15 @@ sealed interface FlowsIntent {
     data class SetSkip(val stepId: String, val skip: Boolean) : FlowsIntent
     data class MoveStep(val stepId: String, val delta: Int) : FlowsIntent
     data class RemoveStep(val stepId: String) : FlowsIntent
+    /** Start "teach by doing" and send the user to the app they want to teach. */
+    data object Teach : FlowsIntent
 }
 
 sealed interface FlowsEffect {
     data class Message(val text: String) : FlowsEffect
     data class OpenUrl(val url: String) : FlowsEffect
+    /** Recording started: go to the home screen so the user can open the app to teach. */
+    data object GoHome : FlowsEffect
 }
 
 /** What to tell the user after asking to run a flow. */
@@ -49,6 +53,14 @@ fun launchMessage(result: com.voicecontrol.core.engine.port.LaunchResult): Strin
     com.voicecontrol.core.engine.port.LaunchResult.BUSY -> "A voice session is already running"
     com.voicecontrol.core.engine.port.LaunchResult.SERVICE_OFF -> "Turn on the VoiceControl accessibility service first"
     com.voicecontrol.core.engine.port.LaunchResult.NO_MIC_PERMISSION -> "Allow microphone access to run flows"
+}
+
+/** What to tell the user after asking to start teaching. */
+fun teachMessage(result: com.voicecontrol.core.engine.port.LaunchResult): String? = when (result) {
+    com.voicecontrol.core.engine.port.LaunchResult.STARTED -> null
+    com.voicecontrol.core.engine.port.LaunchResult.BUSY -> "Finish the current voice session or recording first"
+    com.voicecontrol.core.engine.port.LaunchResult.SERVICE_OFF -> "Turn on the VoiceControl accessibility service first"
+    com.voicecontrol.core.engine.port.LaunchResult.NO_MIC_PERMISSION -> null
 }
 
 /** Groups flows by app, apps ordered by most recent change. */

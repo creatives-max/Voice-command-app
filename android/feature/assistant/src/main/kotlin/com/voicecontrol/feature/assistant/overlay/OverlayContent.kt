@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -74,6 +75,8 @@ interface OverlayActions {
     fun onReadScreen()
     /** Revert the last fill, toggle or button press. */
     fun onUndo()
+    /** Start "teach by doing": record what the user does by touch on this screen and the next ones. */
+    fun onTeach() {}
 }
 
 @Composable
@@ -105,15 +108,25 @@ private fun MicBubble(state: OverlayUiState, actions: OverlayActions, onDrag: (F
         animationSpec = infiniteRepeatable(tween(650), RepeatMode.Reverse),
         label = "scale",
     )
-    val scale = if (state.mode == BubbleMode.LISTENING) pulse + state.micLevel.coerceIn(0f, 1f) * 0.1f else 1f
+    val scale = when {
+        state.teaching -> pulse
+        state.mode == BubbleMode.LISTENING -> pulse + state.micLevel.coerceIn(0f, 1f) * 0.1f
+        else -> 1f
+    }
     Surface(
         shape = CircleShape,
-        color = container,
+        color = if (state.teaching) Color(0xFFB91C1C) else container,
         shadowElevation = 8.dp,
         modifier = Modifier
             .size(64.dp)
             .scale(scale)
-            .semantics { contentDescription = if (state.sessionActive) "Stop VoiceControl" else "Start VoiceControl" }
+            .semantics {
+                contentDescription = when {
+                    state.teaching -> "Stop recording (${state.taughtSteps} steps)"
+                    state.sessionActive -> "Stop VoiceControl"
+                    else -> "Start VoiceControl"
+                }
+            }
             .pointerInput(Unit) {
                 detectDragGestures { change, drag ->
                     change.consume()
@@ -126,7 +139,11 @@ private fun MicBubble(state: OverlayUiState, actions: OverlayActions, onDrag: (F
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
-                if (state.sessionActive && state.mode == BubbleMode.IDLE) Icons.Filled.Stop else icon,
+                when {
+                    state.teaching -> Icons.Filled.FiberManualRecord
+                    state.sessionActive && state.mode == BubbleMode.IDLE -> Icons.Filled.Stop
+                    else -> icon
+                },
                 contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(30.dp),
@@ -186,6 +203,7 @@ private fun ElementPanel(state: OverlayUiState, actions: OverlayActions) {
                 IconButton(onClick = actions::onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
                 IconButton(onClick = actions::onUndo) { Icon(Icons.AutoMirrored.Filled.Undo, "Undo last action") }
                 IconButton(onClick = actions::onReadScreen) { Icon(Icons.Filled.RecordVoiceOver, "Read screen aloud") }
+                IconButton(onClick = actions::onTeach) { Icon(Icons.Filled.FiberManualRecord, "Teach a flow by doing it") }
             }
         }
     }

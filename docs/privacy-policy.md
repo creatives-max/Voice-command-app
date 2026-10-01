@@ -16,6 +16,12 @@ buttons you name.
   asks you to type those yourself.
 - Screen reading happens only to serve the voice session or the touch panel you open.
 
+## Teach by doing
+
+While you record a flow by touch, VoiceControl notes which fields you type into and which buttons you press. What
+you typed stays in the phone's memory until you review the recording; it is saved only for fields you tick as
+defaults, and never for password, OTP, PIN or CVV fields.
+
 ## Microphone
 
 Audio is captured only while a voice session is running, or — if you turn on **Wake phrase** — while VoiceControl

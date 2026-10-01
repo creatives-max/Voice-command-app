@@ -62,7 +62,10 @@ class ProfileApi @Inject constructor(private val api: ApiClient) {
 class FlowApi @Inject constructor(private val api: ApiClient) {
     suspend fun create(flow: FlowDefinition): FlowDefinition = api.post<CreateFlowRequestDto, FlowDefinition>(
         "/v1/flows",
-        CreateFlowRequestDto(flow.appPackage, flow.name, flow.screenSignature, flow.orderedSteps),
+        CreateFlowRequestDto(
+            flow.appPackage, flow.name, flow.screenSignature, flow.orderedSteps,
+            source = if (flow.id.startsWith(FlowDefinition.TAUGHT_PREFIX)) "RECORDED" else null,
+        ),
     )
 
     suspend fun get(id: String): FlowDefinition = api.get("/v1/flows/$id")

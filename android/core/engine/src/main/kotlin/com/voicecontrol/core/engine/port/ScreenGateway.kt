@@ -21,3 +21,13 @@ interface ScreenGateway {
     /** Downscaled screenshot of the current screen, or null if unsupported (API < 30) or denied. */
     suspend fun screenshot(): Screenshot?
 }
+
+/** What the user did by touch in another app (only reported while VoiceControl is recording). */
+enum class InteractionKind { TYPED, PRESSED }
+
+data class UserInteraction(val kind: InteractionKind, val elementId: String)
+
+/** Touch and typing events from the foreground app, matched to elements of the current screen. */
+interface InteractionSource {
+    val interactions: kotlinx.coroutines.flow.Flow<UserInteraction>
+}

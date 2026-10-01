@@ -14,6 +14,7 @@ import com.voicecontrol.core.ui.theme.VoiceControlTheme
 import com.voicecontrol.feature.assistant.AssistantController
 import com.voicecontrol.feature.assistant.OverlayEffect
 import com.voicecontrol.feature.assistant.MicrophoneForeground
+import com.voicecontrol.feature.assistant.teach.TeachController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -40,6 +41,7 @@ class OverlayManager @Inject constructor(
     private val flows: FlowSource,
     private val remoteRuns: RemoteRunRepository,
     private val microphone: MicrophoneForeground,
+    private val teach: TeachController,
 ) : ServiceListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -56,7 +58,18 @@ class OverlayManager @Inject constructor(
             if (show) {
                 overlay.show { onDrag ->
                     val state by controller.state.collectAsStateWithLifecycle()
-                    VoiceControlTheme { OverlayContent(state, controller, onDrag) }
+                    val teaching by teach.state.collectAsStateWithLifecycle()
+                    val ui = if (teaching.active) {
+                        state.copy(
+                            teaching = true,
+                            taughtSteps = teaching.actions,
+                            panelOpen = false,
+                            caption = state.caption ?: "Recording: fill the form by touch, then tap the red button (${teaching.actions} steps)",
+                        )
+                    } else {
+                        state
+                    }
+                    VoiceControlTheme { OverlayContent(ui, actions, onDrag) }
                 }
             } else {
                 overlay.hide()
@@ -66,6 +79,18 @@ class OverlayManager @Inject constructor(
         microphone.attach(service)
         controller.state.map { it.sessionActive }.distinctUntilChanged().onEach { active ->
             microphone.setSessionActive(active)
+        }.launchIn(scope)
+
+        // When a recording ends, open VoiceControl to review and save it.
+        teach.finished.onEach { recorded ->
+            if (recorded) {
+                runCatching {
+                    service.packageManager.getLaunchIntentForPackage(service.packageName)
+                        ?.setAction(ACTION_REVIEW_TEACHING)
+                        ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        ?.let(service::startActivity)
+                }
+            }
         }.launchIn(scope)
 
         controller.effects.onEach { effect ->
@@ -103,7 +128,21 @@ class OverlayManager @Inject constructor(
         service = null
     }
 
-    private companion object {
-        const val AUTO_START_SETTLE_MS = 1_500L
+    /** Overlay actions: the assistant's, except that while teaching the bubble stops the recording. */
+    private val actions: OverlayActions = object : OverlayActions by controller {
+        override fun onMicTap() {
+            if (teach.state.value.active) teach.stop() else controller.onMicTap()
+        }
+
+        override fun onTeach() {
+            controller.onClosePanel()
+            teach.startTeaching()
+        }
+    }
+
+    companion object {
+        private const val AUTO_START_SETTLE_MS = 1_500L
+        /** Intent action that opens the app on the review screen of a "teach by doing" recording. */
+        const val ACTION_REVIEW_TEACHING = "com.voicecontrol.action.REVIEW_TEACHING"
     }
 }

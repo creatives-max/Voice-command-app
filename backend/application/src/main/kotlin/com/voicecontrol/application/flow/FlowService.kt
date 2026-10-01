@@ -21,7 +21,14 @@ import java.net.URI
 import java.time.Clock
 import java.util.UUID
 
-data class NewFlow(val appPackage: String, val name: String, val screenSignature: String, val steps: List<FlowStep>)
+data class NewFlow(
+    val appPackage: String,
+    val name: String,
+    val screenSignature: String,
+    val steps: List<FlowStep>,
+    /** True for flows taught on the phone by demonstration. */
+    val taught: Boolean = false,
+)
 
 /**
  * An API key acting for its creator: limited to the key's organization ([orgId]); flows outside it are
@@ -48,7 +55,11 @@ class FlowService(
         flows.findBySignature(userId, appPackage, signature)?.let { return it }
         val now = clock.instant()
         val flow = Flow(UUID.randomUUID(), userId, appPackage, validateName(input.name), signature, 1, now, now)
-        val version = FlowVersion(flow.id, 1, normalizeSteps(input.steps), signature, VersionSource.DEVICE, "Recorded on device", now)
+        val version = if (input.taught) {
+            FlowVersion(flow.id, 1, normalizeSteps(input.steps), signature, VersionSource.RECORDED, "Taught on the phone by doing it", now)
+        } else {
+            FlowVersion(flow.id, 1, normalizeSteps(input.steps), signature, VersionSource.DEVICE, "Recorded on device", now)
+        }
         val created = flows.create(flow, version)
         publish(created)
         return created

@@ -27,7 +27,14 @@ import kotlinx.serialization.Serializable
     }
 }
 
-@Serializable data class CreateFlowRequest(val appPackage: String, val name: String, val screenSignature: String, val steps: List<FlowStep>)
+@Serializable data class CreateFlowRequest(
+    val appPackage: String,
+    val name: String,
+    val screenSignature: String,
+    val steps: List<FlowStep>,
+    /** "RECORDED" when the flow was taught on the phone by demonstration. */
+    val source: String? = null,
+)
 @Serializable data class UpdateFlowRequest(val expectedVersion: Int, val name: String? = null, val steps: List<FlowStep>, val changeNote: String? = null)
 @Serializable data class RollbackRequest(val version: Int)
 

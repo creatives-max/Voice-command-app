@@ -1288,13 +1288,14 @@ components:
       properties:
         version: { type: integer }
         steps: { type: array, items: { $ref: "#/components/schemas/FlowStep" } }
-        source: { type: string, enum: [DEVICE, DASHBOARD, ROLLBACK, IMPORT] }
+        source: { type: string, enum: [DEVICE, DASHBOARD, ROLLBACK, IMPORT, RECORDED] }
         changeNote: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
     CreateFlowRequest:
       type: object
       required: [appPackage, name, screenSignature, steps]
       properties:
+        source: { type: string, enum: [RECORDED], description: "RECORDED when the flow was taught on the phone by demonstration (version source RECORDED)" }
         appPackage: { type: string, example: com.example.shop }
         name: { type: string }
         screenSignature: { type: string }

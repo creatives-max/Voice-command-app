@@ -43,7 +43,7 @@ fun Route.flowRoutes(flows: FlowService, matcher: FlowMatchService) {
             post {
                 call.requireUser()
                 val body = call.receive<CreateFlowRequest>()
-                val saved = flows.createFromDevice(call.userId, NewFlow(body.appPackage, body.name, body.screenSignature, body.steps))
+                val saved = flows.createFromDevice(call.userId, NewFlow(body.appPackage, body.name, body.screenSignature, body.steps, taught = body.source == "RECORDED"))
                 call.respond(HttpStatusCode.Created, FlowDto.from(saved))
             }
             get("/apps") {

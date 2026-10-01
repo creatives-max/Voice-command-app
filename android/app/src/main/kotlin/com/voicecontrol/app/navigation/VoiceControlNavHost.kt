@@ -14,7 +14,10 @@ import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import android.widget.Toast
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -29,6 +32,7 @@ import androidx.navigation.compose.rememberNavController
 import com.voicecontrol.feature.auth.AuthRoute
 import com.voicecontrol.feature.auth.ProfileRoute
 import com.voicecontrol.feature.flows.FlowsRoute
+import com.voicecontrol.feature.flows.TeachReviewRoute
 import com.voicecontrol.feature.history.HistoryRoute
 import com.voicecontrol.feature.home.HomeRoute
 import com.voicecontrol.feature.inspector.InspectorRoute
@@ -46,6 +50,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object SettingsDestination
 @Serializable data object PrivacyDestination
 @Serializable data object OnboardingDestination
+@Serializable data object TeachReviewDestination
 
 /** Top-level places shown in the navigation rail on tablets and unfolded phones. */
 private class RailItem(val label: String, val icon: ImageVector, val isCurrent: (NavDestination?) -> Boolean, val go: () -> Any)
@@ -55,8 +60,21 @@ private class RailItem(val label: String, val icon: ImageVector, val isCurrent: 
  * on phones the screens link to each other as before.
  */
 @Composable
-fun VoiceControlNavHost(startWithOnboarding: Boolean = false, wide: Boolean = false, signedIn: Boolean = false) {
+fun VoiceControlNavHost(
+    startWithOnboarding: Boolean = false,
+    wide: Boolean = false,
+    signedIn: Boolean = false,
+    reviewTeaching: Boolean = false,
+    onReviewOpened: () -> Unit = {},
+) {
     val navController = rememberNavController()
+    // A finished "teach by doing" recording opens its review screen.
+    LaunchedEffect(reviewTeaching) {
+        if (reviewTeaching) {
+            navController.navigate(TeachReviewDestination) { launchSingleTop = true }
+            onReviewOpened()
+        }
+    }
     val entry by navController.currentBackStackEntryAsState()
     val destination = entry?.destination
     val showRail = wide && destination?.hasRoute(OnboardingDestination::class) != true
@@ -121,6 +139,13 @@ private fun Graph(navController: NavHostController, startWithOnboarding: Boolean
                 onOpenProfile = { navController.navigate(ProfileDestination) },
                 onOpenTutorial = { navController.navigate(OnboardingDestination) },
             )
+        }
+        composable<TeachReviewDestination> {
+            val context = LocalContext.current
+            TeachReviewRoute(onDone = { message ->
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                navController.navigate(FlowsDestination) { popUpTo(TeachReviewDestination) { inclusive = true } }
+            })
         }
         composable<HistoryDestination> {
             HistoryRoute(onBack = { navController.popBackStack() })

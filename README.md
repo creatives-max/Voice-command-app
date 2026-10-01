@@ -120,6 +120,13 @@ images.
   editing, and get told when someone saves a newer version.
 - **Dark mode** (system/light/dark) and **Hindi** in the sidebar.
 
+## Teach by doing
+
+Instead of answering by voice the first time, show VoiceControl what to do: tap the red record button in the
+floating panel (or the record icon in *Saved flows*), fill the form by touch across screens and apps, then tap the
+red bubble. Review the steps, choose which typed values to keep as defaults (never passwords, OTPs or PINs) and save.
+Next time VoiceControl asks for each field in that order.
+
 ## Security, privacy and platform
 
 - **App lock** (Settings): fingerprint, face or screen lock to open the app, re-locks after a chosen time in the

@@ -19,4 +19,8 @@ data class OverlayUiState(
     val panelOpen: Boolean = false,
     val panelElements: List<ScreenElement> = emptyList(),
     val micLevel: Float = 0f,
+    /** "Teach by doing" is recording what the user does by touch. */
+    val teaching: Boolean = false,
+    /** Actions recorded so far while teaching. */
+    val taughtSteps: Int = 0,
 )

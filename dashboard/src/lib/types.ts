@@ -89,7 +89,7 @@ export const flowPageSchema = z.object({ items: z.array(flowSummarySchema), limi
 export const flowVersionSchema = z.object({
   version: z.number(),
   steps: z.array(flowStepSchema),
-  source: z.enum(["DEVICE", "DASHBOARD", "ROLLBACK", "IMPORT"]),
+  source: z.enum(["DEVICE", "DASHBOARD", "ROLLBACK", "IMPORT", "RECORDED"]),
   changeNote: z.string().nullish(),
   createdAt: z.string(),
 });

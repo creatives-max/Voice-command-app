@@ -124,3 +124,52 @@ If work is interrupted, read this file first and resume from the first unchecked
 - [x] Tablet layout
 - [x] Emulator end-to-end test in CI
 - [x] Tests, commit + push
+
+---
+
+# Second feature list (Phases 17–28)
+
+Groups that were already delivered in Phases 9–16 get a phase that only adds what was still missing; the
+phase notes say which earlier phase covered the rest.
+
+## Phase 17 — Record-to-flow ("teach by doing")
+- [x] Engine recorder: typing, toggles and presses in order, screen changes (next screen / other app), typed values kept only if chosen, never for passwords/OTPs/PINs
+- [x] Accessibility bridge reports touches and typing (matched to screen elements) while recording
+- [x] Overlay "teach" button and recording bubble; "Teach a new flow" in Saved flows
+- [x] Review screen (name, steps, keep typed values as defaults), saved as a local flow and synced
+- [x] Backend version source RECORDED; dashboard label "taught on phone"
+- [x] Tests, commit + push
+
+## Phase 18 — Smarter flows (gaps; conditions, loops, variables, cross-app and dry-run were done in Phase 9)
+- [ ] Gap-fill, tests, commit + push
+
+## Phase 19 — Routines & triggers (voice macros; app-open and schedules were done in Phase 10)
+- [ ] Voice macros, tests, commit + push
+
+## Phase 20 — Photo/document auto-fill (OCR → fill)
+- [ ] OCR, field mapping, review, fill, tests, commit + push
+
+## Phase 21 — Remote caregiver mode (with consent)
+- [ ] Caregiver links, consent, remote flow setup, tests, commit + push
+
+## Phase 22 — Offline + regional languages (gaps; six languages were done in Phase 12)
+- [ ] Offline speech packs, tests, commit + push
+
+## Phase 23 — Accessibility narrator (gaps; Phase 13)
+- [ ] Gap-fill, tests, commit + push
+
+## Phase 24 — Voice & AI upgrades (gaps; Phase 12)
+- [ ] Gap-fill, tests, commit + push
+
+## Phase 25 — Flow marketplace + templates (gaps; Phase 11)
+- [ ] Gap-fill, tests, commit + push
+
+## Phase 26 — Teams & multi-tenant backend (gaps; Phase 14)
+- [ ] Gap-fill, tests, commit + push
+
+## Phase 27 — Analytics & visual builder (gaps; Phase 15)
+- [ ] Gap-fill, tests, commit + push
+
+## Phase 28 — Security & platform polish (gaps; Phase 16)
+- [ ] Gap-fill, tests, commit + push
+

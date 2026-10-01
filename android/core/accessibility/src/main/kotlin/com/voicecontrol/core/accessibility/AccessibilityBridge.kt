@@ -3,7 +3,10 @@ package com.voicecontrol.core.accessibility
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
+import com.voicecontrol.core.engine.port.InteractionKind
+import com.voicecontrol.core.engine.port.InteractionSource
 import com.voicecontrol.core.engine.port.ScreenGateway
+import com.voicecontrol.core.engine.port.UserInteraction
 import com.voicecontrol.core.model.ActionResult
 import com.voicecontrol.core.model.ScreenAction
 import com.voicecontrol.core.model.ScreenSnapshot
@@ -24,6 +27,7 @@ import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -37,7 +41,7 @@ import javax.inject.Singleton
 @Singleton
 class AccessibilityBridge @Inject constructor(
     private val parser: ScreenParser,
-) : ScreenGateway {
+) : ScreenGateway, InteractionSource {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Volatile
@@ -67,6 +71,10 @@ class AccessibilityBridge @Inject constructor(
         _currentSnapshot.filterNotNull().distinctUntilChangedBy { it.packageName + "|" + it.signature }
 
     private val rawEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 64)
+
+    private val _interactions = MutableSharedFlow<UserInteraction>(extraBufferCapacity = 32)
+    /** Typing and presses in the foreground app; only worked out while someone listens (teach-by-doing). */
+    override val interactions: Flow<UserInteraction> = _interactions
     private var currentActivity: String? = null
     /** VoiceControl's own screens are ignored, except the onboarding practice form (so people can try it safely). */
     @Volatile private var practiceFormOpen = false
@@ -102,15 +110,47 @@ class AccessibilityBridge @Inject constructor(
                 practiceFormOpen = cls == PRACTICE_FORM_ACTIVITY
                 if (practiceFormOpen) currentActivity = cls
             }
-            if (practiceFormOpen) rawEvents.tryEmit(Unit)
+            if (practiceFormOpen) {
+                reportInteraction(event)
+                rawEvents.tryEmit(Unit)
+            }
             return
         }
         if (isStateChange) practiceFormOpen = false
+        reportInteraction(event)
         if (isStateChange) {
             val cls = event.className?.toString()
             if (cls != null && looksLikeActivity(cls)) currentActivity = cls
         }
         rawEvents.tryEmit(Unit)
+    }
+
+    private fun reportInteraction(event: AccessibilityEvent) {
+        val kind = when (event.eventType) {
+            AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED -> InteractionKind.TYPED
+            AccessibilityEvent.TYPE_VIEW_CLICKED -> InteractionKind.PRESSED
+            else -> return
+        }
+        if (_interactions.subscriptionCount.value == 0) return
+        val source = event.source ?: return
+        val rect = android.graphics.Rect().also(source::getBoundsInScreen)
+        val bounds = com.voicecontrol.core.model.Bounds(rect.left, rect.top, rect.right, rect.bottom)
+        val viewId = source.viewIdResourceName
+        scope.launch {
+            val snapshot = refreshSnapshot() ?: return@launch
+            val element = elementAt(snapshot, bounds, viewId) ?: return@launch
+            _interactions.emit(UserInteraction(kind, element.id))
+        }
+    }
+
+    /** The element an event came from: same view id, else the smallest element containing the event's center. */
+    private fun elementAt(snapshot: ScreenSnapshot, bounds: com.voicecontrol.core.model.Bounds, viewId: String?): com.voicecontrol.core.model.ScreenElement? {
+        if (viewId != null) snapshot.elements.firstOrNull { it.viewId == viewId && it.bounds == bounds }?.let { return it }
+        val cx = bounds.centerX
+        val cy = bounds.centerY
+        return snapshot.elements
+            .filter { e -> !e.bounds.isEmpty && cx in e.bounds.left..e.bounds.right && cy in e.bounds.top..e.bounds.bottom }
+            .minByOrNull { it.bounds.width.toLong() * it.bounds.height }
     }
 
     /** Parses the current foreground app screen now. Returns null when the service is off. */

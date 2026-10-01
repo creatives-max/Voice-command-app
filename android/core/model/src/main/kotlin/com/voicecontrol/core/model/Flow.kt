@@ -145,6 +145,8 @@ data class FlowDefinition(
 
     companion object {
         const val LOCAL_PREFIX = "local-"
+        /** Local flows taught by demonstration ("teach by doing"); still local until synced. */
+        const val TAUGHT_PREFIX = "local-taught-"
     }
 }
 

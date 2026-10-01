@@ -629,6 +629,17 @@ paths:
       responses:
         "201": { description: Your flow, content: { application/json: { schema: { $ref: "#/components/schemas/Flow" } } } }
         "400": { description: Templates are applied, not imported }
+  /v1/marketplace/{id}/report:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Marketplace]
+      summary: Report a listing (one report per person; reporting again replaces it)
+      description: After 3 different people report a listing it is hidden from search (its owner still sees it) until the owner publishes a fixed version, which clears the reports. Built-in templates are never hidden.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [reason], properties: { reason: { type: string, enum: [broken, unsafe, spam, other] }, note: { type: string, maxLength: 500 } } } } } }
+      responses:
+        "200": { description: Whether the listing is now hidden, content: { application/json: { schema: { type: object, properties: { hidden: { type: boolean } } } } } }
+        "400": { description: Own listing or unknown reason }
   /v1/marketplace/{id}/rating:
     put:
       tags: [Marketplace]
@@ -1206,6 +1217,7 @@ components:
       type: object
       properties:
         id: { type: string, format: uuid }
+        hidden: { type: boolean, description: Hidden from search after reports (only its owner sees this) }
         name: { type: string }
         description: { type: string }
         appPackage: { type: string, description: "\"*\" for templates" }
@@ -1232,6 +1244,7 @@ components:
         importedFlowId: { type: string, nullable: true }
         importedVersion: { type: integer, nullable: true }
         updateAvailable: { type: boolean }
+        myReport: { type: string, nullable: true, enum: [BROKEN, UNSAFE, SPAM, OTHER] }
     RegisterDevice:
       type: object
       required: [id, name]

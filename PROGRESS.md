@@ -187,8 +187,11 @@ phase notes say which earlier phase covered the rest.
 - [x] Wake phrase test (listen once, say whether it would wake VoiceControl)
 - [x] Tests, commit + push
 
-## Phase 25 — Flow marketplace + templates (gaps; Phase 11)
-- [ ] Gap-fill, tests, commit + push
+## Phase 25 — Flow marketplace + templates (gaps; publish, search, import, update-from-source, ratings, starter templates and dashboard pages were done in Phase 11)
+- [x] Marketplace on the phone: search, categories, sort, listing details (steps in plain words, reviews), install/update into my flows, rate
+- [x] Reporting listings (broken, unsafe, spam, other; migration V11): hidden from search after 3 people report it, owner sees why; publishing a fixed version clears reports; templates never hidden
+- [x] Dashboard Report dialog and "hidden after reports" notice; OpenAPI
+- [x] Tests, commit + push
 
 ## Phase 26 — Teams & multi-tenant backend (gaps; Phase 14)
 - [ ] Gap-fill, tests, commit + push

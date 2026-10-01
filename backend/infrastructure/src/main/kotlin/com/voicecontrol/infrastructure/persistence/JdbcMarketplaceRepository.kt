@@ -9,6 +9,7 @@ import com.voicecontrol.domain.marketplace.MarketplaceSort
 import com.voicecontrol.domain.marketplace.PublishedFlow
 import com.voicecontrol.domain.marketplace.PublishedVersion
 import com.voicecontrol.domain.marketplace.Rating
+import com.voicecontrol.domain.marketplace.ReportReason
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
@@ -53,20 +54,41 @@ class JdbcMarketplaceRepository(private val db: Database) : MarketplaceRepositor
         update(
             """
             UPDATE published_flows SET name = ?, description = ?, category = ?, tags = ?, latest_version = ?, updated_at = ?,
-                unpublished_at = NULL, search = $searchSql
+                unpublished_at = NULL, hidden_at = NULL, search = $searchSql
             WHERE id = ?
             """.trimIndent(),
             listing.name, listing.description, listing.category, tagsArray(listing.tags), version.version, version.createdAt,
             *searchParams(listing.name, listing.description, current.appPackage, listing.category, listing.tags), id,
         )
         insertVersion(version)
+        // A fixed version starts over: earlier reports are about the old steps.
+        update("DELETE FROM listing_reports WHERE published_id = ?", id)
         getIn(id, true)!!
+    }
+
+    override suspend fun report(id: UUID, userId: UUID, reason: ReportReason, note: String?, at: Instant): Int = db.tx {
+        update(
+            """
+            INSERT INTO listing_reports (published_id, user_id, reason, note, created_at) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (published_id, user_id) DO UPDATE SET reason = EXCLUDED.reason, note = EXCLUDED.note, created_at = EXCLUDED.created_at
+            """.trimIndent(),
+            id, userId, reason.name, note, at,
+        )
+        query("SELECT count(*) AS n FROM listing_reports WHERE published_id = ?", id) { it.getInt("n") }.first()
+    }
+
+    override suspend fun myReport(id: UUID, userId: UUID): ReportReason? = db.tx {
+        query("SELECT reason FROM listing_reports WHERE published_id = ? AND user_id = ?", id, userId) { ReportReason.valueOf(it.getString("reason")) }.firstOrNull()
+    }
+
+    override suspend fun hide(id: UUID, at: Instant) {
+        db.tx { update("UPDATE published_flows SET hidden_at = ? WHERE id = ? AND hidden_at IS NULL", at, id) }
     }
 
     override suspend fun get(id: UUID, includeUnpublished: Boolean): PublishedFlow? = db.tx { getIn(id, includeUnpublished) }
 
     private fun Connection.getIn(id: UUID, includeUnpublished: Boolean): PublishedFlow? =
-        query("$select WHERE p.id = ?" + if (includeUnpublished) "" else " AND p.unpublished_at IS NULL", id, map = ::toPublished).firstOrNull()
+        query("$select WHERE p.id = ?" + if (includeUnpublished) "" else " AND p.unpublished_at IS NULL AND p.hidden_at IS NULL", id, map = ::toPublished).firstOrNull()
 
     override suspend fun findBySource(ownerId: UUID, sourceFlowId: UUID): PublishedFlow? = db.tx {
         query("$select WHERE p.owner_id = ? AND p.source_flow_id = ?", ownerId, sourceFlowId, map = ::toPublished).firstOrNull()
@@ -82,6 +104,8 @@ class JdbcMarketplaceRepository(private val db: Database) : MarketplaceRepositor
 
     override suspend fun search(query: MarketplaceQuery): List<PublishedFlow> = db.tx {
         val where = mutableListOf("p.unpublished_at IS NULL")
+        // Reported-and-hidden listings only show in their owner's own list.
+        if (query.ownerId == null) where += "p.hidden_at IS NULL"
         val params = mutableListOf<Any?>()
         val text = query.text?.trim()?.takeIf { it.isNotEmpty() }
         if (text != null) {
@@ -217,6 +241,7 @@ class JdbcMarketplaceRepository(private val db: Database) : MarketplaceRepositor
         ratingSum = rs.getInt("rating_sum"),
         createdAt = rs.instant("created_at"),
         updatedAt = rs.instant("updated_at"),
+        hidden = rs.getTimestamp("hidden_at") != null,
     )
 
     private fun toVersion(rs: ResultSet) = PublishedVersion(

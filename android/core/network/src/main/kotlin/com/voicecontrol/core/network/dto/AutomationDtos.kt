@@ -51,7 +51,36 @@ import kotlinx.serialization.Serializable
     val category: String,
     val isTemplate: Boolean = false,
     val latestVersion: Int,
+    val appPackage: String = "",
+    val tags: List<String> = emptyList(),
+    val ownerName: String? = null,
+    val mine: Boolean = false,
+    val installCount: Int = 0,
+    val ratingAverage: Double? = null,
+    val ratingCount: Int = 0,
+    val hidden: Boolean = false,
 )
+
+@Serializable data class RatingDto(val stars: Int, val review: String? = null, val userName: String? = null, val updatedAt: String = "")
+@Serializable data class ListingVersionDto(val version: Int, val changelog: String? = null, val stepCount: Int = 0, val createdAt: String = "")
+
+/** A marketplace listing with its steps, versions and reviews, as seen by the signed-in user. */
+@Serializable data class ListingDetailDto(
+    val listing: ListingDto,
+    val steps: List<com.voicecontrol.core.model.FlowStep> = emptyList(),
+    val versions: List<ListingVersionDto> = emptyList(),
+    val myRating: RatingDto? = null,
+    val reviews: List<RatingDto> = emptyList(),
+    val importedFlowId: String? = null,
+    val importedVersion: Int? = null,
+    val updateAvailable: Boolean = false,
+    val myReport: String? = null,
+)
+
+@Serializable data class ImportListingRequestDto(val version: Int? = null)
+@Serializable data class RateListingRequestDto(val stars: Int, val review: String? = null)
+@Serializable data class ReportListingRequestDto(val reason: String, val note: String? = null)
+@Serializable data class ReportListingResponseDto(val hidden: Boolean)
 
 @Serializable data class TemplateDto(
     val listing: ListingDto,

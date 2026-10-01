@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedButton
@@ -76,7 +77,7 @@ import java.text.DateFormat
 import java.util.Date
 
 @Composable
-fun FlowsRoute(onBack: () -> Unit, viewModel: FlowsViewModel = hiltViewModel()) {
+fun FlowsRoute(onBack: () -> Unit, onOpenMarketplace: () -> Unit = {}, viewModel: FlowsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -95,12 +96,12 @@ fun FlowsRoute(onBack: () -> Unit, viewModel: FlowsViewModel = hiltViewModel()) 
     BackHandler(enabled = state.editing != null && state.dryRun == null) { viewModel.dispatch(FlowsIntent.CancelEdit) }
     BackHandler(enabled = state.dryRun != null) { viewModel.dispatch(FlowsIntent.CloseDryRun) }
     BackHandler(enabled = state.selected != null && state.editing == null && state.dryRun == null) { viewModel.dispatch(FlowsIntent.CloseDetail) }
-    FlowsScreen(state, snackbar, onBack, viewModel::dispatch)
+    FlowsScreen(state, snackbar, onBack, viewModel::dispatch, onOpenMarketplace)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FlowsScreen(state: FlowsState, snackbar: SnackbarHostState, onBack: () -> Unit, onIntent: (FlowsIntent) -> Unit) {
+fun FlowsScreen(state: FlowsState, snackbar: SnackbarHostState, onBack: () -> Unit, onIntent: (FlowsIntent) -> Unit, onOpenMarketplace: () -> Unit = {}) {
     val selected = state.selected
     Scaffold(
         topBar = {
@@ -127,6 +128,7 @@ fun FlowsScreen(state: FlowsState, snackbar: SnackbarHostState, onBack: () -> Un
                     }
                 },
                 actions = {
+                    IconButton(onClick = onOpenMarketplace) { Icon(Icons.Filled.Storefront, "Get flows others made") }
                     IconButton(onClick = { onIntent(FlowsIntent.Teach) }) { Icon(Icons.Filled.FiberManualRecord, "Teach a new flow by doing it") }
                     IconButton(onClick = { onIntent(FlowsIntent.OpenDashboard) }) { Icon(Icons.Filled.OpenInBrowser, "Open dashboard") }
                     IconButton(onClick = { onIntent(FlowsIntent.Sync) }) { Icon(Icons.Filled.Sync, "Sync") }

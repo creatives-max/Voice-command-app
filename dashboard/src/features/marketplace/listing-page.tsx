@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useCurrentOrg } from "@/features/org/use-org";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, RefreshCw, Star, Trash2, Wand2 } from "lucide-react";
+import { Download, Flag, RefreshCw, Star, Trash2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,8 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { flowQuery, flowsQuery, listingQuery, useImportListing, useRateListing, useUnpublish, useUpdateFlow, useUpdateFromSource } from "@/lib/queries";
+import { flowQuery, flowsQuery, listingQuery, useImportListing, useRateListing, useReportListing, useUnpublish, useUpdateFlow, useUpdateFromSource } from "@/lib/queries";
+import { REPORT_REASONS, canSubmitReport, reportedLabel, type ReportReasonId } from "./report";
 import type { Flow, ListingDetail } from "@/lib/types";
 import { ACTION_LABELS } from "@/features/flows/logic";
 import { Stars, humanizeCategory } from "./marketplace-page";
@@ -64,6 +65,11 @@ function ListingView({ detail }: { detail: ListingDetail }) {
       <Link to="/marketplace" className="text-sm text-muted-foreground hover:underline">
         ← Marketplace
       </Link>
+      {listing.hidden && listing.mine && (
+        <div role="status" className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
+          Hidden from the marketplace after several people reported it. Fix the flow and publish a new version to show it again.
+        </div>
+      )}
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center gap-2">
@@ -122,6 +128,7 @@ function ListingView({ detail }: { detail: ListingDetail }) {
               <Download /> {org ? `Import to ${org.name}` : "Import to my flows"}
             </Button>
           )}
+          {!listing.mine && <ReportButton detail={detail} />}
         </CardContent>
       </Card>
 
@@ -230,6 +237,67 @@ function Reviews({ detail }: { detail: ListingDetail }) {
         </ul>
       </CardContent>
     </Card>
+  );
+}
+
+/** Report a listing that doesn't work, is unsafe or is spam; after a few reports it is hidden. */
+function ReportButton({ detail }: { detail: ListingDetail }) {
+  const report = useReportListing(detail.listing.id);
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState<ReportReasonId | null>(null);
+  const [note, setNote] = useState("");
+  const already = reportedLabel(detail.myReport);
+  return (
+    <>
+      <Button variant="ghost" onClick={() => setOpen(true)} aria-label="Report this flow">
+        <Flag /> {already ? `Reported: ${already}` : "Report"}
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Report “{detail.listing.name}”</DialogTitle>
+            <DialogDescription>Flows reported by several people are hidden until their author fixes them.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2" role="radiogroup" aria-label="Reason">
+            {REPORT_REASONS.map((r) => (
+              <label key={r.id} className="flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm has-[:checked]:border-primary">
+                <input type="radio" name="report-reason" className="mt-1" checked={reason === r.id} onChange={() => setReason(r.id)} />
+                <span>
+                  <span className="font-medium">{r.label}</span>
+                  <span className="block text-muted-foreground">{r.hint}</span>
+                </span>
+              </label>
+            ))}
+            <Textarea aria-label="Details" rows={2} maxLength={500} placeholder="What happened? (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!canSubmitReport(reason, note) || report.isPending}
+              onClick={() =>
+                reason &&
+                report.mutate(
+                  { reason, note },
+                  {
+                    onSuccess: (res) => {
+                      setOpen(false);
+                      toast.success(res.hidden ? "Thanks. This flow is now hidden while its author fixes it." : "Thanks for the report.");
+                      void qc.invalidateQueries({ queryKey: ["marketplace", "listing", detail.listing.id] });
+                    },
+                    onError: (e) => toast.error(e.message),
+                  },
+                )
+              }
+            >
+              Send report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

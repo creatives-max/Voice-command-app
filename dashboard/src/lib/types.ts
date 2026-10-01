@@ -233,6 +233,8 @@ export const listingSchema = z.object({
   ratingCount: z.number(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  /** Hidden from search after reports (its owner still sees it). */
+  hidden: z.boolean().default(false),
 });
 export type Listing = z.infer<typeof listingSchema>;
 export const listingPageSchema = z.object({ items: z.array(listingSchema), limit: z.number(), offset: z.number() });
@@ -248,6 +250,8 @@ export const listingDetailSchema = z.object({
   importedFlowId: z.string().nullish(),
   importedVersion: z.number().nullish(),
   updateAvailable: z.boolean(),
+  /** What the viewer reported about this listing (BROKEN, UNSAFE, SPAM, OTHER). */
+  myReport: z.string().nullish(),
 });
 export type ListingDetail = z.infer<typeof listingDetailSchema>;
 export const templateSchema = z.object({ listing: listingSchema, steps: z.array(flowStepSchema), keywords: z.record(z.array(z.string())) });

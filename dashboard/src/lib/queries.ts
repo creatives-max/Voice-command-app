@@ -66,6 +66,14 @@ export function useRateListing(id: string) {
   });
 }
 
+export function useReportListing(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ reason, note }: { reason: string; note?: string }) => api.reportListing(id, reason, note),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["marketplace"] }),
+  });
+}
+
 export function useUnpublish() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (id: string) => api.unpublish(id), onSuccess: () => qc.invalidateQueries({ queryKey: ["marketplace"] }) });

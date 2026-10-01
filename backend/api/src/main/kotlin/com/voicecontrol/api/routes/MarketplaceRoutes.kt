@@ -7,6 +7,7 @@ import com.voicecontrol.application.marketplace.MarketplaceService
 import com.voicecontrol.application.marketplace.PublishInput
 import com.voicecontrol.domain.common.DomainException
 import com.voicecontrol.domain.flow.FlowStep
+import com.voicecontrol.domain.marketplace.ReportReason
 import com.voicecontrol.domain.marketplace.MarketplaceQuery
 import com.voicecontrol.domain.marketplace.MarketplaceSort
 import com.voicecontrol.domain.marketplace.PublishedFlow
@@ -50,12 +51,14 @@ import java.util.UUID
     val ratingCount: Int,
     val createdAt: String,
     val updatedAt: String,
+    /** Hidden from search after reports (shown to its owner). */
+    val hidden: Boolean = false,
 ) {
     companion object {
         fun from(p: PublishedFlow, userId: UUID) = ListingDto(
             p.id.toString(), p.name, p.description, p.appPackage, p.category, p.tags, p.isTemplate,
             if (p.isTemplate) "VoiceControl" else p.ownerName, p.ownerId == userId, p.latestVersion, p.installCount,
-            p.ratingAverage?.let { Math.round(it * 10) / 10.0 }, p.ratingCount, p.createdAt.toString(), p.updatedAt.toString(),
+            p.ratingAverage?.let { Math.round(it * 10) / 10.0 }, p.ratingCount, p.createdAt.toString(), p.updatedAt.toString(), p.hidden,
         )
     }
 }
@@ -82,11 +85,15 @@ import java.util.UUID
     val importedFlowId: String? = null,
     val importedVersion: Int? = null,
     val updateAvailable: Boolean,
+    /** What the viewer reported (BROKEN, UNSAFE, SPAM, OTHER), if they did. */
+    val myReport: String? = null,
 )
 
 @Serializable data class TemplateDto(val listing: ListingDto, val steps: List<FlowStep>, val keywords: Map<String, List<String>>)
 @Serializable data class ImportRequest(val version: Int? = null)
 @Serializable data class RateRequest(val stars: Int, val review: String? = null)
+@Serializable data class ReportRequest(val reason: String, val note: String? = null)
+@Serializable data class ReportResponse(val hidden: Boolean)
 
 private fun ApplicationCall.uuidParam(name: String): UUID =
     runCatching { UUID.fromString(parameters[name]) }.getOrElse { throw DomainException.Validation("$name must be a UUID") }
@@ -135,6 +142,7 @@ fun Route.marketplaceRoutes(market: MarketplaceService) {
                             importedFlowId = view.importedFlowId?.toString(),
                             importedVersion = view.importedVersion,
                             updateAvailable = view.updateAvailable,
+                            myReport = view.myReport?.name,
                         ),
                     )
                 }
@@ -145,6 +153,12 @@ fun Route.marketplaceRoutes(market: MarketplaceService) {
                 post("/import") {
                     val body = call.receive<ImportRequest>()
                     call.respond(HttpStatusCode.Created, FlowDto.from(market.import(call.userId, call.uuidParam("id"), body.version, call.orgContext)))
+                }
+                post("/report") {
+                    val body = call.receive<ReportRequest>()
+                    val reason = runCatching { ReportReason.valueOf(body.reason.trim().uppercase()) }
+                        .getOrElse { throw DomainException.Validation("Choose a reason: broken, unsafe, spam or other") }
+                    call.respond(ReportResponse(market.report(call.userId, call.uuidParam("id"), reason, body.note)))
                 }
                 put("/rating") {
                     val body = call.receive<RateRequest>()

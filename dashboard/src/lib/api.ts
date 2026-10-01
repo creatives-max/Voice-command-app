@@ -172,6 +172,8 @@ export function createApi(
     importListing: (id: string, version?: number) => request(flowSchema, `/marketplace/${id}/import`, { method: "POST", body: json({ version }) }),
     rateListing: (id: string, stars: number, review?: string) =>
       request(listingSchema, `/marketplace/${id}/rating`, { method: "PUT", body: json({ stars, review: review || undefined }) }),
+    reportListing: (id: string, reason: string, note?: string) =>
+      request(z.object({ hidden: z.boolean() }), `/marketplace/${id}/report`, { method: "POST", body: json({ reason, note: note || undefined }) }),
     unpublish: (id: string) => request(null, `/marketplace/${id}`, { method: "DELETE" }),
     publishFlow: (flowId: string, input: PublishInput) => request(listingSchema, `/flows/${flowId}/publish`, { method: "POST", body: json(input) }),
     updateFromSource: (flowId: string) => request(flowSchema, `/flows/${flowId}/update-from-source`, { method: "POST", body: json({}) }),

@@ -8,5 +8,6 @@ android {
 
 dependencies {
     implementation(projects.core.data)
+    implementation(projects.core.network)
     implementation(libs.androidx.activity.compose)
 }

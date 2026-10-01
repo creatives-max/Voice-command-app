@@ -24,6 +24,8 @@ data class PublishedFlow(
     val ratingSum: Int,
     val createdAt: Instant,
     val updatedAt: Instant,
+    /** Hidden from search after reports (until the owner publishes a fixed version). */
+    val hidden: Boolean = false,
 ) {
     val ratingAverage: Double? get() = if (ratingCount == 0) null else ratingSum.toDouble() / ratingCount
 }
@@ -65,9 +67,16 @@ interface MarketplaceRepository {
     suspend fun search(query: MarketplaceQuery): List<PublishedFlow>
     suspend fun unpublish(ownerId: UUID, id: UUID, at: Instant): Boolean
     suspend fun recordInstall(id: UUID)
+    /** Stores (or replaces) [userId]'s report; returns how many different people reported the listing. */
+    suspend fun report(id: UUID, userId: UUID, reason: ReportReason, note: String?, at: Instant): Int
+    suspend fun myReport(id: UUID, userId: UUID): ReportReason?
+    suspend fun hide(id: UUID, at: Instant)
     suspend fun rate(id: UUID, userId: UUID, stars: Int, review: String?, at: Instant): PublishedFlow
     suspend fun ratings(id: UUID, limit: Int): List<Rating>
     suspend fun rating(id: UUID, userId: UUID): Rating?
     /** Inserts or refreshes a built-in template (new version only when its steps changed). */
     suspend fun upsertTemplate(template: PublishedFlow, steps: List<FlowStep>, at: Instant)
 }
+
+/** Why someone reports a listing. */
+enum class ReportReason { BROKEN, UNSAFE, SPAM, OTHER }

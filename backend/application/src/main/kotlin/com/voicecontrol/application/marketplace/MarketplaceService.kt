@@ -7,6 +7,7 @@ import com.voicecontrol.domain.flow.FlowStep
 import com.voicecontrol.domain.flow.FlowWithVersion
 import com.voicecontrol.domain.flow.VersionSource
 import com.voicecontrol.domain.org.Role
+import com.voicecontrol.domain.marketplace.ReportReason
 import com.voicecontrol.domain.marketplace.Listing
 import com.voicecontrol.domain.marketplace.MarketplaceQuery
 import com.voicecontrol.domain.marketplace.MarketplaceRepository
@@ -30,6 +31,8 @@ data class ListingView(
     /** The user's flow that follows this listing, if they imported it. */
     val importedFlowId: UUID?,
     val importedVersion: Int?,
+    /** What the viewer reported about this listing, if they did. */
+    val myReport: ReportReason? = null,
 ) {
     val updateAvailable: Boolean get() = importedVersion != null && importedVersion < listing.latestVersion
 }
@@ -95,7 +98,26 @@ class MarketplaceService(
         if (repo.get(id) == null && listing.ownerId != userId && mine == null) throw DomainException.NotFound("Listing not found")
         val versions = repo.versions(id)
         val latest = versions.firstOrNull { it.version == listing.latestVersion } ?: throw DomainException.NotFound("Listing not found")
-        return ListingView(listing, latest, versions, repo.rating(id, userId), repo.ratings(id, 20), mine?.flow?.id, mine?.flow?.sourceVersion)
+        return ListingView(
+            listing, latest, versions, repo.rating(id, userId), repo.ratings(id, 20), mine?.flow?.id, mine?.flow?.sourceVersion, repo.myReport(id, userId),
+        )
+    }
+
+    /**
+     * Reports a listing (broken, unsafe, spam…). Once [REPORTS_TO_HIDE] different people reported it, it is
+     * hidden from search until its owner publishes a fixed version. Built-in templates are never hidden.
+     * Returns whether the listing is now hidden.
+     */
+    suspend fun report(userId: UUID, id: UUID, reason: ReportReason, note: String?): Boolean {
+        val listing = repo.get(id) ?: throw DomainException.NotFound("Listing not found")
+        if (listing.ownerId == userId) throw DomainException.Validation("You can't report your own flow")
+        val text = note?.trim()?.takeIf { it.isNotEmpty() }
+        if ((text?.length ?: 0) > MAX_REVIEW) throw DomainException.Validation("Notes can be at most $MAX_REVIEW characters")
+        val now = clock.instant()
+        val reporters = repo.report(id, userId, reason, text, now)
+        if (listing.isTemplate || reporters < REPORTS_TO_HIDE) return false
+        repo.hide(id, now)
+        return true
     }
 
     /**
@@ -156,6 +178,7 @@ class MarketplaceService(
         val CATEGORIES = listOf("signup", "login", "address", "contact", "payment", "shopping", "banking", "government", "travel", "health", "other")
         const val MAX_DESCRIPTION = 1_000
         const val MAX_TAGS = 8
+        const val REPORTS_TO_HIDE = 3
         const val MAX_REVIEW = 500
 
         /** What is shared: default values are removed (they may be personal); questions, rules and logic are kept. */

@@ -127,6 +127,12 @@ floating panel (or the record icon in *Saved flows*), fill the form by touch acr
 red bubble. Review the steps, choose which typed values to keep as defaults (never passwords, OTPs or PINs) and save.
 Next time VoiceControl asks for each field in that order.
 
+## Marketplace on the phone
+
+*Saved flows → Get flows* (store icon) lists flows other people shared: search, filter by category, sort by most
+used, best rated or newest, read what each flow does step by step, install it (or update your copy), rate it, or
+report it. Listings reported by three people are hidden until their author publishes a fixed version.
+
 ## Voice memory and wake phrase test
 
 *Remember my answers* (Settings, off by default) keeps the last answer per app and field on the phone and offers it

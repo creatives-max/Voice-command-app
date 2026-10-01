@@ -133,4 +133,33 @@ class AutomationApi @Inject constructor(private val api: ApiClient) {
 class MarketplaceApi @Inject constructor(private val api: ApiClient) {
     /** Built-in starter templates with their matching keywords. */
     suspend fun templates(): List<com.voicecontrol.core.network.dto.TemplateDto> = api.get("/v1/marketplace/templates")
+
+    /** Shared flows (not templates), most popular first, or by relevance when searching. */
+    suspend fun search(text: String?, category: String?, sort: String?, limit: Int, offset: Int): PageDto<com.voicecontrol.core.network.dto.ListingDto> =
+        api.get("/v1/marketplace") {
+            url.parameters.append("templates", "false")
+            url.parameters.append("limit", limit.toString())
+            url.parameters.append("offset", offset.toString())
+            text?.takeIf { it.isNotBlank() }?.let { url.parameters.append("q", it) }
+            category?.takeIf { it.isNotBlank() }?.let { url.parameters.append("category", it) }
+            sort?.let { url.parameters.append("sort", it) }
+        }
+
+    suspend fun categories(): List<String> = api.get("/v1/marketplace/categories")
+
+    suspend fun listing(id: String): com.voicecontrol.core.network.dto.ListingDetailDto = api.get("/v1/marketplace/$id")
+
+    /** Adds the listing's flow to the user's flows (or updates their copy). */
+    suspend fun import(id: String): FlowDefinition =
+        api.post<com.voicecontrol.core.network.dto.ImportListingRequestDto, FlowDefinition>("/v1/marketplace/$id/import", com.voicecontrol.core.network.dto.ImportListingRequestDto())
+
+    suspend fun rate(id: String, stars: Int, review: String?): com.voicecontrol.core.network.dto.ListingDto =
+        api.put<com.voicecontrol.core.network.dto.RateListingRequestDto, com.voicecontrol.core.network.dto.ListingDto>(
+            "/v1/marketplace/$id/rating", com.voicecontrol.core.network.dto.RateListingRequestDto(stars, review?.takeIf { it.isNotBlank() }),
+        )
+
+    suspend fun report(id: String, reason: String, note: String?): com.voicecontrol.core.network.dto.ReportListingResponseDto =
+        api.post<com.voicecontrol.core.network.dto.ReportListingRequestDto, com.voicecontrol.core.network.dto.ReportListingResponseDto>(
+            "/v1/marketplace/$id/report", com.voicecontrol.core.network.dto.ReportListingRequestDto(reason, note?.takeIf { it.isNotBlank() }),
+        )
 }

@@ -32,6 +32,7 @@ import androidx.navigation.compose.rememberNavController
 import com.voicecontrol.feature.auth.AuthRoute
 import com.voicecontrol.feature.auth.ProfileRoute
 import com.voicecontrol.feature.care.CareRoute
+import com.voicecontrol.feature.flows.MarketplaceRoute
 import com.voicecontrol.feature.flows.FlowsRoute
 import com.voicecontrol.feature.flows.TeachReviewRoute
 import com.voicecontrol.feature.history.HistoryRoute
@@ -57,6 +58,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object CareDestination
 @Serializable data object OfflineLanguagesDestination
 @Serializable data object RememberedAnswersDestination
+@Serializable data object MarketplaceDestination
 
 /** Top-level places shown in the navigation rail on tablets and unfolded phones. */
 private class RailItem(val label: String, val icon: ImageVector, val isCurrent: (NavDestination?) -> Boolean, val go: () -> Any)
@@ -178,7 +180,10 @@ private fun Graph(navController: NavHostController, startWithOnboarding: Boolean
             PrivacyScreen(onBack = { navController.popBackStack() })
         }
         composable<FlowsDestination> {
-            FlowsRoute(onBack = { navController.popBackStack() })
+            FlowsRoute(onBack = { navController.popBackStack() }, onOpenMarketplace = { navController.navigate(MarketplaceDestination) })
+        }
+        composable<MarketplaceDestination> {
+            MarketplaceRoute(onBack = { navController.popBackStack() }, onSignIn = { navController.navigate(AuthDestination) })
         }
         composable<InspectorDestination> {
             InspectorRoute(onBack = { navController.popBackStack() })

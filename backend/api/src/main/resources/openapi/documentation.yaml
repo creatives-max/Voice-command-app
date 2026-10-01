@@ -633,7 +633,7 @@ paths:
       tags: [Marketplace]
       summary: Browse and search published flows and starter templates
       parameters:
-        - { name: q, in: query, schema: { type: string }, description: Full-text search over name, description, app and tags }
+        - { name: q, in: query, schema: { type: string }, description: "Full-text search over name, description, app and tags" }
         - { name: category, in: query, schema: { type: string } }
         - { name: appPackage, in: query, schema: { type: string } }
         - { name: templates, in: query, schema: { type: boolean } }

@@ -13,6 +13,12 @@ ktor {
     }
 }
 
+// Libraries register plugins in META-INF/services (Flyway's SQL migration support among them); without
+// merging, one jar's list replaces the others' and the fat jar silently skips every migration.
+tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+    mergeServiceFiles()
+}
+
 dependencies {
     implementation(project(":infrastructure"))
     implementation(libs.ktor.server.core)

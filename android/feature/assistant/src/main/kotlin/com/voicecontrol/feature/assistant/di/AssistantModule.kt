@@ -83,6 +83,7 @@ abstract class AssistantModule {
             questionWriter: com.voicecontrol.core.engine.port.QuestionWriter,
             appDirectory: com.voicecontrol.core.engine.port.AppDirectory,
             phoneActions: com.voicecontrol.core.engine.port.PhoneActions,
+            goalAgent: com.voicecontrol.core.engine.port.GoalAgent,
         ): AssistantEngine = AssistantEngine(
             screen = screen,
             stt = stt,
@@ -100,6 +101,7 @@ abstract class AssistantModule {
             questionWriter = questionWriter,
             appDirectory = appDirectory,
             phoneActions = phoneActions,
+            goalAgent = goalAgent,
         )
 
         @Provides

@@ -52,6 +52,22 @@ object ModelOutput {
         )
     }
 
+    fun agentStep(text: String, source: String): com.voicecontrol.domain.ai.AgentStep {
+        val o = extractObject(text)
+        val action = o.str("action")?.let { name -> com.voicecontrol.domain.ai.AgentActionKind.entries.firstOrNull { it.name == name } }
+            ?: com.voicecontrol.domain.ai.AgentActionKind.GIVE_UP
+        return com.voicecontrol.domain.ai.AgentStep(
+            action = action,
+            targetId = o.str("targetId"),
+            value = o.str("value"),
+            say = o.str("say"),
+            question = o.str("question"),
+            appName = o.str("appName"),
+            confirm = (o["confirm"] as? kotlinx.serialization.json.JsonPrimitive)?.content == "true",
+            source = source,
+        )
+    }
+
     fun questions(text: String): List<FieldQuestion> {
         val o = extractObject(text)
         return (o["questions"]?.jsonArray ?: emptyList()).mapNotNull { el ->

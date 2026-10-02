@@ -31,7 +31,9 @@ import com.voicecontrol.core.model.ScrollDirection
 import com.voicecontrol.core.model.SessionSummary
 import com.voicecontrol.core.model.StepAction
 import com.voicecontrol.core.nlp.AppRequest
+import com.voicecontrol.core.nlp.GoalRequest
 import com.voicecontrol.core.nlp.PhoneTask
+import com.voicecontrol.core.engine.port.AgentAction
 import com.voicecontrol.core.model.StepOutcome
 import com.voicecontrol.core.model.StepRecord
 import com.voicecontrol.core.model.UserProfile
@@ -129,6 +131,8 @@ class AssistantEngine(
     private val appDirectory: com.voicecontrol.core.engine.port.AppDirectory? = null,
     /** Alarms, timers, searches, calls and messages for the personal assistant. */
     phoneActions: com.voicecontrol.core.engine.port.PhoneActions? = null,
+    /** Operates apps towards a spoken goal ("mujhe bill bharna hai"), asking the user for what it needs. */
+    private val goalAgent: com.voicecontrol.core.engine.port.GoalAgent? = null,
 ) {
     private val personal = PersonalTasks(phoneActions, clock)
     private val _state = MutableStateFlow(EngineState())
@@ -694,6 +698,8 @@ class AssistantEngine(
                 prompt = phrases.anythingElse(turn)
                 return@repeat
             }
+            // "Mujhe bijli ka bill bharna hai": the helper operates the app and asks for what it needs.
+            if (goalAgent != null && GoalRequest.isGoal(heard)) return runGoal(session, heard, log)
             // The answer is usually just a button's name: "Login", "लॉगिन", "OK", "Next".
             spokenButton(session, snapshot, heard)?.let { button ->
                 if (press(session, button, log)) return ScreenOutcome.NAVIGATED
@@ -730,11 +736,155 @@ class AssistantEngine(
                 IntentKind.UNDO -> say(session, undoLast()?.let(phrases::undone) ?: phrases.nothingToUndo())
                 IntentKind.READ_SCREEN -> if (runReader(session, snapshot, log)) return ScreenOutcome.NAVIGATED
                 IntentKind.REPEAT -> Unit
-                else -> prompt = interp.reply?.takeIf { it.isNotBlank() }
-                    ?: (phrases.didNotCatch() + " " + phrases.suggest(suggestions(snapshot)))
+                else -> {
+                    // A longer request nothing on screen matches: try doing it step by step.
+                    if (goalAgent != null && interp.reply.isNullOrBlank() && heard.trim().split(' ').size >= MIN_GOAL_WORDS) {
+                        return runGoal(session, heard, log)
+                    }
+                    prompt = interp.reply?.takeIf { it.isNotBlank() }
+                        ?: (phrases.didNotCatch() + " " + phrases.suggest(suggestions(snapshot)))
+                }
             }
         }
         return ScreenOutcome.STOPPED
+    }
+
+    /**
+     * "Do it for me": works towards [goal] one step at a time, like a person helping, across screens and
+     * apps. Each step is planned by [goalAgent] from the screen and what happened so far; values it needs
+     * are asked from the user (passwords, OTPs and PINs the user types; they are never heard or sent), and presses
+     * that pay, send or delete are confirmed first. Ends when the goal is reached, can't be done, the user
+     * says stop, or after [MAX_AGENT_STEPS]; then the conversation carries on ("What next?").
+     */
+    private suspend fun runGoal(session: Session, goal: String, log: ScreenLog): ScreenOutcome {
+        val agent = goalAgent ?: return ScreenOutcome.NAVIGATED
+        val phrases = session.phrases
+        emit(EngineEvent.STATUS, "Helping with a goal")
+        say(session, phrases.onIt())
+        val history = mutableListOf<String>()
+        var lastKey = ""
+        var repeats = 0
+        repeat(MAX_AGENT_STEPS) {
+            val snap = readScreen(session) ?: return ScreenOutcome.NAVIGATED
+            session.appPackage = snap.packageName
+            setStatus(EngineStatus.THINKING, caption = null)
+            val d = runCatching { agent.next(goal, snap.redacted(), history.takeLast(MAX_AGENT_HISTORY), session.cfg.language) }.getOrNull()
+            if (d == null) {
+                say(session, if (history.isEmpty()) phrases.needInternetForHelp() else phrases.goalFailed())
+                return ScreenOutcome.NAVIGATED
+            }
+            // The same step on the same screen again and again: the plan is stuck, so ask the user.
+            val key = "${snap.signature}|${d.action}|${d.targetId}|${d.appName}"
+            repeats = if (key == lastKey) repeats + 1 else 0
+            lastKey = key
+            if (repeats >= MAX_AGENT_REPEATS) {
+                val answer = askAndListen(session, phrases.agentStuck(suggestions(snap))) ?: return ScreenOutcome.NAVIGATED
+                if (localCommands.commandOf(request(session, snap, answer))?.intent == IntentKind.STOP) return ScreenOutcome.STOPPED
+                history += "The plan was stuck; the user said: $answer"
+                repeats = 0
+                lastKey = ""
+                return@repeat
+            }
+            if (d.action != AgentAction.ASK) d.say?.let { say(session, it) }
+            when (d.action) {
+                AgentAction.CLICK -> {
+                    val target = d.targetId?.let(snap::element)
+                    if (target == null) {
+                        history += "Tried to press ${d.targetId}, but it is not on the screen"
+                        return@repeat
+                    }
+                    val named = target.label.ifBlank { target.hint.orEmpty() }
+                    // press() already confirms what looks destructive; the plan can ask for more.
+                    if (d.confirm && !(session.cfg.confirmDestructive && DestructiveActions.isDestructive(named))) {
+                        when (askYesNoOr(session, snap, phrases.confirmPress(named), default = false)) {
+                            true -> Unit
+                            null -> return ScreenOutcome.STOPPED
+                            false -> {
+                                say(session, phrases.notPressed(named))
+                                return ScreenOutcome.NAVIGATED
+                            }
+                        }
+                    }
+                    if (press(session, target, log)) {
+                        history += "Pressed \"$named\""
+                        delay(screenSettleMillis)
+                    } else {
+                        history += "Pressing \"$named\" did not work or the user said no"
+                        if (d.confirm || DestructiveActions.isDestructive(named)) return ScreenOutcome.NAVIGATED
+                    }
+                }
+                AgentAction.FILL -> {
+                    val target = d.targetId?.let(snap::element)
+                    val value = d.value
+                    if (target == null || value.isNullOrBlank() || target.isSensitive || target.fieldType?.isSensitive == true) {
+                        history += "Could not type into ${d.targetId}"
+                        return@repeat
+                    }
+                    val ok = perform(ScreenAction.SetText(target.id, value)).isSuccess
+                    if (ok) recordUndo(target)
+                    history += if (ok) "Typed \"$value\" into \"${target.label}\"" else "Typing into \"${target.label}\" failed"
+                }
+                AgentAction.ASK -> {
+                    val field = d.targetId?.let(snap::element)?.takeIf { it.kind.isInput || it.kind.isToggle }
+                    if (field != null) {
+                        val planned = PlanBuilder(phrases).build(snap, null, session.profile).steps.firstOrNull { it.elementId == field.id }
+                        if (planned != null) {
+                            val step = d.question?.let { planned.copy(question = it, customQuestion = true) } ?: planned
+                            when (handleStep(session, snap, step, log, mutableSetOf())) {
+                                StepResult.Stop -> return ScreenOutcome.STOPPED
+                                else -> Unit
+                            }
+                            val now = screen.capture()?.element(field.id)
+                            history += when {
+                                field.isSensitive || field.fieldType?.isSensitive == true -> "The user typed \"${field.label}\" themselves"
+                                !now?.value.isNullOrBlank() -> "Asked for \"${field.label}\"; filled with \"${now?.value}\""
+                                else -> "Asked for \"${field.label}\"; the user did not give it"
+                            }
+                            return@repeat
+                        }
+                    }
+                    val question = d.question ?: return@repeat
+                    val answer = askAndListen(session, question)
+                    if (answer == null) {
+                        history += "Asked \"$question\"; no answer"
+                        return@repeat
+                    }
+                    if (localCommands.commandOf(request(session, snap, answer))?.intent == IntentKind.STOP) return ScreenOutcome.STOPPED
+                    history += "Asked \"$question\"; the user said: $answer"
+                }
+                AgentAction.SCROLL_DOWN, AgentAction.SCROLL_UP -> {
+                    val up = d.action == AgentAction.SCROLL_UP
+                    perform(ScreenAction.Scroll(if (up) ScrollDirection.UP else ScrollDirection.DOWN))
+                    history += if (up) "Scrolled up" else "Scrolled down"
+                    delay(screenSettleMillis)
+                }
+                AgentAction.BACK -> {
+                    perform(ScreenAction.Back)
+                    history += "Went back"
+                    delay(screenSettleMillis)
+                }
+                AgentAction.OPEN_APP -> {
+                    val name = d.appName ?: return@repeat
+                    history += if (openApp(session, name)) "Opened $name" else "$name is not installed"
+                    delay(screenSettleMillis)
+                }
+                AgentAction.WAIT -> {
+                    history += "Waited for the screen"
+                    delay(AGENT_WAIT_MS)
+                }
+                AgentAction.DONE -> {
+                    if (d.say == null) say(session, phrases.goalDone())
+                    emit(EngineEvent.STATUS, "Goal done")
+                    return ScreenOutcome.NAVIGATED
+                }
+                AgentAction.GIVE_UP -> {
+                    if (d.say == null) say(session, phrases.goalFailed())
+                    return ScreenOutcome.NAVIGATED
+                }
+            }
+        }
+        say(session, phrases.goalFailed())
+        return ScreenOutcome.NAVIGATED
     }
 
     /** A WhatsApp chat opened with the message typed in: ask once, then press Send. */
@@ -1731,6 +1881,12 @@ class AssistantEngine(
         const val SCREEN_POLL_MS = 500L
         /** How long a flow waits after the last answer before pressing Enter in that field. */
         const val ENTER_AFTER_MS = 3_000L
+        const val MAX_AGENT_STEPS = 40
+        const val MAX_AGENT_HISTORY = 30
+        const val MAX_AGENT_REPEATS = 2
+        const val AGENT_WAIT_MS = 1_500L
+        /** A request this long that matched nothing on screen is tried as a goal. */
+        const val MIN_GOAL_WORDS = 4
         /** How long to wait for a WhatsApp chat to open. */
         const val MESSAGE_WAIT_MS = 10_000L
         const val MAX_REPEAT = 50

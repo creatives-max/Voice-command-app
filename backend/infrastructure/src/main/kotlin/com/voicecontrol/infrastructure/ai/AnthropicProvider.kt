@@ -55,6 +55,14 @@ class AnthropicProvider(
         ModelOutput.questions(textOf(client.messages().create(params)))
     }
 
+    override suspend fun nextAgentStep(command: com.voicecontrol.domain.ai.AgentStepCommand): com.voicecontrol.domain.ai.AgentStep = withContext(Dispatchers.IO) {
+        val params = base(Prompts.AGENT_SCHEMA, OutputConfig.Effort.LOW, maxTokens = 4_096)
+            .system(Prompts.AGENT_SYSTEM)
+            .addUserMessage(Prompts.agentUserMessage(command))
+            .build()
+        ModelOutput.agentStep(textOf(client.messages().create(params)), name)
+    }
+
     override suspend fun detectElements(command: VisionCommand): VisionResult = withContext(Dispatchers.IO) {
         val image = ImageBlockParam.builder()
             .source(

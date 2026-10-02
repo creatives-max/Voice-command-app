@@ -71,12 +71,46 @@ data class FieldQuestion(val elementId: String, val question: String, val hint: 
 @Serializable
 data class QuestionsResult(val questions: List<FieldQuestion>, val source: String)
 
+/** What the helper does next while working towards the user's goal in an app. */
+@Serializable
+enum class AgentActionKind { CLICK, FILL, ASK, SCROLL_DOWN, SCROLL_UP, BACK, OPEN_APP, WAIT, DONE, GIVE_UP }
+
+/**
+ * "Do it for me": the user's goal ("pay my electricity bill"), the screen now, and what happened so far
+ * (actions taken, questions asked and the user's answers; never sensitive values).
+ */
+@Serializable
+data class AgentStepCommand(
+    val goal: String,
+    val screen: ScreenContext,
+    val history: List<String> = emptyList(),
+    val language: Language = Language.ENGLISH,
+)
+
+/**
+ * One step. [say] is a short spoken line about what is being done; [question] is what to ask the user (ASK);
+ * [confirm] asks the user before a press that pays, sends, deletes or submits.
+ */
+@Serializable
+data class AgentStep(
+    val action: AgentActionKind,
+    val targetId: String? = null,
+    val value: String? = null,
+    val say: String? = null,
+    val question: String? = null,
+    val appName: String? = null,
+    val confirm: Boolean = false,
+    val source: String = "rules",
+)
+
 /** A language-model backend. Implementations: rules (offline), Anthropic, OpenAI-compatible. */
 interface LlmProvider {
     val name: String
     suspend fun interpret(command: InterpretCommand): Interpretation
     /** Writes questions for the fields of a screen; providers that can't return an empty list. */
     suspend fun writeQuestions(command: QuestionsCommand): List<FieldQuestion> = emptyList()
+    /** The next step towards a goal; providers that can't plan throw [UnsupportedOperationException]. */
+    suspend fun nextAgentStep(command: AgentStepCommand): AgentStep = throw UnsupportedOperationException("no planning")
     /** Detects fields/buttons on a screenshot. Providers without vision throw [UnsupportedOperationException]. */
     suspend fun detectElements(command: VisionCommand): VisionResult
 }

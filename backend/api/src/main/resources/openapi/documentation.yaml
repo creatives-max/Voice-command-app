@@ -442,6 +442,39 @@ paths:
       tags: [History]
       responses:
         "204": { description: Deleted }
+  /v1/ai/agent/step:
+    post:
+      tags: [AI]
+      summary: Next step towards the user's goal in an app ("do it for me")
+      description: "The phone sends the goal, the screen (sensitive values removed) and the steps so far; the model picks one action. Unknown ids give up, filling a sensitive field becomes a question the phone answers privately. GIVE_UP without a planning model or on failure. 60 per minute per user."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [goal, screen]
+              properties:
+                goal: { type: string, maxLength: 500 }
+                screen: { type: object, description: Same screen object as /v1/ai/interpret }
+                history: { type: array, items: { type: string }, description: Steps so far, newest last (at most 30 are used) }
+                language: { type: string, enum: [ENGLISH, HINDI, HINGLISH, MARATHI, TAMIL, TELUGU, BENGALI, GUJARATI] }
+      responses:
+        "200":
+          description: One step
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  action: { type: string, enum: [CLICK, FILL, ASK, SCROLL_DOWN, SCROLL_UP, BACK, OPEN_APP, WAIT, DONE, GIVE_UP] }
+                  targetId: { type: string, nullable: true }
+                  value: { type: string, nullable: true }
+                  say: { type: string, nullable: true }
+                  question: { type: string, nullable: true }
+                  appName: { type: string, nullable: true }
+                  confirm: { type: boolean }
+                  source: { type: string }
   /v1/ai/questions:
     post:
       tags: [AI]

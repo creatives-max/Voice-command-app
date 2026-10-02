@@ -96,3 +96,19 @@ data class FieldQuestionDto(val elementId: String, val question: String, val hin
 
 @Serializable
 data class QuestionsResponseDto(val questions: List<FieldQuestionDto> = emptyList(), val source: String = "")
+
+/** "Do it for me": asks the backend for the next step towards the user's goal. */
+@Serializable
+data class AgentStepRequestDto(val goal: String, val screen: ScreenContextDto, val history: List<String>, val language: Language)
+
+@Serializable
+data class AgentStepDto(
+    val action: String,
+    val targetId: String? = null,
+    val value: String? = null,
+    val say: String? = null,
+    val question: String? = null,
+    val appName: String? = null,
+    val confirm: Boolean = false,
+    val source: String = "",
+)

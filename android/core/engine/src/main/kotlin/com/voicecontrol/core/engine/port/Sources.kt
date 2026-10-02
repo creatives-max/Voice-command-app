@@ -87,3 +87,33 @@ data class InstalledApp(val label: String, val packageName: String)
 fun interface AppDirectory {
     suspend fun apps(): List<InstalledApp>
 }
+
+/** What the helper does next while working towards the user's goal ("do it for me"). */
+enum class AgentAction { CLICK, FILL, ASK, SCROLL_DOWN, SCROLL_UP, BACK, OPEN_APP, WAIT, DONE, GIVE_UP }
+
+data class AgentDecision(
+    val action: AgentAction,
+    val targetId: String? = null,
+    val value: String? = null,
+    /** Short spoken line about what is being done now. */
+    val say: String? = null,
+    /** ASK: what to ask the user. */
+    val question: String? = null,
+    val appName: String? = null,
+    /** Ask the user before this press (pays, sends, deletes, submits). */
+    val confirm: Boolean = false,
+)
+
+/**
+ * Plans one step at a time towards a goal on the current screen (AI on the server). [history] lists what
+ * happened so far, newest last, and never holds sensitive values. Null when unavailable (offline,
+ * on-device only, signed out, or no planning model).
+ */
+fun interface GoalAgent {
+    suspend fun next(
+        goal: String,
+        screen: com.voicecontrol.core.model.ScreenSnapshot,
+        history: List<String>,
+        language: com.voicecontrol.core.model.Language,
+    ): AgentDecision?
+}

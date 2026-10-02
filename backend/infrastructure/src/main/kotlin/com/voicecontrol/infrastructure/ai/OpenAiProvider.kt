@@ -48,6 +48,11 @@ class OpenAiProvider(
         return ModelOutput.interpretation(content, name)
     }
 
+    override suspend fun nextAgentStep(command: com.voicecontrol.domain.ai.AgentStepCommand): com.voicecontrol.domain.ai.AgentStep {
+        val content = complete(Prompts.AGENT_SYSTEM, JsonPrimitive(Prompts.agentUserMessage(command)), "agent_step", Prompts.AGENT_SCHEMA)
+        return ModelOutput.agentStep(content, name)
+    }
+
     override suspend fun detectElements(command: VisionCommand): VisionResult {
         val dataUrl = "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(command.jpeg)
         val userContent = buildJsonArray {

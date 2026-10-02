@@ -1,5 +1,8 @@
 package com.voicecontrol.application.ai
 
+import com.voicecontrol.domain.ai.AgentActionKind
+import com.voicecontrol.domain.ai.AgentStep
+import com.voicecontrol.domain.ai.AgentStepCommand
 import com.voicecontrol.domain.ai.ElementKind
 import com.voicecontrol.domain.ai.FieldQuestion
 import com.voicecontrol.domain.ai.IntentKind
@@ -124,6 +127,59 @@ class AiService(
         return QuestionsResult(questions.orEmpty(), provider.name)
     }
 
+    /**
+     * The next step towards the user's goal on this screen ("do it for me"). Sensitive values are removed
+     * from the screen; the model's step is checked against the screen: unknown ids give up, and filling a
+     * sensitive field becomes a question (the phone collects that answer privately). Without a planning
+     * model, or when it fails, the step is GIVE_UP with an empty source reason, and the phone carries on
+     * by itself.
+     */
+    suspend fun nextAgentStep(command: AgentStepCommand): AgentStep {
+        if (command.goal.isBlank()) throw DomainException.Validation("goal must not be blank")
+        if (command.goal.length > MAX_GOAL) throw DomainException.Validation("goal is too long")
+        if (command.screen.elements.size > MAX_ELEMENTS) throw DomainException.Validation("too many screen elements")
+        val screen = command.screen.redacted()
+        val safe = command.copy(
+            goal = command.goal.trim(),
+            screen = screen,
+            history = command.history.map { it.take(MAX_HISTORY_CHARS) }.takeLast(MAX_HISTORY),
+        )
+        if (provider.name == RulesInterpreter.SOURCE) return AgentStep(AgentActionKind.GIVE_UP, source = provider.name)
+        val raw = try {
+            withTimeout(timeoutMillis * 3) { provider.nextAgentStep(safe) }
+        } catch (e: TimeoutCancellationException) {
+            log.warn("LLM provider {} timed out planning a step", provider.name)
+            return AgentStep(AgentActionKind.GIVE_UP, source = "timeout")
+        } catch (e: UnsupportedOperationException) {
+            return AgentStep(AgentActionKind.GIVE_UP, source = provider.name)
+        } catch (e: Exception) {
+            log.warn("LLM provider {} failed planning a step: {}", provider.name, e.message)
+            return AgentStep(AgentActionKind.GIVE_UP, source = "error")
+        }
+        return checkStep(raw, screen)
+    }
+
+    private fun checkStep(step: AgentStep, screen: ScreenContext): AgentStep {
+        val clean = step.copy(
+            say = step.say?.trim()?.take(MAX_SAY_CHARS)?.takeIf { it.isNotEmpty() },
+            question = step.question?.trim()?.take(MAX_SAY_CHARS)?.takeIf { it.isNotEmpty() },
+            value = step.value?.take(MAX_VALUE_CHARS),
+            appName = step.appName?.trim()?.take(60)?.takeIf { it.isNotEmpty() },
+        )
+        val target = clean.targetId?.let { id -> screen.elements.firstOrNull { it.id == id } }
+        return when (clean.action) {
+            AgentActionKind.CLICK -> if (target == null) clean.copy(action = AgentActionKind.GIVE_UP, targetId = null) else clean
+            AgentActionKind.FILL -> when {
+                target == null -> clean.copy(action = AgentActionKind.GIVE_UP, targetId = null, value = null)
+                target.sensitive || clean.value.isNullOrBlank() -> clean.copy(action = AgentActionKind.ASK, value = null)
+                else -> clean
+            }
+            AgentActionKind.ASK -> clean.copy(targetId = target?.id, value = null)
+            AgentActionKind.OPEN_APP -> if (clean.appName == null) clean.copy(action = AgentActionKind.GIVE_UP) else clean.copy(targetId = null)
+            else -> clean.copy(targetId = null, value = null)
+        }
+    }
+
     private fun questionsKey(c: QuestionsCommand): String {
         val text = buildString {
             append(c.language.name).append('|').append(c.screen.packageName)
@@ -168,6 +224,11 @@ class AiService(
         const val MAX_IMAGE_BYTES = 4_000_000
         const val MAX_MEMORY = 12
         const val MAX_QUESTION_FIELDS = 40
+        const val MAX_GOAL = 500
+        const val MAX_HISTORY = 30
+        const val MAX_HISTORY_CHARS = 300
+        const val MAX_SAY_CHARS = 300
+        const val MAX_VALUE_CHARS = 500
         const val MAX_QUESTION_CHARS = 200
         const val QUESTIONS_TTL_SECONDS = 30L * 24 * 3600
         const val QUESTIONS_GENERATION_MS = 60_000L

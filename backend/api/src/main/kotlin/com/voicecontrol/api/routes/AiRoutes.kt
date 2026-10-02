@@ -24,6 +24,7 @@ data class VisionRequest(val packageName: String, val imageBase64: String, val w
 
 private const val VISION_PER_MINUTE = 20
 private const val QUESTIONS_PER_MINUTE = 30
+private const val AGENT_STEPS_PER_MINUTE = 60
 
 /** Screen + speech → action. The phone never talks to an LLM directly; only this endpoint does. */
 fun Route.aiRoutes(ai: AiService, limiter: RateLimiter, perMinute: Int = 120) {
@@ -32,6 +33,10 @@ fun Route.aiRoutes(ai: AiService, limiter: RateLimiter, perMinute: Int = 120) {
             post("/interpret") {
                 if (!limiter.tryAcquire("ai:${call.userId}", perMinute, 60)) throw DomainException.RateLimited("Too many voice requests, slow down a little")
                 call.respond(ai.interpret(call.receive<InterpretCommand>()))
+            }
+            post("/agent/step") {
+                if (!limiter.tryAcquire("agent:${call.userId}", AGENT_STEPS_PER_MINUTE, 60)) throw DomainException.RateLimited("Too many steps, slow down a little")
+                call.respond(ai.nextAgentStep(call.receive<com.voicecontrol.domain.ai.AgentStepCommand>()))
             }
             post("/questions") {
                 if (!limiter.tryAcquire("questions:${call.userId}", QUESTIONS_PER_MINUTE, 60)) throw DomainException.RateLimited("Too many requests")

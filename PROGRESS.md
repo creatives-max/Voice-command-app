@@ -222,3 +222,4 @@ phase notes say which earlier phase covered the rest.
 - [x] Taught flows replay all screens: taps play by themselves (the last one is confirmed), taps match by name, search boxes get Enter
 - [x] Personal assistant on any screen without a form: time and date, alarms, timers, YouTube / Google / Maps search, calls by contact name or number, WhatsApp messages (asks what to write, confirms, sends)
 - [x] Friendlier talk: varied follow-ups ("Aur kuch?"), and the AI answers general questions in one or two spoken sentences
+- [x] "Do it for me" helper: say a goal ("mujhe bijli ka bill bharna hai", "PhonePe kholo aur recharge karo") and the AI operates the app step by step (press, type, scroll, back, open apps), asks the user only for what it needs (passwords/OTP/PIN are typed by the user), confirms payments and sends, asks the user when stuck; `POST /v1/ai/agent/step` (checked against the screen, 60/min)

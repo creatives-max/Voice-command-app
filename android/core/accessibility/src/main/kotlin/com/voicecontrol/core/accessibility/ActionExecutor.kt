@@ -59,6 +59,11 @@ class ActionExecutor(
         is ScreenAction.TapAt -> if (tap(action.x.toFloat(), action.y.toFloat())) ActionResult.Success else ActionResult.Failure("Tap gesture cancelled")
         is ScreenAction.TypeIntoFocused -> typeIntoFocused(action.text)
         is ScreenAction.LaunchApp -> launchApp(action.packageName)
+        is ScreenAction.PressEnter -> withNode(action.elementId) { node ->
+            val ime = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R &&
+                node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)
+            if (ime) ActionResult.Success else ActionResult.Failure("The keyboard's Enter key is not available")
+        }
     }
 
     /** Accessibility services may start activities from the background (system-bound service exemption). */

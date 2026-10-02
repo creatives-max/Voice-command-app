@@ -1,5 +1,8 @@
 package com.voicecontrol.feature.assistant.teach
 
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import com.voicecontrol.core.data.teach.TaughtFlows
 import com.voicecontrol.core.engine.RecordingSession
 import com.voicecontrol.core.engine.RecordingState
@@ -15,6 +18,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,13 +26,20 @@ import javax.inject.Singleton
 /** "Teach by doing" from the overlay or the app: record, then hand the recording over for review. */
 @Singleton
 class TeachController @Inject constructor(
+    @ApplicationContext private val context: Context,
     screen: ScreenGateway,
     interactions: InteractionSource,
     private val assistant: AssistantController,
     private val taught: TaughtFlows,
 ) : TeachLauncher {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val session = RecordingSession(screen, interactions, scope)
+    private val session = RecordingSession(screen, interactions, scope, homePackages = ::homePackages)
+
+    /** Launcher apps: tapping an app icon there is "open the app", which a flow does by itself. */
+    private fun homePackages(): Set<String> = runCatching {
+        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        context.packageManager.queryIntentActivities(home, PackageManager.MATCH_ALL).map { it.activityInfo.packageName }.toSet()
+    }.getOrDefault(emptySet())
     private val serviceOn = screen.isAvailable
 
     val state: StateFlow<RecordingState> = session.state

@@ -31,8 +31,10 @@ class RecordingSession(
     private val source: InteractionSource,
     private val scope: CoroutineScope,
     private val settleMillis: Long = 400,
+    /** Home-screen (launcher) apps: tapping an app there becomes "open that app". */
+    homePackages: () -> Set<String> = { emptySet() },
 ) {
-    private val recorder = FlowRecorder()
+    private val recorder = FlowRecorder(homePackages)
     private val lock = Mutex()
     private var job: Job? = null
     private val refresh = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -52,8 +54,8 @@ class RecordingSession(
                 screen.screenChanges.map { RecordedEvent.Screen(it) },
                 source.interactions.map { i ->
                     when (i.kind) {
-                        InteractionKind.TYPED -> RecordedEvent.Typed(i.elementId)
-                        InteractionKind.PRESSED -> RecordedEvent.Pressed(i.elementId)
+                        InteractionKind.TYPED -> RecordedEvent.Typed(i.elementId, i.screen)
+                        InteractionKind.PRESSED -> RecordedEvent.Pressed(i.elementId, i.screen)
                     }
                 },
                 refresh.debounce(settleMillis).mapNotNull { screen.capture()?.let { RecordedEvent.Screen(it) } },

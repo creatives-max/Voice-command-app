@@ -230,6 +230,8 @@ class AssistantEngine(
         var currentSignature: String = ""
         /** The assistant already said "What can I do for you?" in this session. */
         var greeted = false
+        /** The last field filled on the current screen (a search box is sent with Enter when nothing else moves on). */
+        var lastFilledId: String? = null
         /** AI-written questions for the current screen, arriving while the first questions are asked. */
         var written: kotlinx.coroutines.Deferred<Map<String, com.voicecontrol.core.engine.port.WrittenQuestion>>? = null
         var writtenIds: Set<String> = emptySet()
@@ -339,6 +341,7 @@ class AssistantEngine(
                 session.profile = profile
                 session.screenVars = screenVariables(snapshot)
                 session.currentSignature = snapshot.signature
+                session.lastFilledId = null
                 val plan = PlanBuilder(session.phrases).build(snapshot, flow, profile)
                 startWrittenQuestions(session, snapshot, plan)
                 emit(EngineEvent.SCREEN, "Screen: ${snapshot.title ?: snapshot.activityName?.substringAfterLast('.') ?: snapshot.packageName}")
@@ -530,9 +533,17 @@ class AssistantEngine(
                 if (previousSignature == null) return true
                 setStatus(EngineStatus.THINKING, caption = session.phrases.waitingForScreen())
                 emit(EngineEvent.SCREEN, "Waiting for the next screen")
-                waitForScreen(timeoutMs) { snap ->
+                val moved: (ScreenSnapshot) -> Boolean = { snap ->
                     (pkg == null || snap.packageName == pkg) && snap.signature != previousSignature
                 }
+                val field = session.lastFilledId
+                if (field == null) return waitForScreen(timeoutMs, moved)
+                // Search boxes have no button: when typing alone didn't move on, press the keyboard's Enter.
+                val first = minOf(timeoutMs, ENTER_AFTER_MS)
+                if (waitForScreen(first, moved)) return true
+                session.lastFilledId = null
+                if (perform(ScreenAction.PressEnter(field)).isSuccess) emit(EngineEvent.STEP, "Pressed Enter")
+                waitForScreen((timeoutMs - first).coerceAtLeast(SCREEN_POLL_MS), moved)
             }
             else -> true
         }
@@ -631,8 +642,10 @@ class AssistantEngine(
         announce: Boolean,
     ): ScreenOutcome {
         val phrases = session.phrases
-        if (plan.steps.isEmpty()) return commandMode(session, snapshot, log)
-        if (announce) say(session, phrases.start(plan.steps.count { !it.skip && !it.virtual }))
+        // Nothing to fill and no press taught by a flow: talk with the user instead.
+        if (plan.steps.isEmpty() && !plan.submitFromFlow) return commandMode(session, snapshot, log)
+        val questions = plan.steps.count { !it.skip && !it.virtual && it.action != StepAction.CLICK }
+        if (announce && questions > 0) say(session, phrases.start(questions))
 
         when (runSteps(session, snapshot, plan.steps, log, progressPrefix = "")) {
             StepResult.Stop -> return ScreenOutcome.STOPPED
@@ -1298,6 +1311,7 @@ class AssistantEngine(
             return null
         }
         recordUndo(step.element)
+        session.lastFilledId = step.elementId
         for ((id, extraValue) in extras) {
             val target = snapshot?.element(id) ?: continue
             if (target.isSensitive || id == step.elementId) continue
@@ -1597,7 +1611,9 @@ class AssistantEngine(
                 return false
             }
         }
-        val ok = act(session, ScreenAction.Click(button.id), session.phrases.pressed(button.label))
+        // A taught "press Enter" in a search box is a press on the field itself.
+        val action = if (button.kind == ElementKind.TEXT_FIELD) ScreenAction.PressEnter(button.id) else ScreenAction.Click(button.id)
+        val ok = act(session, action, session.phrases.pressed(button.label))
         if (ok) {
             log.putClick(button)
             recordUndo(button, wasPress = true)
@@ -1663,6 +1679,8 @@ class AssistantEngine(
         const val DEFAULT_WAIT_SECONDS = 20
         const val MAX_WAIT_SECONDS = 120
         const val SCREEN_POLL_MS = 500L
+        /** How long a flow waits after the last answer before pressing Enter in that field. */
+        const val ENTER_AFTER_MS = 3_000L
         const val MAX_REPEAT = 50
         const val MAX_MEMORY = 12
         const val MAX_UNDO = 30

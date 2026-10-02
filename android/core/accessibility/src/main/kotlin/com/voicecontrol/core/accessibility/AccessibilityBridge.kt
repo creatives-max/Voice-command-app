@@ -136,12 +136,27 @@ class AccessibilityBridge @Inject constructor(
         val rect = android.graphics.Rect().also(source::getBoundsInScreen)
         val bounds = com.voicecontrol.core.model.Bounds(rect.left, rect.top, rect.right, rect.bottom)
         val viewId = source.viewIdResourceName
+        // The screen as it was when the user touched it: a tap that opens another screen belongs here.
+        val before = _currentSnapshot.value?.takeIf { it.packageName == event.packageName?.toString() }
         scope.launch {
+            val onBefore = before?.let { exactElement(it, bounds, viewId) }
+            if (onBefore != null) {
+                _interactions.emit(UserInteraction(kind, onBefore.id, before))
+                return@launch
+            }
             val snapshot = refreshSnapshot() ?: return@launch
             val element = elementAt(snapshot, bounds, viewId) ?: return@launch
-            _interactions.emit(UserInteraction(kind, element.id))
+            _interactions.emit(UserInteraction(kind, element.id, snapshot))
         }
     }
+
+    /** The element with exactly the event's bounds (or view id and position), or null when the screen moved. */
+    private fun exactElement(snapshot: ScreenSnapshot, bounds: com.voicecontrol.core.model.Bounds, viewId: String?): com.voicecontrol.core.model.ScreenElement? =
+        snapshot.elements.firstOrNull { it.bounds == bounds && (viewId == null || it.viewId == null || it.viewId == viewId) }
+            ?: viewId?.let { id ->
+                snapshot.elements.singleOrNull { it.viewId == id }
+                    ?.takeIf { e -> bounds.centerX in e.bounds.left..e.bounds.right && bounds.centerY in e.bounds.top..e.bounds.bottom }
+            }
 
     /** The element an event came from: same view id, else the smallest element containing the event's center. */
     private fun elementAt(snapshot: ScreenSnapshot, bounds: com.voicecontrol.core.model.Bounds, viewId: String?): com.voicecontrol.core.model.ScreenElement? {

@@ -55,4 +55,6 @@ data class ScreenPlan(
     val autoSubmit: Boolean,
     val flowId: String?,
     val flowVersion: Int?,
+    /** The submit button is the flow's own click step (not a guess from the screen). */
+    val submitFromFlow: Boolean = false,
 )

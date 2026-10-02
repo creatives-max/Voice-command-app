@@ -12,14 +12,17 @@ sealed interface RecordedEvent {
     /** The screen as it looks now (new screen, or the same screen with new content). */
     data class Screen(val snapshot: ScreenSnapshot) : RecordedEvent
 
-    /** The user typed into a field (its text is read from the latest screen). */
-    data class Typed(val elementId: String) : RecordedEvent
+    /**
+     * The user typed into a field (its text is read from the latest screen). [on] is the screen it
+     * happened on when known; otherwise the current one.
+     */
+    data class Typed(val elementId: String, val on: ScreenSnapshot? = null) : RecordedEvent
 
     /** The user checked/unchecked or switched something. */
-    data class Toggled(val elementId: String) : RecordedEvent
+    data class Toggled(val elementId: String, val on: ScreenSnapshot? = null) : RecordedEvent
 
-    /** The user pressed a button or link. */
-    data class Pressed(val elementId: String) : RecordedEvent
+    /** The user pressed a button or link, on screen [on] (read before the app reacted) when known. */
+    data class Pressed(val elementId: String, val on: ScreenSnapshot? = null) : RecordedEvent
 }
 
 /** One thing done on one screen, in the order the user did it. */
@@ -41,8 +44,13 @@ data class Recording(val screens: List<RecordedScreen>) {
 /**
  * Watches what the user does by touch and turns it into a recording. Screens are told apart by app and
  * screen signature; screens where nothing was done (loading screens, menus) are dropped.
+ *
+ * A press is kept with the screen it was made on, even when the next screen was read before the press
+ * arrived (a tap that opens another screen). Taps on the home screen ([homePackages]) and taps that
+ * only got to the app before anything was done in it are not part of the flow: running a flow opens
+ * its app itself.
  */
-class FlowRecorder {
+class FlowRecorder(private val homePackages: () -> Set<String> = { emptySet() }) {
     private val screens = mutableListOf<MutableScreen>()
 
     private class MutableScreen(var snapshot: ScreenSnapshot) {
@@ -54,10 +62,21 @@ class FlowRecorder {
     fun onEvent(event: RecordedEvent) {
         when (event) {
             is RecordedEvent.Screen -> onScreen(event.snapshot)
-            is RecordedEvent.Typed -> record(event.elementId, StepAction.FILL)
-            is RecordedEvent.Toggled -> record(event.elementId, StepAction.TOGGLE)
-            is RecordedEvent.Pressed -> record(event.elementId, StepAction.CLICK)
+            is RecordedEvent.Typed -> record(event.elementId, StepAction.FILL, event.on)
+            is RecordedEvent.Toggled -> record(event.elementId, StepAction.TOGGLE, event.on)
+            is RecordedEvent.Pressed -> record(event.elementId, StepAction.CLICK, event.on)
         }
+    }
+
+    /** The recorded screen [on] belongs to: the current one or the one before; re-added if it was dropped. */
+    private fun screenFor(on: ScreenSnapshot?): MutableScreen? {
+        val screen = current
+        if (on == null || screen == null) return screen ?: on?.let { MutableScreen(it).also(screens::add) }
+        if (sameScreen(screen.snapshot, on)) return screen
+        val before = screens.getOrNull(screens.lastIndex - 1)
+        if (before != null && sameScreen(before.snapshot, on)) return before
+        // The press made the app move on before we saw it: the screen it was made on goes before the new one.
+        return MutableScreen(on).also { screens.add(screens.lastIndex, it) }
     }
 
     private fun onScreen(snapshot: ScreenSnapshot) {
@@ -75,9 +94,9 @@ class FlowRecorder {
         screens += MutableScreen(snapshot)
     }
 
-    private fun record(elementId: String, action: StepAction) {
-        val screen = current ?: return
-        val element = screen.snapshot.element(elementId) ?: return
+    private fun record(elementId: String, action: StepAction, on: ScreenSnapshot?) {
+        val element = (on?.element(elementId) ?: current?.snapshot?.element(elementId)) ?: return
+        val screen = screenFor(on?.takeIf { it.element(elementId) != null }) ?: return
         val existing = screen.actions[elementId]
         val step = when {
             action == StepAction.CLICK && element.kind.isToggle -> StepAction.TOGGLE
@@ -89,8 +108,17 @@ class FlowRecorder {
         screen.actions[elementId] = RecordedAction(element, step, if (step == StepAction.FILL) valueOf(element) else null)
     }
 
-    fun recording(): Recording =
-        Recording(screens.filter { it.actions.isNotEmpty() }.map { RecordedScreen(it.snapshot, it.actions.values.toList()) })
+    fun recording(): Recording {
+        val home = homePackages()
+        val worked = screens.filter { it.actions.isNotEmpty() && it.snapshot.packageName !in home }.toMutableList()
+        // Taps that only got to the app (a launcher, a notification, another app's link) come before it.
+        while (worked.size > 1 && worked[0].snapshot.packageName != worked[1].snapshot.packageName &&
+            worked[0].actions.values.all { it.action == StepAction.CLICK }
+        ) {
+            worked.removeAt(0)
+        }
+        return Recording(worked.map { RecordedScreen(it.snapshot, it.actions.values.toList()) })
+    }
 
     fun clear() = screens.clear()
 
@@ -99,7 +127,10 @@ class FlowRecorder {
     private fun valueOf(e: ScreenElement): String? = if (e.isSensitive || e.fieldType?.isSensitive == true) null else e.value?.takeIf { it.isNotBlank() }
 }
 
-/** Builds a flow from a recording: the order is the order the user worked in. */
+/**
+ * Builds a flow from a recording: the order is the order the user worked in. Taps are replayed on their
+ * own; only the last tap of the flow is confirmed first.
+ */
 object RecordingToFlow {
     const val MAX_STEPS = 100
 
@@ -140,6 +171,9 @@ object RecordingToFlow {
                 )
             }
         }
+        // Taught taps are replayed without asking, except the flow's very last one (it may send or pay).
+        val lastClick = steps.indexOfLast { it.action == StepAction.CLICK }
+        steps.replaceAll { st -> if (st.action == StepAction.CLICK && steps.indexOf(st) != lastClick) st.copy(skip = true) else st }
         require(steps.size <= MAX_STEPS) { "A taught flow can have at most $MAX_STEPS steps" }
         return FlowDefinition(
             id = id,

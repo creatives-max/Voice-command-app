@@ -38,6 +38,9 @@ class PlanBuilder(private val phrases: Phrases) {
         // Every element a repeated step could mean belongs to the loop, not to the plain plan.
         ordered.filter { it.id in bodyIds }.forEach { fs -> candidates(fs, snapshot.elements).forEach { used += it.id } }
 
+        // Unconditional clicks before the screen's last one are pressed in order (a taught flow taps
+        // "Search" and then works on what opens); the last one finishes the screen.
+        val lastClick = ordered.lastOrNull { it.id !in bodyIds && it.action == StepAction.CLICK && it.condition.isNullOrBlank() }?.id
         ordered.forEach { fs ->
             if (fs.id in bodyIds) return@forEach
             when (fs.action) {
@@ -55,7 +58,7 @@ class PlanBuilder(private val phrases: Phrases) {
             }
             val element = resolve(fs, snapshot.elements, used) ?: return@forEach
             used += element.id
-            if (fs.action == StepAction.CLICK && fs.condition.isNullOrBlank()) {
+            if (fs.action == StepAction.CLICK && fs.condition.isNullOrBlank() && fs.id == lastClick) {
                 submitButton = element
                 submitQuestion = fs.question
                 autoSubmit = fs.skip
@@ -69,8 +72,9 @@ class PlanBuilder(private val phrases: Phrases) {
         }
         // "Add another" buttons of loops are never the submit button.
         ordered.mapNotNull { it.repeat }.forEach { spec -> locate(spec.addMoreElementId, spec.addMoreLabel, snapshot.elements)?.let { used += it.id } }
+        val fromFlow = submitButton != null
         if (submitButton == null) submitButton = ButtonMatcher.primarySubmit(snapshot.elements.filter { it.id !in used })
-        return ScreenPlan(steps, submitButton, submitQuestion, autoSubmit, flow?.id, flow?.version)
+        return ScreenPlan(steps, submitButton, submitQuestion, autoSubmit, flow?.id, flow?.version, submitFromFlow = fromFlow)
     }
 
     /**
@@ -101,8 +105,14 @@ class PlanBuilder(private val phrases: Phrases) {
 
     private fun resolve(step: FlowStep, elements: List<ScreenElement>, used: Set<String>): ScreenElement? {
         elements.firstOrNull { it.id == step.elementId && it.id !in used }?.let { return it }
-        val label = LabelText.normalize(step.label)
-        return elements.firstOrNull { it.id !in used && it.kind == step.kind && LabelText.normalize(it.label) == label }
+        val label = LabelText.normalize(step.label).takeIf { it.isNotEmpty() } ?: return null
+        val free = elements.filter { it.id !in used }
+        free.firstOrNull { it.kind == step.kind && LabelText.normalize(it.label) == label }?.let { return it }
+        // A button may come back as a link, an icon or a tab: for presses the name is what counts.
+        if (step.action == StepAction.CLICK) {
+            free.firstOrNull { !it.kind.isInput && !it.kind.isToggle && LabelText.normalize(it.label) == label }?.let { return it }
+        }
+        return null
     }
 
     private fun virtualStep(fs: FlowStep): PlanStep = PlanStep(

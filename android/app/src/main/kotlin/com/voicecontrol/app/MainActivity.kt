@@ -40,6 +40,7 @@ import javax.inject.Inject
 class MainActivity : FragmentActivity() {
 
     @Inject lateinit var lock: AppLockController
+    @Inject lateinit var microphone: com.voicecontrol.feature.assistant.MicrophoneForeground
 
     private val appViewModel: AppViewModel by viewModels()
 
@@ -48,6 +49,12 @@ class MainActivity : FragmentActivity() {
 
     /** Set when a launcher shortcut opened the app. */
     private val shortcut = MutableStateFlow<AppShortcut?>(null)
+
+    override fun onResume() {
+        super.onResume()
+        // The wake phrase's microphone service can only be (re)started while VoiceControl is in front.
+        microphone.restartFromForeground()
+    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

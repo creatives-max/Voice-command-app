@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.PowerManager
 import com.voicecontrol.core.accessibility.ServiceListener
 import com.voicecontrol.core.data.settings.SettingsRepository
+import com.voicecontrol.core.data.settings.WakeState
 import com.voicecontrol.core.engine.AssistantEngine
 import com.voicecontrol.core.engine.port.ListenRequest
 import com.voicecontrol.core.engine.port.ListenResult
@@ -39,6 +40,7 @@ class WakeWordListener @Inject constructor(
     private val controller: AssistantController,
     private val micPermission: MicPermission,
     private val microphone: MicrophoneForeground,
+    private val status: com.voicecontrol.core.data.settings.WakeWordStatus,
 ) : ServiceListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -52,20 +54,37 @@ class WakeWordListener @Inject constructor(
     override fun onServiceDisconnected() {
         scope.coroutineContext.cancelChildren()
         microphone.setWakeListening(null)
+        status.set(WakeState.ACCESSIBILITY_OFF)
     }
 
     private suspend fun loop(power: PowerManager) {
         var failures = 0
         while (scope.isActive) {
             val prefs = settings.appSettings()
-            val ready = prefs.wakeWordEnabled && WakeWord.isValidPhrase(prefs.wakeWord) && !engine.isActive &&
-                !microphone.wakePaused.value && power.isInteractive && micPermission.granted()
-            if (!ready) {
+            val off = when {
+                !prefs.wakeWordEnabled || !WakeWord.isValidPhrase(prefs.wakeWord) -> WakeState.OFF
+                microphone.wakePaused.value -> WakeState.PAUSED
+                !micPermission.granted() -> WakeState.NO_MIC_PERMISSION
+                else -> null
+            }
+            if (off != null) {
+                status.set(off)
                 microphone.setWakeListening(null)
                 delay(IDLE_RECHECK_MS)
                 continue
             }
+            // During a session or with the screen off, keep the microphone service (Android 14+ won't let it be
+            // started again from the background) and just don't listen.
             microphone.setWakeListening(prefs.wakeWord)
+            if (engine.isActive || !power.isInteractive) {
+                status.set(if (engine.isActive) WakeState.SESSION else WakeState.SCREEN_OFF)
+                delay(BUSY_RECHECK_MS)
+                continue
+            }
+            when {
+                com.voicecontrol.feature.assistant.VoiceSessionService.startFailed -> status.set(WakeState.MIC_BLOCKED)
+                failures == 0 -> status.set(WakeState.LISTENING)
+            }
             var heard = false
             val listening = scope.async {
                 stt.listen(
@@ -88,19 +107,23 @@ class WakeWordListener @Inject constructor(
             } finally {
                 yieldToSession.cancel()
             }
-            if (result == null) {
-                microphone.setWakeListening(null)
-                continue
-            }
+            // The microphone service stays up and switches to the session (stopping it here would need a new
+            // start from the background, which Android 14+ refuses).
+            if (result == null) continue
             if (heard || (result is ListenResult.Heard && WakeWord.matches(result.text, prefs.wakeWord))) {
                 failures = 0
-                microphone.setWakeListening(null)
                 controller.startSession()
                 // Let the session start before checking again.
                 delay(SESSION_START_MS)
                 continue
             }
             failures = if (result is ListenResult.Error) failures + 1 else 0
+            if (result is ListenResult.Error) {
+                when {
+                    result.cause == ListenResult.ErrorCause.PERMISSION -> status.set(WakeState.MIC_BLOCKED)
+                    failures >= ERRORS_TO_REPORT -> status.set(WakeState.RECOGNIZER_ERROR)
+                }
+            }
             // Recognizer errors back off; silence restarts listening right away.
             delay(if (failures > 0) (RETRY_MS * failures).coerceAtMost(MAX_BACKOFF_MS) else RESTART_MS)
         }
@@ -108,6 +131,8 @@ class WakeWordListener @Inject constructor(
 
     private companion object {
         const val IDLE_RECHECK_MS = 5_000L
+        const val BUSY_RECHECK_MS = 1_000L
+        const val ERRORS_TO_REPORT = 3
         const val SESSION_START_MS = 3_000L
         const val RESTART_MS = 250L
         const val RETRY_MS = 2_000L

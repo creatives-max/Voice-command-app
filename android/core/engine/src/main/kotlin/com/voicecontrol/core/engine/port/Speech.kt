@@ -45,6 +45,8 @@ sealed interface ListenResult {
         NETWORK,
         /** The language isn't available (for example its offline pack isn't downloaded). */
         LANGUAGE_UNAVAILABLE,
+        /** The microphone is not allowed (no permission, or blocked while VoiceControl is in the background). */
+        PERMISSION,
     }
 }
 

@@ -17,7 +17,24 @@ object WakeWord {
     /** A phrase must have enough letters to avoid waking on every sound. */
     fun isValidPhrase(phrase: String): Boolean = normalize(phrase).length >= MIN_LENGTH
 
+    /** Leading words recognizers often drop or mishear ("hey" → "a", "hay", "he"). */
+    private val greetings = setOf("hey", "hi", "hello", "ok", "okay", "o", "suno", "arey", "are", "arre", "he", "hay", "ae", "ai")
+
+    /**
+     * True when [transcript] contains the wake phrase. The phrase also counts without its greeting ("voice
+     * control" for "hey voice control"), as long as enough letters are left.
+     */
     fun matches(transcript: String, phrase: String): Boolean {
+        if (matchesExactly(transcript, phrase)) return true
+        val words = TextCleanup.simplify(Transliterator.toLatin(phrase)).split(' ').filter { it.isNotEmpty() }
+        if (words.size < 2 || words.first() !in greetings) return false
+        val rest = words.drop(1).joinToString(" ")
+        return normalize(rest).length >= MIN_CORE_LENGTH && matchesExactly(transcript, rest)
+    }
+
+    private const val MIN_CORE_LENGTH = 6
+
+    private fun matchesExactly(transcript: String, phrase: String): Boolean {
         val p = normalize(phrase)
         if (p.length < MIN_LENGTH) return false
         val t = normalize(transcript)

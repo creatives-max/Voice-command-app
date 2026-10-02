@@ -52,8 +52,19 @@ class VoiceSessionService : Service() {
             .build()
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0
         runCatching { ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, type) }
-            .onFailure { stopSelf() }
+            .onSuccess { isRunning = true }
+            .onFailure {
+                // Android 14+ refuses a microphone service started from the background; it works again once
+                // VoiceControl is opened (MainActivity restarts it from the foreground).
+                startFailed = true
+                stopSelf()
+            }
         return START_NOT_STICKY
+    }
+
+    override fun onDestroy() {
+        isRunning = false
+        super.onDestroy()
     }
 
     private fun ensureChannel() {
@@ -71,10 +82,23 @@ class VoiceSessionService : Service() {
 
         private const val EXTRA_WAKE_PHRASE = "wake_phrase"
 
-        /** Starts (or updates) the service; with [wakePhrase] it shows that the wake phrase is being listened for. */
+        /** The service holds the microphone in the foreground right now. */
+        @Volatile var isRunning = false
+            private set
+
+        /** The last start was refused (started from the background on Android 14+). */
+        @Volatile var startFailed = false
+            private set
+
+        /**
+         * Starts (or updates) the service; with [wakePhrase] it shows that the wake phrase is being listened for.
+         * A running service is only updated, which is allowed from the background (a new start is not).
+         */
         fun start(context: Context, wakePhrase: String? = null) {
             val intent = Intent(context, VoiceSessionService::class.java).apply { wakePhrase?.let { putExtra(EXTRA_WAKE_PHRASE, it) } }
-            runCatching { ContextCompat.startForegroundService(context, intent) }
+            startFailed = false
+            runCatching { if (isRunning) context.startService(intent) else ContextCompat.startForegroundService(context, intent) }
+                .onFailure { startFailed = true }
         }
 
         fun stop(context: Context) {

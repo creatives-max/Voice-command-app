@@ -17,6 +17,7 @@ class SettingsViewModel @Inject constructor(
     private val account: com.voicecontrol.core.data.account.AccountDataRepository,
     private val stt: com.voicecontrol.core.engine.port.SpeechToText,
     private val memory: com.voicecontrol.core.data.memory.AnswerMemoryRepository,
+    wakeStatus: com.voicecontrol.core.data.settings.WakeWordStatus,
 ) : MviViewModel<SettingsState, SettingsIntent, SettingsEffect>(SettingsState()) {
 
     init {
@@ -32,6 +33,7 @@ class SettingsViewModel @Inject constructor(
                 )
             }
         }.launchIn(viewModelScope)
+        wakeStatus.state.onEach { w -> setState { copy(wakeState = w) } }.launchIn(viewModelScope)
     }
 
     override suspend fun handleIntent(intent: SettingsIntent) {

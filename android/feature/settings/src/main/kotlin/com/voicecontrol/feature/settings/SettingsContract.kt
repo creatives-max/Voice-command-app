@@ -12,7 +12,23 @@ data class SettingsState(
     val wakeWordDraft: String = "",
     val busy: Boolean = false,
     val testingWake: Boolean = false,
+    val wakeState: com.voicecontrol.core.data.settings.WakeState = com.voicecontrol.core.data.settings.WakeState.OFF,
 )
+
+/** One line under the wake phrase setting: what the listener is doing, and what to do when it can't. */
+internal fun wakeStateText(state: com.voicecontrol.core.data.settings.WakeState): String = when (state) {
+    com.voicecontrol.core.data.settings.WakeState.OFF -> "Off"
+    com.voicecontrol.core.data.settings.WakeState.LISTENING -> "Listening for your wake phrase"
+    com.voicecontrol.core.data.settings.WakeState.SCREEN_OFF -> "Waiting: listens while the screen is on"
+    com.voicecontrol.core.data.settings.WakeState.SESSION -> "Paused during a voice session"
+    com.voicecontrol.core.data.settings.WakeState.PAUSED -> "Paused from the notification; it resumes now that VoiceControl is open"
+    com.voicecontrol.core.data.settings.WakeState.NO_MIC_PERMISSION -> "Needs the microphone permission"
+    com.voicecontrol.core.data.settings.WakeState.MIC_BLOCKED ->
+        "Android stopped the microphone in the background. Open VoiceControl once after restarting the phone; keep battery set to Unrestricted"
+    com.voicecontrol.core.data.settings.WakeState.RECOGNIZER_ERROR ->
+        "The phone's speech service keeps failing. Check that Google speech services are installed and updated"
+    com.voicecontrol.core.data.settings.WakeState.ACCESSIBILITY_OFF -> "Turn on VoiceControl in Accessibility settings"
+}
 
 sealed interface SettingsIntent {
     data class SetLanguage(val language: Language) : SettingsIntent

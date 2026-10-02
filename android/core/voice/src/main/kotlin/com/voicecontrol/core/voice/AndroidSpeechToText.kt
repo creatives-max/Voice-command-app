@@ -135,7 +135,7 @@ class AndroidSpeechToText @Inject constructor(
         fun mapError(error: Int): ListenResult = when (error) {
             SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> ListenResult.NoMatch
             SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
-                ListenResult.Error("Microphone permission is required. Open VoiceControl to allow it.", recoverable = false)
+                ListenResult.Error("Microphone permission is required. Open VoiceControl to allow it.", recoverable = false, cause = ListenResult.ErrorCause.PERMISSION)
             SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT, SpeechRecognizer.ERROR_SERVER ->
                 ListenResult.Error("Speech service is unreachable", recoverable = true, cause = ListenResult.ErrorCause.NETWORK)
             ERROR_LANGUAGE_NOT_SUPPORTED, ERROR_LANGUAGE_UNAVAILABLE ->

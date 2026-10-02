@@ -177,6 +177,15 @@ fun SettingsScreen(
                 }
             }
             if (s.wakeWordEnabled) {
+                Text(
+                    wakeStateText(state.wakeState),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (state.wakeState == com.voicecontrol.core.data.settings.WakeState.LISTENING) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
                 OutlinedTextField(
                     value = state.wakeWordDraft,
                     onValueChange = { onIntent(SettingsIntent.EditWakeWord(it)) },

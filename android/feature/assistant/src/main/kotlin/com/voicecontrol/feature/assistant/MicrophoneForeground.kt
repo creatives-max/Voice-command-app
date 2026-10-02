@@ -58,6 +58,17 @@ class MicrophoneForeground @Inject constructor() {
         paused.value = false
     }
 
+    /**
+     * VoiceControl is on screen: start the microphone service again if it should run but isn't (it can't be
+     * started from the background on Android 14+, so this is where the wake phrase recovers).
+     */
+    @Synchronized
+    fun restartFromForeground() {
+        resumeWakeWord()
+        if (running != null && !VoiceSessionService.isRunning) running = null
+        apply()
+    }
+
     private fun apply() {
         val ctx = context ?: return
         val mode = when {

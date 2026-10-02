@@ -234,3 +234,4 @@ phase notes say which earlier phase covered the rest.
 - [x] More phone controls: home, recent apps, notification panel, quick settings, lock, screenshot, power menu, camera/selfie/video, music play/pause/next/previous, brightness (after a one-time permission), airplane/DND settings, sums ("25 guna 4", "100 ka 18 percent")
 - [x] Assistant jobs (apps opened, alarms, calls, goals…) are kept in the history as an "Assistant" screen, so they reach the dashboard; no flow is made from them
 - [x] Emergency: "bachao" / "emergency" calls the emergency contact (set by voice: "mera emergency contact Rahul hai"); without one it asks before calling 112; "Rahul ka number kya hai" reads the number
+- [x] Notes by voice ("note karo ki…", "mere notes padho", "notes mita do"), "mere alarm dikhao", weather / news / cricket score searches, "phir se bolo" repeats the last answer, caller's name said when the phone rings (Settings → Say who is calling)

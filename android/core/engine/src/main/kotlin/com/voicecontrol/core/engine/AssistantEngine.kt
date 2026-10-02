@@ -246,6 +246,8 @@ class AssistantEngine(
         var greeted = false
         /** Asked for when the session started (with the wake phrase); answered before asking anything. */
         var firstRequest: String? = null
+        /** What the assistant last answered (time, battery, messages…), for "phir se bolo". */
+        val lastAnswer = mutableListOf<String>()
         /** Assistant jobs done (apps opened, alarms, calls, goals): kept in the history as their own screen. */
         val assistantSteps = mutableListOf<StepRecord>()
 
@@ -754,7 +756,8 @@ class AssistantEngine(
                 emit(EngineEvent.STEP, "Assistant: ${task::class.simpleName}")
                 session.noteAssistant(task::class.simpleName ?: "Assistant")
                 setStatus(EngineStatus.ACTING)
-                val result = personal.run(task, phrases, session.cfg.language, say = { say(session, it) }, ask = { askAndListen(session, it) })
+                session.lastAnswer.clear()
+                val result = personal.run(task, phrases, session.cfg.language, say = { say(session, it); session.lastAnswer += it }, ask = { askAndListen(session, it) })
                 if (result == PersonalTasks.Result.MESSAGE_READY) {
                     sendMessage(session, log)
                     return ScreenOutcome.NAVIGATED
@@ -803,7 +806,8 @@ class AssistantEngine(
                 IntentKind.HELP -> prompt = interp.reply?.takeIf { it.isNotBlank() } ?: phrases.suggest(suggestions(snapshot))
                 IntentKind.UNDO -> say(session, undoLast()?.let(phrases::undone) ?: phrases.nothingToUndo())
                 IntentKind.READ_SCREEN -> if (runReader(session, snapshot, log)) return ScreenOutcome.NAVIGATED
-                IntentKind.REPEAT -> Unit
+                // "phir se bolo": the last answer again (the question is asked again anyway).
+                IntentKind.REPEAT -> session.lastAnswer.takeIf { it.isNotEmpty() }?.let { say(session, it.joinToString(" ")) }
                 else -> {
                     // A longer request nothing on screen matches: try doing it step by step.
                     if (goalAgent != null && interp.reply.isNullOrBlank() && heard.trim().split(' ').size >= MIN_GOAL_WORDS) {

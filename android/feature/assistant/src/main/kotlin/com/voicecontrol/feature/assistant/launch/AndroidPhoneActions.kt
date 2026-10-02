@@ -219,6 +219,20 @@ class AndroidPhoneActions @Inject constructor(
 
     override suspend fun setEmergencyContact(name: String): Boolean = prefs.edit().putString(KEY_EMERGENCY, name).commit()
 
+    override suspend fun addNote(text: String): Boolean {
+        val all = (notes() + text).takeLast(MAX_NOTES)
+        return prefs.edit().putString(KEY_NOTES, org.json.JSONArray(all).toString()).commit()
+    }
+
+    override suspend fun notes(): List<String> = runCatching {
+        val json = org.json.JSONArray(prefs.getString(KEY_NOTES, "[]"))
+        List(json.length()) { json.getString(it) }
+    }.getOrDefault(emptyList())
+
+    override suspend fun clearNotes(): Boolean = prefs.edit().remove(KEY_NOTES).commit()
+
+    override suspend fun showAlarms(): Boolean = start(Intent(AlarmClock.ACTION_SHOW_ALARMS))
+
     private suspend fun askPermissions() {
         start(Intent(context, PhonePermissionActivity::class.java))
     }
@@ -243,6 +257,8 @@ class AndroidPhoneActions @Inject constructor(
         const val WHATSAPP_BUSINESS = "com.whatsapp.w4b"
         private const val PREFS = "voicecontrol_assistant"
         private const val KEY_EMERGENCY = "emergency_contact"
+        private const val KEY_NOTES = "notes"
+        private const val MAX_NOTES = 50
 
         /** wa.me needs the country code: a 10-digit Indian mobile number gets 91. */
         fun internationalDigits(number: String): String {

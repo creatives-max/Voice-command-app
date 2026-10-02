@@ -50,6 +50,7 @@ class SettingsRepository @Inject constructor(
         val rememberedAnswers = stringPreferencesKey("remembered_answers")
         val confirmLowConfidence = booleanPreferencesKey("confirm_low_confidence")
         val wakeWordEnabled = booleanPreferencesKey("wake_word_enabled")
+        val announceCalls = booleanPreferencesKey("announce_calls")
         val wakeWord = stringPreferencesKey("wake_word")
         val confirmDestructive = booleanPreferencesKey("confirm_destructive")
         val appLock = booleanPreferencesKey("app_lock")
@@ -147,6 +148,7 @@ class SettingsRepository @Inject constructor(
             p[Keys.rememberAnswers] = next.rememberAnswers
             p[Keys.confirmLowConfidence] = next.confirmLowConfidence
             p[Keys.wakeWordEnabled] = next.wakeWordEnabled
+            p[Keys.announceCalls] = next.announceCalls
             p[Keys.wakeWord] = next.wakeWord.trim().take(60)
             p[Keys.confirmDestructive] = next.confirmDestructive
             p[Keys.appLock] = next.appLock
@@ -181,6 +183,7 @@ class SettingsRepository @Inject constructor(
             rememberAnswers = p[Keys.rememberAnswers] ?: d.rememberAnswers,
             confirmLowConfidence = p[Keys.confirmLowConfidence] ?: d.confirmLowConfidence,
             wakeWordEnabled = p[Keys.wakeWordEnabled] ?: d.wakeWordEnabled,
+            announceCalls = p[Keys.announceCalls] ?: d.announceCalls,
             wakeWord = p[Keys.wakeWord]?.takeIf { it.isNotBlank() } ?: d.wakeWord,
             confirmDestructive = p[Keys.confirmDestructive] ?: d.confirmDestructive,
             appLock = p[Keys.appLock] ?: d.appLock,

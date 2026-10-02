@@ -201,6 +201,31 @@ internal class PersonalTasks(
                 }
                 return Result.ANSWERED
             }
+            is PhoneTask.NoteAdd -> {
+                say(if (actions.addNote(task.text)) phrases.noteSaved() else phrases.taskFailed())
+                return Result.ANSWERED
+            }
+            PhoneTask.NotesRead -> {
+                val notes = actions.notes().takeLast(MAX_READ_NOTES)
+                if (notes.isEmpty()) {
+                    say(phrases.noNotes())
+                } else {
+                    say(phrases.notesIntro(notes.size))
+                    notes.forEachIndexed { i, note -> say("${i + 1}. $note.") }
+                }
+                return Result.ANSWERED
+            }
+            PhoneTask.NotesClear -> {
+                say(if (actions.clearNotes()) phrases.notesCleared() else phrases.taskFailed())
+                return Result.ANSWERED
+            }
+            PhoneTask.ShowAlarms -> {
+                if (!actions.showAlarms()) {
+                    say(phrases.taskFailed())
+                    return Result.ANSWERED
+                }
+                say(phrases.openingAlarms())
+            }
             PhoneTask.TimeNow, PhoneTask.DateToday, PhoneTask.Capabilities, is PhoneTask.Calculate -> Unit
         }
         return Result.MOVED
@@ -232,6 +257,7 @@ internal class PersonalTasks(
         const val EMERGENCY_NUMBER = "112"
         private val yesWords = setOf("haan", "ha", "han", "haa", "yes", "ji", "हाँ", "हां", "जी", "karo", "करो", "please", "call")
         const val MAX_READ_NOTIFICATIONS = 5
+        const val MAX_READ_NOTES = 10
         const val MAX_NOTIFICATION_CHARS = 200
 
         /** Words for buttons the assistant leaves on screen: "bhejo" presses Send, "call karo" presses Call. */

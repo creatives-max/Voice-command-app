@@ -50,6 +50,10 @@ abstract class AssistantModule {
     abstract fun wakeWordListener(listener: WakeWordListener): ServiceListener
 
     @Binds
+    @IntoSet
+    abstract fun callAnnouncer(listener: com.voicecontrol.feature.assistant.launch.CallAnnouncer): ServiceListener
+
+    @Binds
     abstract fun flowLauncher(controller: AssistantController): FlowLauncher
 
     @Binds

@@ -44,6 +44,11 @@ interface PhoneActions {
     /** The contact called on "bachao" / "emergency" (kept on the phone). */
     suspend fun emergencyContact(): String? = null
     suspend fun setEmergencyContact(name: String): Boolean = false
+    /** Notes kept on the phone, oldest first. */
+    suspend fun addNote(text: String): Boolean = false
+    suspend fun notes(): List<String> = emptyList()
+    suspend fun clearNotes(): Boolean = false
+    suspend fun showAlarms(): Boolean = false
 }
 
 /** A control that may first need a permission the user grants on a settings screen. */

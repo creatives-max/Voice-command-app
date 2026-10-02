@@ -109,6 +109,7 @@ class AccountDataRepository @Inject constructor(
         put("remoteRuns", s.remoteRuns)
         put("deviceName", JsonPrimitive(s.deviceName))
         put("wakeWordEnabled", s.wakeWordEnabled)
+        put("announceCalls", s.announceCalls)
         put("appLock", s.appLock)
         put("crashReports", s.crashReports)
         put("backendUrl", JsonPrimitive(s.backendUrl))

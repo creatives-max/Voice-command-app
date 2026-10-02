@@ -31,6 +31,8 @@ data class AppSettings(
     val confirmLowConfidence: Boolean = true,
     /** Listen for [wakeWord] while idle and start a session when it is heard. */
     val wakeWordEnabled: Boolean = false,
+    /** Say who is calling when the phone rings ("Rahul ka call aa raha hai"). */
+    val announceCalls: Boolean = true,
     /** Ask before pressing buttons that can't be undone (pay, delete, sign out…). */
     val confirmDestructive: Boolean = true,
     /** Recognize speech on the phone (downloaded language packs) instead of online; works without internet. */

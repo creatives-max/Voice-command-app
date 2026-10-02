@@ -155,4 +155,32 @@ class PersonalAssistantTest {
         advanceUntilIdle()
         assertTrue("Mummy ka number hai 9 1 2 3 4 5 6 7 8 0." in tts2.spoken, tts2.spoken.toString())
     }
+
+    private class Notebook(screen: FakeScreen, chat: ScreenSnapshot) : PhoneActions by Phone(screen, chat) {
+        val notes = mutableListOf<String>()
+        override suspend fun addNote(text: String) = notes.add(text)
+        override suspend fun notes(): List<String> = notes.toList()
+        override suspend fun clearNotes() = true.also { notes.clear() }
+    }
+
+    @Test
+    fun `keeps notes by voice, reads them back and repeats the last answer`() = runTest {
+        val screen = FakeScreen(home)
+        val phone = Notebook(screen, chat)
+        val tts = RecordingTts()
+        engine(
+            screen,
+            ScriptedStt("note karo ki doodh lana hai", "note karo ki bijli ka bill bharna", "mere notes padho", "phir se bolo", "notes mita do", "stop"),
+            tts,
+            phone,
+        ).start()
+        advanceUntilIdle()
+        assertEquals(2, tts.spoken.count { it == "Note kar liya." })
+        // "phir se bolo" repeats the whole last answer.
+        assertTrue("Aapke 2 note hain. 1. doodh lana hai. 2. bijli ka bill bharna." in tts.spoken, tts.spoken.toString())
+        assertTrue("1. doodh lana hai." in tts.spoken)
+        assertTrue("2. bijli ka bill bharna." in tts.spoken)
+        assertTrue("Saare note mita diye." in tts.spoken)
+        assertTrue(phone.notes.isEmpty())
+    }
 }

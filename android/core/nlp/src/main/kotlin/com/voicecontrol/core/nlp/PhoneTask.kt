@@ -50,13 +50,19 @@ sealed interface PhoneTask {
     data class SetEmergencyContact(val who: String) : PhoneTask
     /** "Rahul ka number kya hai". */
     data class ContactNumber(val who: String) : PhoneTask
+    /** "note karo ki doodh lana hai": a note kept on the phone. */
+    data class NoteAdd(val text: String) : PhoneTask
+    data object NotesRead : PhoneTask
+    data object NotesClear : PhoneTask
+    /** "mere alarm dikhao": the clock app's alarm list. */
+    data object ShowAlarms : PhoneTask
 
     companion object {
         fun parse(utterance: String): PhoneTask? {
             val text = TextCleanup.simplify(utterance)
             if (text.isEmpty()) return null
             val words = text.split(' ')
-            return emergency(text, words) ?: contactNumber(text) ?: capabilities(text) ?: time(text) ?: calculate(words) ?: system(text, words) ?: device(text, words) ?: notifications(text) ?:
+            return emergency(text, words) ?: notes(text) ?: contactNumber(text) ?: showAlarms(text, words) ?: quickSearch(text, words) ?: capabilities(text) ?: time(text) ?: calculate(words) ?: system(text, words) ?: device(text, words) ?: notifications(text) ?:
                 camera(text, words) ?: media(text, words) ?: reminder(text, words) ?: alarm(text, words) ?:
                 timer(text, words) ?: message(text) ?: call(text) ?: search(text, words)
         }
@@ -109,6 +115,41 @@ sealed interface PhoneTask {
                 return clean.takeIf { it.isNotBlank() && it.length <= 40 }?.let(::ContactNumber)
             }
             return null
+        }
+
+        // --- notes ------------------------------------------------------------------------------
+
+        private val noteStarts = listOf(
+            "note karo ki", "note kar lo ki", "note karo", "note kar lo", "likh lo ki", "likh lo", "yaad rakhna ki", "make a note that", "make a note",
+            "take a note", "note down", "note that", "note", "नोट करो कि", "नोट करो", "नोट कर लो", "लिख लो कि", "लिख लो", "याद रखना कि",
+        )
+        private val notesRead = listOf("notes padho", "notes sunao", "note padho", "read my notes", "read notes", "kya likha tha", "my notes", "mere notes", "नोट्स पढ़ो", "नोट्स सुनाओ", "मेरे नोट्स")
+        private val notesClear = listOf("notes mita do", "notes delete", "notes clear", "delete my notes", "clear my notes", "notes hatao", "नोट्स मिटा दो", "नोट्स हटाओ")
+
+        private fun notes(text: String): PhoneTask? {
+            if (notesClear.any { it in text }) return NotesClear
+            if (notesRead.any { it in text } && noteStarts.none { text.startsWith("$it ") && it.length > 4 }) return NotesRead
+            for (start in noteStarts.sortedByDescending { it.length }) {
+                if (text.startsWith("$start ")) {
+                    val body = text.removePrefix("$start ").removePrefix(": ").trim()
+                    return body.takeIf { it.length >= 2 }?.let { NoteAdd(it.take(300)) }
+                }
+            }
+            return null
+        }
+
+        private fun showAlarms(text: String, words: List<String>): PhoneTask? =
+            if (words.any { it in alarmWords } && words.any { it in setOf("dikhao", "show", "list", "mere", "my", "hatao", "cancel", "delete", "दिखाओ", "हटाओ", "मेरे") } && words.none { it.toIntOrNull() != null }) ShowAlarms else null
+
+        // --- weather, news, scores ---------------------------------------------------------------
+
+        private fun quickSearch(text: String, words: List<String>): PhoneTask? = when {
+            // "google pe weather in pune search karo" says exactly what to search.
+            searchVerbs.any { " $it " in " $text " } -> null
+            words.any { it in setOf("mausam", "weather", "मौसम", "baarish", "barish", "बारिश") } -> Search(SearchPlace.WEB, "weather today")
+            words.any { it in setOf("khabar", "khabre", "news", "samachar", "खबर", "खबरें", "समाचार") } && words.none { it in youtube } -> Search(SearchPlace.WEB, "latest news")
+            words.any { it in setOf("score", "स्कोर") } && words.any { it in setOf("cricket", "match", "क्रिकेट", "मैच") } -> Search(SearchPlace.WEB, "cricket score")
+            else -> null
         }
 
         // --- what can you do ------------------------------------------------------------------------

@@ -52,7 +52,7 @@ sealed interface SettingsIntent {
     data object WipePhone : SettingsIntent
 }
 
-enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START, REMOTE_RUNS, USE_TEMPLATES, BARGE_IN, CONFIRM_LOW_CONFIDENCE, WAKE_WORD, CONFIRM_DESTRUCTIVE, CRASH_REPORTS, OFFLINE_SPEECH, REMEMBER_ANSWERS }
+enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START, REMOTE_RUNS, USE_TEMPLATES, BARGE_IN, CONFIRM_LOW_CONFIDENCE, WAKE_WORD, CONFIRM_DESTRUCTIVE, CRASH_REPORTS, OFFLINE_SPEECH, REMEMBER_ANSWERS, ANNOUNCE_CALLS }
 
 sealed interface SettingsEffect {
     data class Message(val text: String) : SettingsEffect
@@ -75,6 +75,7 @@ fun AppSettings.with(option: Option, enabled: Boolean): AppSettings = when (opti
     Option.BARGE_IN -> copy(bargeIn = enabled)
     Option.CONFIRM_LOW_CONFIDENCE -> copy(confirmLowConfidence = enabled)
     Option.WAKE_WORD -> copy(wakeWordEnabled = enabled)
+    Option.ANNOUNCE_CALLS -> copy(announceCalls = enabled)
     Option.CONFIRM_DESTRUCTIVE -> copy(confirmDestructive = enabled)
     Option.CRASH_REPORTS -> copy(crashReports = enabled)
     Option.OFFLINE_SPEECH -> copy(offlineSpeech = enabled)
@@ -96,6 +97,7 @@ fun AppSettings.isOn(option: Option): Boolean = when (option) {
     Option.BARGE_IN -> bargeIn
     Option.CONFIRM_LOW_CONFIDENCE -> confirmLowConfidence
     Option.WAKE_WORD -> wakeWordEnabled
+    Option.ANNOUNCE_CALLS -> announceCalls
     Option.CONFIRM_DESTRUCTIVE -> confirmDestructive
     Option.CRASH_REPORTS -> crashReports
     Option.OFFLINE_SPEECH -> offlineSpeech

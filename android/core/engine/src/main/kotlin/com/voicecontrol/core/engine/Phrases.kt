@@ -1160,4 +1160,22 @@ class Phrases(private val language: Language) {
         "$name's number is $number.", "$name का नंबर है $number।", "$name ka number hai $number.", "$name चा नंबर $number आहे.",
         "$name எண் $number.", "$name నంబర్ $number.", "$name এর নম্বর $number।", "$name નો નંબર $number છે.",
     )
+
+    fun noteSaved() = t("Noted.", "नोट कर लिया।", "Note kar liya.", "नोंद केली.", "குறித்துக்கொண்டேன்.", "నోట్ చేశాను.", "নোট করে নিলাম।", "નોંધી લીધું.")
+
+    fun noNotes() = t("You have no notes.", "कोई नोट नहीं है।", "Koi note nahi hai.", "कोणतीही नोंद नाही.", "குறிப்புகள் இல்லை.", "నోట్స్ లేవు.", "কোনো নোট নেই।", "કોઈ નોંધ નથી.")
+
+    fun notesIntro(count: Int) = t(
+        "You have $count notes.", "आपके $count नोट हैं।", "Aapke $count note hain.", "तुमच्या $count नोंदी आहेत.",
+        "உங்களிடம் $count குறிப்புகள்.", "మీకు $count నోట్స్ ఉన్నాయి.", "আপনার $count টা নোট।", "તમારી $count નોંધ છે.",
+    )
+
+    fun notesCleared() = t("All notes deleted.", "सारे नोट मिटा दिए।", "Saare note mita diye.", "सर्व नोंदी मिटवल्या.", "எல்லா குறிப்புகளும் நீக்கப்பட்டன.", "నోట్స్ అన్నీ తొలగించాను.", "সব নোট মুছে দিলাম।", "બધી નોંધ ભૂંસી નાખી.")
+
+    fun openingAlarms() = t("Here are your alarms.", "ये रहे आपके अलार्म।", "Ye rahe aapke alarm.", "हे तुमचे अलार्म.", "இதோ உங்கள் அலாரங்கள்.", "ఇవిగో మీ అలారాలు.", "এই আপনার অ্যালার্ম।", "આ રહ્યા તમારા એલાર્મ.")
+
+    fun incomingCall(name: String) = t(
+        "$name is calling.", "$name का कॉल आ रहा है।", "$name ka call aa raha hai.", "$name चा कॉल येत आहे.",
+        "$name அழைக்கிறார்.", "$name కాల్ చేస్తున్నారు.", "$name কল করছেন।", "$name નો કૉલ આવે છે.",
+    )
 }

@@ -139,4 +139,17 @@ class PhoneTaskTest {
         assertEquals(PhoneTask.ContactNumber("mummy"), p("what is the number of mummy"))
         assertNull(p("help"))
     }
+
+    @Test
+    fun notesAlarmsAndQuickSearches() {
+        assertEquals(PhoneTask.NoteAdd("doodh lana hai"), p("note karo ki doodh lana hai"))
+        assertEquals(PhoneTask.NoteAdd("call the plumber"), p("make a note call the plumber"))
+        assertEquals(PhoneTask.NotesRead, p("mere notes padho"))
+        assertEquals(PhoneTask.NotesClear, p("notes mita do"))
+        assertEquals(PhoneTask.ShowAlarms, p("mere alarm dikhao"))
+        assertEquals(PhoneTask.Alarm(6, 0), p("6 baje ka alarm laga do"))
+        assertEquals(PhoneTask.Search(SearchPlace.WEB, "weather today"), p("aaj mausam kaisa hai"))
+        assertEquals(PhoneTask.Search(SearchPlace.WEB, "latest news"), p("aaj ki khabar sunao"))
+        assertEquals(PhoneTask.Search(SearchPlace.WEB, "cricket score"), p("cricket match ka score kya hai"))
+    }
 }

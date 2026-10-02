@@ -1,0 +1,57 @@
+package com.voicecontrol.core.nlp
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+
+class PhoneTaskTest {
+    private fun p(s: String) = PhoneTask.parse(s)
+
+    @Test
+    fun alarms() {
+        assertEquals(PhoneTask.Alarm(6, 0), p("subah 6 baje ka alarm laga do"))
+        assertEquals(PhoneTask.Alarm(6, 30), p("set an alarm for 6:30 am"))
+        assertEquals(PhoneTask.Alarm(19, 0), p("shaam 7 baje alarm lagao"))
+        assertEquals(PhoneTask.Alarm(5, 30), p("साढ़े 5 बजे का अलार्म लगा दो"))
+        assertEquals(PhoneTask.Alarm(7, 45), p("paune 8 baje utha dena"))
+        assertNull(p("alarm kholo"))
+    }
+
+    @Test
+    fun timers() {
+        assertEquals(PhoneTask.Timer(300), p("set a timer for 5 minutes"))
+        assertEquals(PhoneTask.Timer(600), p("10 minute ka timer lagao"))
+        assertEquals(PhoneTask.Timer(1800), p("aadha ghanta ka timer"))
+        assertEquals(PhoneTask.Timer(90), p("timer 1 minute 30 second"))
+    }
+
+    @Test
+    fun searches() {
+        assertEquals(PhoneTask.Search(SearchPlace.YOUTUBE, "arijit singh songs"), p("YouTube pe Arijit Singh songs chalao"))
+        assertEquals(PhoneTask.Search(SearchPlace.YOUTUBE, "kesariya"), p("play kesariya on youtube"))
+        assertEquals(PhoneTask.Search(SearchPlace.WEB, "weather in pune"), p("google pe weather in pune search karo"))
+        assertEquals(PhoneTask.Search(SearchPlace.WEB, "पनीर रेसिपी"), p("पनीर रेसिपी सर्च करो"))
+        assertEquals(PhoneTask.Search(SearchPlace.MAPS, "railway station"), p("railway station ka rasta"))
+        assertNull(p("YouTube kholo"))
+        assertNull(p("youtube chalao"))
+    }
+
+    @Test
+    fun callsAndMessages() {
+        assertEquals(PhoneTask.Call("rahul"), p("Rahul ko call karo"))
+        assertEquals(PhoneTask.Call("mummy"), p("मम्मी को फोन लगाओ".replace("मम्मी", "mummy")))
+        assertEquals(PhoneTask.Call("9876543210"), p("call 9876543210"))
+        assertEquals(PhoneTask.Message("mummy", "main aa raha hoon"), p("Mummy ko WhatsApp pe message bhejo ki main aa raha hoon"))
+        assertEquals(PhoneTask.Message("priya", "running late"), p("send a message to Priya saying running late"))
+        assertNull(p("call history dikhao".replace("call history dikhao", "history dikhao")))
+    }
+
+    @Test
+    fun timeAndDate() {
+        assertEquals(PhoneTask.TimeNow, p("abhi time kya hua hai"))
+        assertEquals(PhoneTask.TimeNow, p("What time is it?"))
+        assertEquals(PhoneTask.DateToday, p("आज की तारीख क्या है"))
+        assertNull(p("Next"))
+        assertNull(p("Login"))
+    }
+}

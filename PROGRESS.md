@@ -216,3 +216,9 @@ phase notes say which earlier phase covered the rest.
 - [x] Phone launcher shortcuts (Insights, My flows, Get flows, Settings); emulator test independent of window focus
 - [x] OpenAPI (also merged a duplicate `/v1/me` entry), privacy policy, README; tests, commit + push
 
+
+## After launch — taught flows and personal assistant (from testing on a phone)
+- [x] Taught flows keep every screen: a tap is matched on the screen it was made on (not the one it opened); home-screen taps are left out
+- [x] Taught flows replay all screens: taps play by themselves (the last one is confirmed), taps match by name, search boxes get Enter
+- [x] Personal assistant on any screen without a form: time and date, alarms, timers, YouTube / Google / Maps search, calls by contact name or number, WhatsApp messages (asks what to write, confirms, sends)
+- [x] Friendlier talk: varied follow-ups ("Aur kuch?"), and the AI answers general questions in one or two spoken sentences

@@ -31,6 +31,7 @@ import com.voicecontrol.core.model.ScrollDirection
 import com.voicecontrol.core.model.SessionSummary
 import com.voicecontrol.core.model.StepAction
 import com.voicecontrol.core.nlp.AppRequest
+import com.voicecontrol.core.nlp.PhoneTask
 import com.voicecontrol.core.model.StepOutcome
 import com.voicecontrol.core.model.StepRecord
 import com.voicecontrol.core.model.UserProfile
@@ -126,7 +127,10 @@ class AssistantEngine(
     private val questionTimeoutMillis: Long = 30_000L,
     /** Installed apps, for "open WhatsApp". */
     private val appDirectory: com.voicecontrol.core.engine.port.AppDirectory? = null,
+    /** Alarms, timers, searches, calls and messages for the personal assistant. */
+    phoneActions: com.voicecontrol.core.engine.port.PhoneActions? = null,
 ) {
+    private val personal = PersonalTasks(phoneActions, clock)
     private val _state = MutableStateFlow(EngineState())
     val state: StateFlow<EngineState> = _state.asStateFlow()
 
@@ -666,11 +670,29 @@ class AssistantEngine(
         val phrases = session.phrases
         var prompt = if (session.greeted) phrases.whatNext() else phrases.howCanIHelp()
         session.greeted = true
-        repeat(MAX_COMMAND_TURNS) {
+        repeat(MAX_COMMAND_TURNS) { turn ->
             val heard = askAndListen(session, prompt) ?: return@repeat
             shortcutFlow(session, snapshot, heard)?.let { flow ->
                 session.switchTo = flow
                 return ScreenOutcome.SWITCHED
+            }
+            // "bhejo" on a chat presses Send, "call karo" in the dialer presses Call.
+            PersonalTasks.spokenAlias(heard, snapshot.elements)?.let { button ->
+                if (press(session, button, log)) return ScreenOutcome.NAVIGATED
+                return@repeat
+            }
+            // Personal assistant: "6 baje ka alarm", "YouTube pe gaane chalao", "Rahul ko call karo", "time kya hua".
+            PhoneTask.parse(heard)?.let { task ->
+                emit(EngineEvent.STEP, "Assistant: ${task::class.simpleName}")
+                setStatus(EngineStatus.ACTING)
+                val result = personal.run(task, phrases, session.cfg.language, say = { say(session, it) }, ask = { askAndListen(session, it) })
+                if (result == PersonalTasks.Result.MESSAGE_READY) {
+                    sendMessage(session, log)
+                    return ScreenOutcome.NAVIGATED
+                }
+                if (result == PersonalTasks.Result.MOVED) return ScreenOutcome.NAVIGATED
+                prompt = phrases.anythingElse(turn)
+                return@repeat
             }
             // The answer is usually just a button's name: "Login", "लॉगिन", "OK", "Next".
             spokenButton(session, snapshot, heard)?.let { button ->
@@ -713,6 +735,34 @@ class AssistantEngine(
             }
         }
         return ScreenOutcome.STOPPED
+    }
+
+    /** A WhatsApp chat opened with the message typed in: ask once, then press Send. */
+    private suspend fun sendMessage(session: Session, log: ScreenLog) {
+        var send: ScreenElement? = null
+        waitForScreen(MESSAGE_WAIT_MS) { snap -> PersonalTasks.sendButton(snap.elements)?.also { send = it } != null }
+        val button = send ?: return
+        val name = personal.messageTo
+        val context = screen.capture() ?: return
+        if (!confirmSend(session, context, name, button)) return
+        val ok = perform(ScreenAction.Click(button.id)).isSuccess
+        if (ok) log.putClick(button)
+        say(session, if (ok) session.phrases.messageSent(name) else session.phrases.actionFailed())
+    }
+
+    /** "haan", "yes", "bhejo", "send" send it; "no", "stop" or silence leave it in the chat. */
+    private suspend fun confirmSend(session: Session, context: ScreenSnapshot, name: String, button: ScreenElement): Boolean {
+        val question = session.phrases.messageReady(name)
+        repeat(MAX_ATTEMPTS) {
+            val heard = askAndListen(session, question) ?: return@repeat
+            if (PersonalTasks.spokenAlias(heard, listOf(button)) != null) return true
+            when (interpret(session, context, null, heard, question).intent) {
+                IntentKind.YES, IntentKind.SUBMIT, IntentKind.NEXT -> return true
+                IntentKind.NO, IntentKind.STOP, IntentKind.SKIP -> return false
+                else -> say(session, session.phrases.didNotCatch())
+            }
+        }
+        return false
     }
 
     /** The screen's main actions, for suggestions: enabled buttons with short, readable names. */
@@ -1681,6 +1731,8 @@ class AssistantEngine(
         const val SCREEN_POLL_MS = 500L
         /** How long a flow waits after the last answer before pressing Enter in that field. */
         const val ENTER_AFTER_MS = 3_000L
+        /** How long to wait for a WhatsApp chat to open. */
+        const val MESSAGE_WAIT_MS = 10_000L
         const val MAX_REPEAT = 50
         const val MAX_MEMORY = 12
         const val MAX_UNDO = 30

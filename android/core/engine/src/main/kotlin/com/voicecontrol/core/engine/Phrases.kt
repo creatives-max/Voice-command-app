@@ -738,4 +738,175 @@ class Phrases(private val language: Language) {
         "\"$phrase\" এর ফ্লো এখনও এই ফোনে নেই। ইন্টারনেট চালু করে আবার চেষ্টা করুন।",
         "\"$phrase\" માટેનો ફ્લો હજી આ ફોન પર નથી. ઇન્ટરનેટ ચાલુ કરીને ફરી પ્રયાસ કરો.",
     )
+
+    // --- Personal assistant ---------------------------------------------------------------------
+
+    fun timeNow(time: String) = t(
+        "It's $time.",
+        "अभी $time हुए हैं।",
+        "Abhi $time hue hain.",
+        "आता $time वाजले आहेत.",
+        "இப்போது மணி $time.",
+        "ఇప్పుడు సమయం $time.",
+        "এখন $time বাজে।",
+        "અત્યારે $time થયા છે.",
+    )
+
+    fun today(date: String) = t(
+        "Today is $date.",
+        "आज $date है।",
+        "Aaj $date hai.",
+        "आज $date आहे.",
+        "இன்று $date.",
+        "ఈ రోజు $date.",
+        "আজ $date।",
+        "આજે $date છે.",
+    )
+
+    fun alarmSet(time: String) = t(
+        "Done. Your alarm is set for $time.",
+        "ठीक है, $time का अलार्म लगा दिया।",
+        "Theek hai, $time ka alarm laga diya.",
+        "ठीक आहे, $time चा अलार्म लावला.",
+        "சரி, $time க்கு அலாரம் வைத்துவிட்டேன்.",
+        "సరే, $time కి అలారం పెట్టాను.",
+        "ঠিক আছে, $time এ অ্যালার্ম দিয়ে দিলাম।",
+        "બરાબર, $time નો એલાર્મ મૂકી દીધો.",
+    )
+
+    fun timerSet(duration: String) = t(
+        "Okay, timer started for $duration.",
+        "ठीक है, $duration का टाइमर शुरू कर दिया।",
+        "Theek hai, $duration ka timer shuru kar diya.",
+        "ठीक आहे, $duration चा टायमर सुरू केला.",
+        "சரி, $duration டைமர் தொடங்கிவிட்டேன்.",
+        "సరే, $duration టైమర్ మొదలుపెట్టాను.",
+        "ঠিক আছে, $duration এর টাইমার চালু করলাম।",
+        "બરાબર, $duration નું ટાઇમર ચાલુ કર્યું.",
+    )
+
+    fun duration(seconds: Int): String {
+        val h = seconds / 3600
+        val m = seconds % 3600 / 60
+        val sec = seconds % 60
+        fun part(n: Int, en: String, hi: String, hinglish: String, mr: String, ta: String, te: String, bn: String, gu: String) =
+            if (n == 0) null else "$n " + t(en, hi, hinglish, mr, ta, te, bn, gu)
+        return listOfNotNull(
+            part(h, if (h == 1) "hour" else "hours", "घंटे", "ghante", "तास", "மணி நேரம்", "గంటలు", "ঘণ্টা", "કલાક"),
+            part(m, if (m == 1) "minute" else "minutes", "मिनट", "minute", "मिनिटे", "நிமிடம்", "నిమిషాలు", "মিনিট", "મિનિટ"),
+            part(sec, if (sec == 1) "second" else "seconds", "सेकंड", "second", "सेकंद", "வினாடி", "సెకన్లు", "সেকেন্ড", "સેકન્ડ"),
+        ).joinToString(" ")
+    }
+
+    fun searching(query: String) = t(
+        "Searching for $query.",
+        "$query ढूंढ रहा हूं।",
+        "$query dhoondh raha hoon.",
+        "$query शोधत आहे.",
+        "$query தேடுகிறேன்.",
+        "$query వెతుకుతున్నాను.",
+        "$query খুঁজছি।",
+        "$query શોધું છું.",
+    )
+
+    fun calling(name: String) = t(
+        "Calling $name.",
+        "$name को कॉल लगा रहा हूं।",
+        "$name ko call laga raha hoon.",
+        "$name ला कॉल करत आहे.",
+        "$name க்கு அழைக்கிறேன்.",
+        "$name కి కాల్ చేస్తున్నాను.",
+        "$name কে কল করছি।",
+        "$name ને કૉલ કરું છું.",
+    )
+
+    fun dialed(name: String) = t(
+        "$name's number is ready. Say call and I'll call.",
+        "$name का नंबर लगा दिया है। कॉल बोलिए तो कॉल कर दूंगा।",
+        "$name ka number laga diya hai. Call boliye to call kar dunga.",
+        "$name चा नंबर लावला आहे. कॉल म्हणा, मी कॉल करतो.",
+        "$name எண் தயார். கால் என்று சொன்னால் அழைக்கிறேன்.",
+        "$name నంబర్ సిద్ధం. కాల్ అని చెప్పండి, కాల్ చేస్తాను.",
+        "$name এর নম্বর তৈরি। কল বললে কল করব।",
+        "$name નો નંબર તૈયાર છે. કૉલ કહો તો કૉલ કરી દઉં.",
+    )
+
+    fun askMessage(name: String) = t(
+        "What should I write to $name?",
+        "$name को क्या लिखूं?",
+        "$name ko kya likhun?",
+        "$name ला काय लिहू?",
+        "$name க்கு என்ன எழுதட்டும்?",
+        "$name కి ఏమి రాయాలి?",
+        "$name কে কী লিখব?",
+        "$name ને શું લખું?",
+    )
+
+    fun messageReady(name: String) = t(
+        "Your message to $name is ready. Shall I send it?",
+        "$name के लिए मैसेज तैयार है। भेज दूं?",
+        "$name ke liye message taiyaar hai. Bhej doon?",
+        "$name साठी मेसेज तयार आहे. पाठवू का?",
+        "$name க்கு செய்தி தயார். அனுப்பட்டுமா?",
+        "$name కి మెసేజ్ సిద్ధం. పంపనా?",
+        "$name এর জন্য মেসেজ তৈরি। পাঠিয়ে দেব?",
+        "$name માટે મેસેજ તૈયાર છે. મોકલી દઉં?",
+    )
+
+    fun messageSent(name: String) = t(
+        "Sent to $name.",
+        "$name को भेज दिया।",
+        "$name ko bhej diya.",
+        "$name ला पाठवला.",
+        "$name க்கு அனுப்பிவிட்டேன்.",
+        "$name కి పంపాను.",
+        "$name কে পাঠিয়ে দিলাম।",
+        "$name ને મોકલી દીધો.",
+    )
+
+    fun contactNotFound(name: String) = t(
+        "I couldn't find $name in your contacts.",
+        "आपके कॉन्टैक्ट्स में $name नहीं मिला।",
+        "Aapke contacts mein $name nahi mila.",
+        "तुमच्या संपर्कांमध्ये $name सापडले नाही.",
+        "உங்கள் தொடர்புகளில் $name இல்லை.",
+        "మీ కాంటాక్ట్స్‌లో $name లేరు.",
+        "আপনার কন্টাক্টে $name পাইনি।",
+        "તમારા કૉન્ટેક્ટ્સમાં $name મળ્યા નહીં.",
+    )
+
+    fun needContacts() = t(
+        "I need permission to see your contacts and make calls. Please tap Allow on the screen, then ask me again.",
+        "कॉन्टैक्ट्स देखने और कॉल करने की अनुमति चाहिए। स्क्रीन पर अनुमति दें दबाइए, फिर दोबारा बोलिए।",
+        "Contacts dekhne aur call karne ki permission chahiye. Screen par Allow dabaiye, phir dobara boliye.",
+        "संपर्क पाहण्याची आणि कॉल करण्याची परवानगी हवी आहे. स्क्रीनवर परवानगी द्या, मग पुन्हा सांगा.",
+        "தொடர்புகளைப் பார்க்கவும் அழைக்கவும் அனுமதி தேவை. திரையில் அனுமதி கொடுத்து மீண்டும் சொல்லுங்கள்.",
+        "కాంటాక్ట్స్ చూడటానికి, కాల్ చేయడానికి అనుమతి కావాలి. స్క్రీన్‌పై అనుమతించి మళ్ళీ చెప్పండి.",
+        "কন্টাক্ট দেখা আর কল করার অনুমতি দরকার। স্ক্রিনে অনুমতি দিন, তারপর আবার বলুন।",
+        "કૉન્ટેક્ટ્સ જોવા અને કૉલ કરવાની પરવાનગી જોઈએ. સ્ક્રીન પર મંજૂરી આપો, પછી ફરી કહો.",
+    )
+
+    fun taskFailed() = t(
+        "Sorry, I couldn't do that on this phone.",
+        "माफ़ कीजिए, इस फ़ोन पर ये नहीं हो पाया।",
+        "Maaf kijiye, is phone par ye nahi ho paaya.",
+        "माफ करा, या फोनवर हे झाले नाही.",
+        "மன்னிக்கவும், இந்த போனில் இதைச் செய்ய முடியவில்லை.",
+        "క్షమించండి, ఈ ఫోన్‌లో ఇది కుదరలేదు.",
+        "দুঃখিত, এই ফোনে এটা করা গেল না।",
+        "માફ કરશો, આ ફોન પર આ થઈ શક્યું નહીં.",
+    )
+
+    /** Follow-up after an answer, worded differently each time so it sounds like a person. */
+    fun anythingElse(turn: Int): String = when (turn % 3) {
+        0 -> t("Anything else?", "और कुछ?", "Aur kuch?", "आणखी काही?", "வேறு ஏதாவது?", "ఇంకేమైనా?", "আর কিছু?", "બીજું કંઈ?")
+        1 -> t(
+            "What else can I do for you?", "और क्या कर दूं आपके लिए?", "Aur kya kar doon aapke liye?", "आणखी काय करू तुमच्यासाठी?",
+            "வேறு என்ன செய்யட்டும்?", "ఇంకా ఏమి చేయాలి?", "আর কী করে দেব?", "બીજું શું કરી આપું?",
+        )
+        else -> t(
+            "Tell me if you need anything else.", "कुछ और चाहिए तो बताइए।", "Kuch aur chahiye to bataiye.", "आणखी काही हवे असल्यास सांगा.",
+            "வேறு ஏதாவது வேண்டுமானால் சொல்லுங்கள்.", "ఇంకేమైనా కావాలంటే చెప్పండి.", "আর কিছু লাগলে বলুন।", "બીજું કંઈ જોઈએ તો કહો.",
+        )
+    }
 }

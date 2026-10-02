@@ -59,6 +59,9 @@ abstract class AssistantModule {
     abstract fun appDirectory(impl: com.voicecontrol.feature.assistant.launch.AndroidAppDirectory): com.voicecontrol.core.engine.port.AppDirectory
 
     @Binds
+    abstract fun phoneActions(impl: com.voicecontrol.feature.assistant.launch.AndroidPhoneActions): com.voicecontrol.core.engine.port.PhoneActions
+
+    @Binds
     abstract fun teachLauncher(controller: com.voicecontrol.feature.assistant.teach.TeachController): com.voicecontrol.core.engine.port.TeachLauncher
 
     companion object {
@@ -79,6 +82,7 @@ abstract class AssistantModule {
             answers: com.voicecontrol.core.engine.port.AnswerMemory,
             questionWriter: com.voicecontrol.core.engine.port.QuestionWriter,
             appDirectory: com.voicecontrol.core.engine.port.AppDirectory,
+            phoneActions: com.voicecontrol.core.engine.port.PhoneActions,
         ): AssistantEngine = AssistantEngine(
             screen = screen,
             stt = stt,
@@ -95,6 +99,7 @@ abstract class AssistantModule {
             answers = answers,
             questionWriter = questionWriter,
             appDirectory = appDirectory,
+            phoneActions = phoneActions,
         )
 
         @Provides

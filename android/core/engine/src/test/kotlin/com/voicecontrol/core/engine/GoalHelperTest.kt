@@ -145,4 +145,18 @@ class GoalHelperTest {
         advanceUntilIdle()
         assertTrue(ScreenAction.Click("vid:recharge") in screen.actions)
     }
+
+    @Test
+    fun `a slow step says one moment once instead of going quiet`() = runTest {
+        val screen = FakeScreen(ppHome).apply { onClick["vid:recharge"] = done }
+        val tts = RecordingTts()
+        val slow = GoalAgent { _, s, _, _ ->
+            kotlinx.coroutines.delay(5_000)
+            if (s.signature == "done") AgentDecision(AgentAction.DONE, say = "Ho gaya.") else AgentDecision(AgentAction.CLICK, "vid:recharge")
+        }
+        engine(screen, ScriptedStt("I want to recharge my phone", "stop"), tts, slow).start()
+        advanceUntilIdle()
+        assertEquals(1, tts.spoken.count { it == "One moment…" }, tts.spoken.toString())
+        assertTrue("Ho gaya." in tts.spoken)
+    }
 }

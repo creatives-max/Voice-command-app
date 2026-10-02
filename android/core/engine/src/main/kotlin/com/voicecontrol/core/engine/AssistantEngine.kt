@@ -805,6 +805,7 @@ class AssistantEngine(
         val learned = FlowRecorder()
         var lastKey = ""
         var repeats = 0
+        var saidMoment = false
         repeat(MAX_AGENT_STEPS) {
             val snap = readScreen(session) ?: return ScreenOutcome.NAVIGATED
             learned.onEvent(RecordedEvent.Screen(snap))
@@ -814,7 +815,18 @@ class AssistantEngine(
             val shown = snap.redacted().copy(
                 texts = snap.texts.take(MAX_AGENT_TEXTS).map { it.copy(text = TextMask.mask(it.text.take(MAX_AGENT_TEXT_CHARS))) },
             )
-            val d = runCatching { agent.next(goal, shown, history.takeLast(MAX_AGENT_HISTORY), session.cfg.language) }.getOrNull()
+            val d = coroutineScope {
+                val planned = async { runCatching { agent.next(goal, shown, history.takeLast(MAX_AGENT_HISTORY), session.cfg.language) }.getOrNull() }
+                // A slow step: say "one moment" (once per goal) instead of going quiet.
+                val filler = if (saidMoment) null else launch {
+                    delay(AGENT_FILLER_MS)
+                    saidMoment = true
+                    say(session, phrases.oneMoment())
+                }
+                val result = planned.await()
+                if (filler != null && !saidMoment) filler.cancel() else filler?.join()
+                result
+            }
             if (d == null) {
                 say(session, if (history.isEmpty()) phrases.needInternetForHelp() else phrases.goalFailed())
                 return ScreenOutcome.NAVIGATED
@@ -1966,6 +1978,7 @@ class AssistantEngine(
         /** How long a flow waits after the last answer before pressing Enter in that field. */
         const val ENTER_AFTER_MS = 3_000L
         const val MAX_AGENT_STEPS = 40
+        const val AGENT_FILLER_MS = 2_500L
         /** A goal done in fewer steps (just one tap) isn't worth a flow. */
         const val MIN_LEARNED_ACTIONS = 2
         const val MAX_BIAS_PHRASES = 50

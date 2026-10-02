@@ -978,4 +978,9 @@ class Phrases(private val language: Language) {
         "Okay, I'll remember.", "ठीक है, याद रख लिया।", "Theek hai, yaad rakh liya.", "ठीक आहे, लक्षात ठेवले.",
         "சரி, நினைவில் வைத்துக்கொண்டேன்.", "సరే, గుర్తుంచుకున్నాను.", "ঠিক আছে, মনে রাখলাম।", "બરાબર, યાદ રાખી લીધું.",
     )
+
+    /** Said once when the helper takes a while to decide, so the silence doesn't feel like a hang. */
+    fun oneMoment() = t(
+        "One moment…", "एक सेकंड…", "Ek second…", "एक सेकंद…", "ஒரு நொடி…", "ఒక్క క్షణం…", "এক সেকেন্ড…", "એક સેકન્ડ…",
+    )
 }

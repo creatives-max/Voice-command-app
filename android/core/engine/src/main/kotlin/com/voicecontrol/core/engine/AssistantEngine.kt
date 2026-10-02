@@ -810,7 +810,11 @@ class AssistantEngine(
             learned.onEvent(RecordedEvent.Screen(snap))
             session.appPackage = snap.packageName
             setStatus(EngineStatus.THINKING, caption = null)
-            val d = runCatching { agent.next(goal, snap.redacted(), history.takeLast(MAX_AGENT_HISTORY), session.cfg.language) }.getOrNull()
+            // The helper also sees the screen's other text (amounts, messages, errors), with long numbers and codes masked.
+            val shown = snap.redacted().copy(
+                texts = snap.texts.take(MAX_AGENT_TEXTS).map { it.copy(text = TextMask.mask(it.text.take(MAX_AGENT_TEXT_CHARS))) },
+            )
+            val d = runCatching { agent.next(goal, shown, history.takeLast(MAX_AGENT_HISTORY), session.cfg.language) }.getOrNull()
             if (d == null) {
                 say(session, if (history.isEmpty()) phrases.needInternetForHelp() else phrases.goalFailed())
                 return ScreenOutcome.NAVIGATED
@@ -1967,6 +1971,8 @@ class AssistantEngine(
         const val MAX_BIAS_PHRASES = 50
         const val MAX_BIAS_CHARS = 40
         const val MAX_AGENT_HISTORY = 30
+        const val MAX_AGENT_TEXTS = 80
+        const val MAX_AGENT_TEXT_CHARS = 200
         const val MAX_AGENT_REPEATS = 2
         const val AGENT_WAIT_MS = 1_500L
         /** A request this long that matched nothing on screen is tried as a goal. */

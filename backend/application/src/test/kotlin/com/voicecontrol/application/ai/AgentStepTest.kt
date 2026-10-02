@@ -56,6 +56,15 @@ class AgentStepTest {
     }
 
     @Test
+    fun `screen texts are capped and masked again on the server`() = runTest {
+        val planner = Planner { AgentStep(AgentActionKind.DONE) }
+        AiService(planner).nextAgentStep(cmd().copy(texts = listOf("Bill amount ₹540", "A/c 123456789012", "OTP 4821") + List(100) { "line $it" }))
+        val sent = planner.last!!.texts
+        assertEquals(80, sent.size)
+        assertEquals(listOf("Bill amount ₹540", "A/c ••••••••9012", "OTP ••••"), sent.take(3))
+    }
+
+    @Test
     fun `unknown ids give up and sensitive or empty fills become questions`() = runTest {
         assertEquals(AgentActionKind.GIVE_UP, AiService(Planner { AgentStep(AgentActionKind.CLICK, targetId = "ghost") }).nextAgentStep(cmd()).action)
         val pin = AiService(Planner { AgentStep(AgentActionKind.FILL, targetId = "pin", value = "0000") }).nextAgentStep(cmd())

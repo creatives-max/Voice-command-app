@@ -85,6 +85,8 @@ data class AgentStepCommand(
     val screen: ScreenContext,
     val history: List<String> = emptyList(),
     val language: Language = Language.ENGLISH,
+    /** Other visible text in reading order (amounts, messages, errors); long numbers and codes masked. */
+    val texts: List<String> = emptyList(),
 )
 
 /**

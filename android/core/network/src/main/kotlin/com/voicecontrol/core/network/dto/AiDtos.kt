@@ -99,7 +99,14 @@ data class QuestionsResponseDto(val questions: List<FieldQuestionDto> = emptyLis
 
 /** "Do it for me": asks the backend for the next step towards the user's goal. */
 @Serializable
-data class AgentStepRequestDto(val goal: String, val screen: ScreenContextDto, val history: List<String>, val language: Language)
+data class AgentStepRequestDto(
+    val goal: String,
+    val screen: ScreenContextDto,
+    val history: List<String>,
+    val language: Language,
+    /** The screen's other visible text in reading order, masked on the phone (see TextMask). */
+    val texts: List<String> = emptyList(),
+)
 
 @Serializable
 data class AgentStepDto(

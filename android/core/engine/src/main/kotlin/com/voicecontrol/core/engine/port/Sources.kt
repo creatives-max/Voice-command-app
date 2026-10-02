@@ -105,8 +105,9 @@ data class AgentDecision(
 )
 
 /**
- * Plans one step at a time towards a goal on the current screen (AI on the server). [history] lists what
- * happened so far, newest last, and never holds sensitive values. Null when unavailable (offline,
+ * Plans one step at a time towards a goal on the current screen (AI on the server). The screen's texts
+ * come already masked ([com.voicecontrol.core.engine.TextMask]). [history] lists what happened so far,
+ * newest last, and never holds sensitive values. Null when unavailable (offline,
  * on-device only, signed out, or no planning model).
  */
 fun interface GoalAgent {

@@ -226,3 +226,4 @@ phase notes say which earlier phase covered the rest.
 - [x] Hearing: on-screen names bias the recognizer (Android 13+), its other guesses are tried for button names, longer pauses allowed
 - [x] Helper learns: reached goals are kept as flows with the goal as voice shortcut (asked first); a remembered way that breaks falls back to the helper; presses that changed nothing are reported to the planner
 - [x] Wake phrase fixed for Android 14+: the microphone service is kept between sessions and restarted when VoiceControl opens; "voice control" works without "hey"; Settings shows what the listener is doing
+- [x] Helper reads the screen: visible text (amounts, messages, errors) goes to the planner with long numbers and one-time codes masked on the phone and again on the server; it checks success before saying done; privacy policy updated

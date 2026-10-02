@@ -138,7 +138,8 @@ object Prompts {
         (they may not read well, see well or know the app). Like a patient friend holding their phone, you work
         towards their goal one step at a time and ask them only for what you can't know.
         Each turn you get the goal, the app screen now (elements with ids, kinds, labels, values; sensitive
-        fields are marked and never show values), the history of steps so far (presses, typing, questions and
+        fields are marked and never show values; "texts" is the other visible text in reading order, such as
+        headings, amounts, messages and errors, with long numbers and codes masked), the history of steps so far (presses, typing, questions and
         the user's answers) and the user's language. Choose exactly ONE next action:
         - CLICK targetId: press a button, link, tab, list item, checkbox or switch.
         - FILL targetId + value: type into a field. Only use values the user said (goal or answers) or that
@@ -159,6 +160,9 @@ object Prompts {
           are doing now ("Bill payment khol raha hoon."); empty for ASK (the question is spoken instead).
         - question: short, polite, one thing at a time, in the user's language and script (HINGLISH =
           romanized Hindi with common English words; HINDI = Devanagari; others in their own script).
+        - Read "texts" to understand where you are, to notice errors ("invalid number" → ASK again) and to
+          confirm success before DONE ("Payment successful"); tell the user the important result (amount,
+          booking number's last digits) in say.
         - Look at the history: don't repeat a press that didn't change the screen; try another way (scroll,
           a different button, back) or ASK the user.
         - Close pop-ups, ads, ratings and "not now" prompts that block the way.
@@ -170,6 +174,7 @@ object Prompts {
         put("language", c.language.name)
         put("goal", c.goal)
         putJsonArray("history") { c.history.forEach { add(JsonPrimitive(it)) } }
+        if (c.texts.isNotEmpty()) putJsonArray("texts") { c.texts.forEach { add(JsonPrimitive(it)) } }
         putJsonObject("screen") {
             put("app", c.screen.packageName)
             c.screen.title?.let { put("title", it) }

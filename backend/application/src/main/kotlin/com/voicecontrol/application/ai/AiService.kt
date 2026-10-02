@@ -143,6 +143,8 @@ class AiService(
             goal = command.goal.trim(),
             screen = screen,
             history = command.history.map { it.take(MAX_HISTORY_CHARS) }.takeLast(MAX_HISTORY),
+            // Defense in depth: the phone masks these already.
+            texts = command.texts.take(MAX_TEXTS).map { TextMask.mask(it.take(MAX_TEXT_CHARS)) }.filter { it.isNotBlank() },
         )
         if (provider.name == RulesInterpreter.SOURCE) return AgentStep(AgentActionKind.GIVE_UP, source = provider.name)
         val raw = try {
@@ -225,6 +227,8 @@ class AiService(
         const val MAX_MEMORY = 12
         const val MAX_QUESTION_FIELDS = 40
         const val MAX_GOAL = 500
+        const val MAX_TEXTS = 80
+        const val MAX_TEXT_CHARS = 200
         const val MAX_HISTORY = 30
         const val MAX_HISTORY_CHARS = 300
         const val MAX_SAY_CHARS = 300

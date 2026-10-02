@@ -26,7 +26,7 @@ class RemoteGoalAgent @Inject constructor(
     override suspend fun next(goal: String, screen: ScreenSnapshot, history: List<String>, language: Language): AgentDecision? {
         if (settings.appSettings().localOnly || tokens.tokens() == null) return null
         val step = runCatching {
-            ai.agentStep(AgentStepRequestDto(goal.take(MAX_GOAL), ScreenContextDto.from(screen.redacted()), history, language))
+            ai.agentStep(AgentStepRequestDto(goal.take(MAX_GOAL), ScreenContextDto.from(screen.redacted()), history, language, screen.texts.map { it.text }))
         }.getOrNull() ?: return null
         val action = AgentAction.entries.firstOrNull { it.name == step.action } ?: return null
         // No model behind the server (or it failed): let the phone carry on by itself.

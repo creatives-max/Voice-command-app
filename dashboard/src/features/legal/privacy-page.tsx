@@ -11,7 +11,7 @@ const SECTIONS: [string, string][] = [
   ],
   [
     "What is sent to our servers",
-    "If you sign in and do not use local-only mode, the field labels of the current screen and the text of what you said are sent to the VoiceControl server to understand your answer, and the screen structure is used to find your saved flows. Values of sensitive fields are never sent. With the screenshot fallback turned on, a screenshot is sent only for apps that expose no readable fields.",
+    "If you sign in and do not use local-only mode, the field labels of the current screen and the text of what you said are sent to the VoiceControl server to understand your answer, and the screen structure is used to find your saved flows. Values of sensitive fields are never sent. When you ask VoiceControl to do something for you ("do it for me"), the visible text of each screen it works on is sent too, with long numbers (account, card, phone) and one-time codes masked. With the screenshot fallback turned on, a screenshot is sent only for apps that expose no readable fields.",
   ],
   [
     "AI providers",

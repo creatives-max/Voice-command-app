@@ -37,7 +37,14 @@ interface PhoneActions {
     suspend fun openSettings(page: SettingsPage): Boolean = false
     /** Notifications seen recently, newest first (kept in memory on the phone only). */
     suspend fun notifications(): List<NotificationInfo> = emptyList()
+    suspend fun system(action: com.voicecontrol.core.nlp.SystemAction): Boolean = false
+    suspend fun camera(video: Boolean, selfie: Boolean): Boolean = false
+    suspend fun brightness(change: VolumeChange): ControlResult = ControlResult.FAILED
+    suspend fun media(key: com.voicecontrol.core.nlp.MediaKey): Boolean = false
 }
+
+/** A control that may first need a permission the user grants on a settings screen. */
+enum class ControlResult { DONE, ASKED_PERMISSION, FAILED }
 
 data class BatteryInfo(val percent: Int, val charging: Boolean)
 

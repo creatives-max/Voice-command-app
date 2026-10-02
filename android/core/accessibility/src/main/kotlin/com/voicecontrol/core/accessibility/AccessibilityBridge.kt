@@ -105,6 +105,9 @@ class AccessibilityBridge @Inject constructor(
 
     private val notifications = ArrayDeque<SeenNotification>()
 
+    /** Home, recents, notifications, lock, screenshot…: an AccessibilityService global action. False when the service is off. */
+    fun performGlobal(action: Int): Boolean = service?.performGlobalAction(action) ?: false
+
     /** Notifications from the last [maxAgeMillis], newest first. */
     fun recentNotifications(maxAgeMillis: Long = NOTIFICATION_MAX_AGE_MS): List<SeenNotification> {
         val since = System.currentTimeMillis() - maxAgeMillis

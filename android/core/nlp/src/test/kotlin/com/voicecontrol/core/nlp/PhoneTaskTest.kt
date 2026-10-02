@@ -91,4 +91,40 @@ class PhoneTaskTest {
         assertEquals(PhoneTask.Capabilities, p("tum kya kya kar sakte ho"))
         assertEquals(PhoneTask.Capabilities, p("What can you do?"))
     }
+
+    @Test
+    fun morePhoneControls() {
+        assertEquals(PhoneTask.System(SystemAction.HOME), p("home screen pe jao"))
+        assertEquals(PhoneTask.System(SystemAction.RECENTS), p("recent apps dikhao"))
+        assertEquals(PhoneTask.System(SystemAction.NOTIFICATIONS), p("notification panel kholo"))
+        assertEquals(PhoneTask.System(SystemAction.QUICK_SETTINGS), p("quick settings kholo"))
+        assertEquals(PhoneTask.System(SystemAction.LOCK), p("phone lock karo"))
+        assertEquals(PhoneTask.System(SystemAction.SCREENSHOT), p("screenshot lo"))
+        assertEquals(PhoneTask.System(SystemAction.POWER_MENU), p("phone band karo"))
+        assertEquals(PhoneTask.Volume(VolumeChange.MUTE), p("phone silent karo"))
+        assertEquals(PhoneTask.Camera(video = false, selfie = false), p("camera kholo"))
+        assertEquals(PhoneTask.Camera(video = false, selfie = true), p("selfie lo"))
+        assertEquals(PhoneTask.Camera(video = true, selfie = false), p("video banao"))
+        assertEquals(PhoneTask.Camera(video = false, selfie = false), p("photo khincho"))
+        assertEquals(PhoneTask.Brightness(VolumeChange.UP), p("brightness badhao"))
+        assertEquals(PhoneTask.Brightness(VolumeChange.DOWN), p("roshni kam karo"))
+        assertEquals(PhoneTask.Media(MediaKey.PAUSE), p("gaana roko"))
+        assertEquals(PhoneTask.Media(MediaKey.NEXT), p("agla gaana"))
+        assertEquals(PhoneTask.Media(MediaKey.PREVIOUS), p("pichhla gaana lagao"))
+        assertEquals(PhoneTask.Media(MediaKey.PLAY), p("gaana chalao"))
+        assertEquals(PhoneTask.Search(SearchPlace.YOUTUBE, "arijit ke gaane"), p("Arijit ke gaane chalao"))
+        assertEquals(PhoneTask.OpenSettings(SettingsPage.AIRPLANE), p("flight mode on karo"))
+        assertEquals(PhoneTask.OpenSettings(SettingsPage.DO_NOT_DISTURB), p("do not disturb on karo"))
+    }
+
+    @Test
+    fun arithmetic() {
+        assertEquals(PhoneTask.Calculate(100.0), p("25 guna 4 kitna hota hai"))
+        assertEquals(PhoneTask.Calculate(18.0), p("100 ka 18 percent"))
+        assertEquals(PhoneTask.Calculate(70.0), p("100 mein se 30 ghatao"))
+        assertEquals(PhoneTask.Calculate(10.0), p("50 divided by 5"))
+        assertEquals(PhoneTask.Calculate(15.0), p("7 plus 8"))
+        assertNull(p("100 ka recharge karo"))
+        assertEquals(PhoneTask.Alarm(8, 30), p("8:30 ka alarm"))
+    }
 }

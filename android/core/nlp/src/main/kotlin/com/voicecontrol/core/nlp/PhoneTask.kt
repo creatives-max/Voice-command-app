@@ -6,7 +6,12 @@ enum class SearchPlace { WEB, YOUTUBE, MAPS }
 enum class VolumeChange { UP, DOWN, MUTE, MAX }
 
 /** System settings pages people ask for by name. */
-enum class SettingsPage { WIFI, BLUETOOTH, INTERNET, DISPLAY, SOUND, BATTERY, LOCATION, MAIN }
+enum class SettingsPage { WIFI, BLUETOOTH, INTERNET, DISPLAY, SOUND, BATTERY, LOCATION, AIRPLANE, DO_NOT_DISTURB, MAIN }
+
+/** Things the phone itself does (accessibility global actions). */
+enum class SystemAction { HOME, RECENTS, NOTIFICATIONS, QUICK_SETTINGS, LOCK, SCREENSHOT, POWER_MENU }
+
+enum class MediaKey { PLAY, PAUSE, NEXT, PREVIOUS }
 
 /**
  * Everyday phone jobs a personal assistant does on request, understood in English, Hinglish and Hindi:
@@ -32,13 +37,21 @@ sealed interface PhoneTask {
     data object ReadNotifications : PhoneTask
     /** "tum kya kya kar sakte ho": a short tour of what the assistant does. */
     data object Capabilities : PhoneTask
+    data class System(val action: SystemAction) : PhoneTask
+    data class Camera(val video: Boolean, val selfie: Boolean) : PhoneTask
+    /** Screen brightness; [VolumeChange.MUTE] means lowest. */
+    data class Brightness(val change: VolumeChange) : PhoneTask
+    data class Media(val key: MediaKey) : PhoneTask
+    /** "25 guna 4 kitna hota hai": worked out on the phone. */
+    data class Calculate(val result: Double) : PhoneTask
 
     companion object {
         fun parse(utterance: String): PhoneTask? {
             val text = TextCleanup.simplify(utterance)
             if (text.isEmpty()) return null
             val words = text.split(' ')
-            return capabilities(text) ?: time(text) ?: device(text, words) ?: notifications(text) ?: reminder(text, words) ?: alarm(text, words) ?:
+            return capabilities(text) ?: time(text) ?: calculate(words) ?: system(text, words) ?: device(text, words) ?: notifications(text) ?:
+                camera(text, words) ?: media(text, words) ?: reminder(text, words) ?: alarm(text, words) ?:
                 timer(text, words) ?: message(text) ?: call(text) ?: search(text, words)
         }
 
@@ -81,6 +94,8 @@ sealed interface PhoneTask {
         private val downWords = setOf("down", "kam", "ghatao", "dheere", "dheemi", "decrease", "lower", "softer", "कम", "घटाओ", "धीमी", "धीरे")
         private val muteWords = setOf("mute", "silent", "chup", "band", "बंद", "म्यूट", "साइलेंट")
         private val maxWords = setOf("full", "max", "maximum", "poori", "puri", "पूरी", "फुल")
+        private val silentWords = setOf("silent", "mute", "chup", "साइलेंट", "म्यूट", "vibrate", "वाइब्रेट")
+        private val brightnessWords = setOf("brightness", "roshni", "chamak", "ब्राइटनेस", "रोशनी", "चमक")
         private val batteryAsks = listOf("battery kitni", "battery kitna", "battery level", "how much battery", "battery percentage", "charge kitna", "बैटरी कितनी", "बैटरी कितना", "चार्ज कितना")
         private val settingsWords = setOf("settings", "setting", "सेटिंग", "सेटिंग्स")
         private val pages = mapOf(
@@ -91,6 +106,8 @@ sealed interface PhoneTask {
             SettingsPage.SOUND to setOf("sound", "ringtone", "साउंड", "रिंगटोन"),
             SettingsPage.BATTERY to setOf("battery", "बैटरी"),
             SettingsPage.LOCATION to setOf("location", "gps", "लोकेशन"),
+            SettingsPage.AIRPLANE to setOf("airplane mode", "aeroplane mode", "flight mode", "airplane", "flight", "फ्लाइट मोड", "एयरप्लेन"),
+            SettingsPage.DO_NOT_DISTURB to setOf("do not disturb", "dnd", "डू नॉट डिस्टर्ब"),
         )
 
         private fun device(text: String, words: List<String>): PhoneTask? {
@@ -107,7 +124,14 @@ sealed interface PhoneTask {
                     words.any { it in muteWords } -> return Volume(VolumeChange.MUTE)
                 }
             }
-            if (words.any { it in muteWords } && words.any { it == "phone" || it == "फोन" || it == "mobile" }) return Volume(VolumeChange.MUTE)
+            if (words.any { it in brightnessWords }) {
+                when {
+                    words.any { it in maxWords } -> return Brightness(VolumeChange.MAX)
+                    words.any { it in upWords } -> return Brightness(VolumeChange.UP)
+                    words.any { it in downWords } -> return Brightness(VolumeChange.DOWN)
+                }
+            }
+            if (words.any { it in silentWords } && words.any { it == "phone" || it == "फोन" || it == "mobile" }) return Volume(VolumeChange.MUTE)
             val opens = words.any { it in onWords || it in settingsWords || it == "open" || it == "खोलो" }
             if (opens) {
                 val page = pages.entries.firstOrNull { (_, names) -> names.any { n -> " $n " in " $text " } }?.key
@@ -116,6 +140,88 @@ sealed interface PhoneTask {
                 if (words.any { it in settingsWords } && words.size <= 3) return OpenSettings(SettingsPage.MAIN)
             }
             return null
+        }
+
+        // --- the phone itself --------------------------------------------------------------------
+
+        private val goWords = setOf("jao", "chalo", "le", "go", "open", "kholo", "dikhao", "show", "pe", "par", "screen", "जाओ", "चलो", "खोलो", "दिखाओ", "पर", "पे")
+        private val phoneWords = setOf("phone", "mobile", "फोन", "फ़ोन", "मोबाइल")
+
+        private fun system(text: String, words: List<String>): PhoneTask? = when {
+            words.any { it == "screenshot" || it == "स्क्रीनशॉट" } -> System(SystemAction.SCREENSHOT)
+            "quick settings" in text || "quick setting" in text -> System(SystemAction.QUICK_SETTINGS)
+            ("recent" in text || "recents" in text || "khule apps" in text || "खुले ऐप" in text) && words.size <= 5 -> System(SystemAction.RECENTS)
+            (words.any { it == "notification" || it == "notifications" || it == "नोटिफिकेशन" }) &&
+                words.any { it in setOf("kholo", "dikhao", "open", "show", "panel", "खोलो", "दिखाओ") } -> System(SystemAction.NOTIFICATIONS)
+            words.any { it == "lock" || it == "लॉक" } && (words.any { it in phoneWords } || "screen" in text || words.size <= 3) -> System(SystemAction.LOCK)
+            "power menu" in text || "power button" in text ||
+                (words.any { it in phoneWords } && words.any { it in setOf("off", "band", "restart", "reboot", "बंद", "ऑफ", "रीस्टार्ट") } && words.none { it in silentWords }) ->
+                System(SystemAction.POWER_MENU)
+            words.any { it == "home" || it == "होम" } && words.any { it in goWords } && words.size <= 5 -> System(SystemAction.HOME)
+            else -> null
+        }
+
+        private val cameraWords = setOf("camera", "कैमरा", "selfie", "सेल्फी")
+        private val photoAsks = listOf("photo khincho", "photo lo", "photo le lo", "photo kheencho", "take a photo", "take a picture", "फोटो खींचो", "फोटो लो")
+        private val videoAsks = listOf("video banao", "video record", "record video", "video bana", "वीडियो बनाओ", "वीडियो रिकॉर्ड")
+
+        private fun camera(text: String, words: List<String>): PhoneTask? {
+            val video = videoAsks.any { it in text }
+            if (!video && photoAsks.none { it in text } && words.none { it in cameraWords }) return null
+            if (words.any { it in cameraWords } && words.none { it in onWords || it in goWords || it == "selfie" || it == "सेल्फी" }) return null
+            return Camera(video = video, selfie = words.any { it == "selfie" || it == "सेल्फी" || it == "front" })
+        }
+
+        private val musicWords = setOf("gaana", "gana", "gaane", "gane", "song", "songs", "music", "गाना", "गाने", "म्यूजिक")
+        private val pauseWords = setOf("roko", "rok", "ruko", "pause", "stop", "band", "रोको", "रुको", "बंद")
+        private val nextWords = setOf("agla", "next", "agle", "अगला")
+        private val previousWords = setOf("pichhla", "pichla", "previous", "pehle", "पिछला")
+        private val musicFillers = setOf("karo", "do", "kar", "please", "zara", "wala", "करो", "दो", "the", "a")
+
+        private fun media(text: String, words: List<String>): PhoneTask? {
+            if (words.none { it in musicWords }) return null
+            if (words.any { it in youtube }) return null
+            val rest = words.filter { it !in musicWords && it !in musicFillers }
+            return when {
+                rest.any { it in nextWords } && rest.size <= 2 -> Media(MediaKey.NEXT)
+                rest.any { it in previousWords } && rest.size <= 2 -> Media(MediaKey.PREVIOUS)
+                rest.any { it in pauseWords } && rest.size <= 2 -> Media(MediaKey.PAUSE)
+                rest.all { it in playVerbs || it == "play" } -> Media(MediaKey.PLAY)
+                // "Arijit ke gaane chalao": find them on YouTube.
+                rest.any { it in playVerbs } -> {
+                    val query = words.filter { it !in playVerbs && it !in musicFillers }.joinToString(" ")
+                    Search(SearchPlace.YOUTUBE, query)
+                }
+                else -> null
+            }
+        }
+
+        // --- arithmetic --------------------------------------------------------------------------
+
+        private val plus = setOf("plus", "+", "jodo", "jod", "जोड़ो", "जोड़", "प्लस", "add")
+        private val minus = setOf("minus", "-", "ghatao", "ghata", "घटाओ", "माइनस", "subtract")
+        private val times = setOf("guna", "times", "into", "x", "*", "multiply", "multiplied", "गुणा", "गुना")
+        private val divide = setOf("divided", "divide", "bhag", "batta", "/", "÷", "भाग", "बटा")
+        private val percent = setOf("percent", "pratishat", "%", "प्रतिशत", "परसेंट")
+
+        /** Two numbers and an operation: "25 guna 4", "100 ka 18 percent", "50 divided by 5", "7 plus 8". */
+        private fun calculate(words: List<String>): PhoneTask? {
+            val numbers = words.mapIndexedNotNull { i, w -> w.replace(",", "").toDoubleOrNull()?.let { i to it } }
+            if (numbers.size != 2) return null
+            val (ai, a) = numbers[0]
+            val (bi, b) = numbers[1]
+            val between = words.subList(ai + 1, bi)
+            val after = words.drop(bi + 1)
+            val result = when {
+                (between + after).any { it in percent } -> a * b / 100
+                between.any { it in times } -> a * b
+                between.any { it in divide } -> if (b == 0.0) return null else a / b
+                between.any { it in plus } || after.any { it in plus } -> a + b
+                between.any { it in minus } || after.any { it in minus } -> a - b
+                // "100 mein se 30 ghatao" puts the verb at the end.
+                else -> return null
+            }
+            return Calculate(result)
         }
 
         // --- notifications -----------------------------------------------------------------------

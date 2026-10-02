@@ -165,5 +165,7 @@ internal val SAY_EXAMPLES = listOf(
     "“YouTube pe Arijit ke gaane chalao”",
     "“Kya naya message aaya?”",
     "“Torch jalao” · “Awaaz badhao” · “Battery kitni hai?”",
+    "“Screenshot lo” · “Selfie lo” · “Agla gaana” · “Phone lock karo”",
+    "“25 guna 4 kitna hota hai?” · “Home pe jao”",
     "“Tum kya kya kar sakte ho?”",
 )

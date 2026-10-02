@@ -137,6 +137,8 @@ class AndroidPhoneActions @Inject constructor(
             com.voicecontrol.core.nlp.SettingsPage.SOUND -> android.provider.Settings.ACTION_SOUND_SETTINGS
             com.voicecontrol.core.nlp.SettingsPage.BATTERY -> Intent.ACTION_POWER_USAGE_SUMMARY
             com.voicecontrol.core.nlp.SettingsPage.LOCATION -> android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS
+            com.voicecontrol.core.nlp.SettingsPage.AIRPLANE -> android.provider.Settings.ACTION_AIRPLANE_MODE_SETTINGS
+            com.voicecontrol.core.nlp.SettingsPage.DO_NOT_DISTURB -> "android.settings.ZEN_MODE_SETTINGS"
             com.voicecontrol.core.nlp.SettingsPage.MAIN -> android.provider.Settings.ACTION_SETTINGS
         }
         return start(Intent(action)) || start(Intent(android.provider.Settings.ACTION_SETTINGS))
@@ -144,6 +146,72 @@ class AndroidPhoneActions @Inject constructor(
 
     override suspend fun notifications(): List<com.voicecontrol.core.engine.port.NotificationInfo> =
         bridge.recentNotifications().map { com.voicecontrol.core.engine.port.NotificationInfo(it.app, it.title, it.text) }
+
+    override suspend fun system(action: com.voicecontrol.core.nlp.SystemAction): Boolean = withContext(Dispatchers.Main) {
+        val p = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P
+        val id = when (action) {
+            com.voicecontrol.core.nlp.SystemAction.HOME -> android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME
+            com.voicecontrol.core.nlp.SystemAction.RECENTS -> android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS
+            com.voicecontrol.core.nlp.SystemAction.NOTIFICATIONS -> android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
+            com.voicecontrol.core.nlp.SystemAction.QUICK_SETTINGS -> android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS
+            com.voicecontrol.core.nlp.SystemAction.POWER_MENU -> android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_POWER_DIALOG
+            com.voicecontrol.core.nlp.SystemAction.LOCK ->
+                if (p) android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN else return@withContext false
+            com.voicecontrol.core.nlp.SystemAction.SCREENSHOT ->
+                if (p) android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT else return@withContext false
+        }
+        bridge.performGlobal(id)
+    }
+
+    override suspend fun camera(video: Boolean, selfie: Boolean): Boolean {
+        val intent = Intent(if (video) android.provider.MediaStore.INTENT_ACTION_VIDEO_CAMERA else android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
+        // Most camera apps honour these to open the front camera.
+        if (selfie) {
+            intent.putExtra("android.intent.extras.CAMERA_FACING", 1)
+                .putExtra("android.intent.extras.LENS_FACING_FRONT", 1)
+                .putExtra("android.intent.extra.USE_FRONT_CAMERA", true)
+        }
+        return start(intent)
+    }
+
+    override suspend fun brightness(change: com.voicecontrol.core.nlp.VolumeChange): com.voicecontrol.core.engine.port.ControlResult {
+        if (!android.provider.Settings.System.canWrite(context)) {
+            val asked = start(Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName)))
+            return if (asked) com.voicecontrol.core.engine.port.ControlResult.ASKED_PERMISSION else com.voicecontrol.core.engine.port.ControlResult.FAILED
+        }
+        return runCatching {
+            val resolver = context.contentResolver
+            android.provider.Settings.System.putInt(
+                resolver,
+                android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE,
+                android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL,
+            )
+            val now = android.provider.Settings.System.getInt(resolver, android.provider.Settings.System.SCREEN_BRIGHTNESS, 128)
+            val next = when (change) {
+                com.voicecontrol.core.nlp.VolumeChange.UP -> now + 64
+                com.voicecontrol.core.nlp.VolumeChange.DOWN -> now - 64
+                com.voicecontrol.core.nlp.VolumeChange.MAX -> 255
+                com.voicecontrol.core.nlp.VolumeChange.MUTE -> 10
+            }.coerceIn(10, 255)
+            android.provider.Settings.System.putInt(resolver, android.provider.Settings.System.SCREEN_BRIGHTNESS, next)
+            com.voicecontrol.core.engine.port.ControlResult.DONE
+        }.getOrDefault(com.voicecontrol.core.engine.port.ControlResult.FAILED)
+    }
+
+    override suspend fun media(key: com.voicecontrol.core.nlp.MediaKey): Boolean = withContext(Dispatchers.Main) {
+        runCatching {
+            val audio = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            val code = when (key) {
+                com.voicecontrol.core.nlp.MediaKey.PLAY -> android.view.KeyEvent.KEYCODE_MEDIA_PLAY
+                com.voicecontrol.core.nlp.MediaKey.PAUSE -> android.view.KeyEvent.KEYCODE_MEDIA_PAUSE
+                com.voicecontrol.core.nlp.MediaKey.NEXT -> android.view.KeyEvent.KEYCODE_MEDIA_NEXT
+                com.voicecontrol.core.nlp.MediaKey.PREVIOUS -> android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS
+            }
+            audio.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))
+            audio.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, code))
+            true
+        }.getOrDefault(false)
+    }
 
     private suspend fun askPermissions() {
         start(Intent(context, PhonePermissionActivity::class.java))

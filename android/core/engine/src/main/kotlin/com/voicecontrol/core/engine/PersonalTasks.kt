@@ -58,6 +58,10 @@ internal class PersonalTasks(
                 say(phrases.capabilities())
                 return Result.ANSWERED
             }
+            is PhoneTask.Calculate -> {
+                say(phrases.answer(spokenNumber(task.result)))
+                return Result.ANSWERED
+            }
             else -> Unit
         }
         val actions = phone ?: run {
@@ -128,7 +132,36 @@ internal class PersonalTasks(
                 }
                 return Result.ANSWERED
             }
-            PhoneTask.TimeNow, PhoneTask.DateToday, PhoneTask.Capabilities -> Unit
+            is PhoneTask.System -> {
+                // Say it first: locking or the power menu leaves nothing to speak over.
+                val before = task.action == com.voicecontrol.core.nlp.SystemAction.LOCK
+                if (before) say(phrases.systemDone(task.action))
+                if (!actions.system(task.action)) {
+                    say(phrases.taskFailed())
+                    return Result.ANSWERED
+                }
+                if (!before) say(phrases.systemDone(task.action))
+            }
+            is PhoneTask.Camera -> {
+                say(phrases.openingCamera())
+                if (!actions.camera(task.video, task.selfie)) say(phrases.taskFailed())
+            }
+            is PhoneTask.Brightness -> when (actions.brightness(task.change)) {
+                com.voicecontrol.core.engine.port.ControlResult.DONE -> {
+                    say(phrases.brightnessChanged())
+                    return Result.ANSWERED
+                }
+                com.voicecontrol.core.engine.port.ControlResult.ASKED_PERMISSION -> say(phrases.needSettingsPermission())
+                com.voicecontrol.core.engine.port.ControlResult.FAILED -> {
+                    say(phrases.taskFailed())
+                    return Result.ANSWERED
+                }
+            }
+            is PhoneTask.Media -> {
+                if (!actions.media(task.key)) say(phrases.taskFailed())
+                return Result.ANSWERED
+            }
+            PhoneTask.TimeNow, PhoneTask.DateToday, PhoneTask.Capabilities, is PhoneTask.Calculate -> Unit
         }
         return Result.MOVED
     }
@@ -146,6 +179,11 @@ internal class PersonalTasks(
             ContactResult.NoPermission -> null.also { missed = Result.MOVED; say(phrases.needContacts()) }
         }
     }
+
+    /** 100.0 → "100", 2.5 → "2.5", 3.3333 → "3.33". */
+    private fun spokenNumber(value: Double): String =
+        if (value % 1.0 == 0.0 && kotlin.math.abs(value) < 1e15) value.toLong().toString()
+        else java.math.BigDecimal(value).setScale(2, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
 
     private fun spokenTime(time: LocalTime, locale: Locale): String =
         time.format(DateTimeFormatter.ofPattern(if (time.minute == 0) "h a" else "h:mm a", locale))

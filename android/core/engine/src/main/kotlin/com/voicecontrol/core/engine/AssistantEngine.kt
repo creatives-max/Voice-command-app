@@ -246,6 +246,12 @@ class AssistantEngine(
         var greeted = false
         /** Asked for when the session started (with the wake phrase); answered before asking anything. */
         var firstRequest: String? = null
+        /** Assistant jobs done (apps opened, alarms, calls, goals): kept in the history as their own screen. */
+        val assistantSteps = mutableListOf<StepRecord>()
+
+        fun noteAssistant(what: String) {
+            assistantSteps += StepRecord("assistant:${assistantSteps.size}", what.take(80), ElementKind.BUTTON, outcome = StepOutcome.CLICKED)
+        }
         /** Names on the current screen, to help the recognizer hear them. */
         var bias: List<String> = emptyList()
         /** The recognizer's other guesses for the last answer (tried when the first matches nothing). */
@@ -656,12 +662,23 @@ class AssistantEngine(
     private suspend fun finish(session: Session) {
         val summary = SessionSummary(
             sessionId = session.id,
-            appPackage = session.appPackage,
+            appPackage = session.appPackage.ifEmpty { ASSISTANT_SCREEN },
             startedAtMillis = session.startedAt,
             endedAtMillis = clock(),
             status = session.status,
             language = session.cfg.language,
-            screens = session.screens.toList(),
+            // Assistant jobs go in as one screen marked with its own flow id, so no flow is made from them.
+            screens = session.screens.toList() + listOfNotNull(
+                session.assistantSteps.takeIf { it.isNotEmpty() }?.let { steps ->
+                    ScreenRecord(
+                        appPackage = session.appPackage.ifEmpty { ASSISTANT_SCREEN },
+                        screenTitle = "Assistant",
+                        screenSignature = ASSISTANT_SCREEN,
+                        flowId = ASSISTANT_SCREEN,
+                        steps = steps.toList(),
+                    )
+                },
+            ),
         )
         if (summary.screens.isNotEmpty()) runCatching { recorder.record(summary) }
         val ending = when (session.status) {
@@ -735,6 +752,7 @@ class AssistantEngine(
             // Personal assistant: "6 baje ka alarm", "YouTube pe gaane chalao", "Rahul ko call karo", "time kya hua".
             PhoneTask.parse(heard)?.let { task ->
                 emit(EngineEvent.STEP, "Assistant: ${task::class.simpleName}")
+                session.noteAssistant(task::class.simpleName ?: "Assistant")
                 setStatus(EngineStatus.ACTING)
                 val result = personal.run(task, phrases, session.cfg.language, say = { say(session, it) }, ask = { askAndListen(session, it) })
                 if (result == PersonalTasks.Result.MESSAGE_READY) {
@@ -810,6 +828,7 @@ class AssistantEngine(
         val agent = goalAgent ?: return ScreenOutcome.NAVIGATED
         val phrases = session.phrases
         emit(EngineEvent.STATUS, "Helping with a goal")
+        session.noteAssistant("Did it for me")
         say(session, phrases.onIt())
         val history = mutableListOf<String>()
         // What was done, screen by screen, to remember the way when the goal is reached.
@@ -1037,7 +1056,10 @@ class AssistantEngine(
             return false
         }
         val ok = act(session, ScreenAction.LaunchApp(app.packageName), session.phrases.opening(app.label))
-        if (ok) emit(EngineEvent.STEP, "Opened ${app.label}")
+        if (ok) {
+            emit(EngineEvent.STEP, "Opened ${app.label}")
+            session.noteAssistant("Opened ${app.label}")
+        }
         return ok
     }
 
@@ -1989,6 +2011,8 @@ class AssistantEngine(
         /** How long a flow waits after the last answer before pressing Enter in that field. */
         const val ENTER_AFTER_MS = 3_000L
         const val MAX_AGENT_STEPS = 40
+        /** App package / signature / flow id of the history screen that lists assistant jobs. */
+        const val ASSISTANT_SCREEN = "assistant"
         const val AGENT_FILLER_MS = 2_500L
         /** A goal done in fewer steps (just one tap) isn't worth a flow. */
         const val MIN_LEARNED_ACTIONS = 2

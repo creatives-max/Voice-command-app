@@ -1093,4 +1093,39 @@ class Phrases(private val language: Language) {
         "હું એપ ખોલી શકું, બટન દબાવી શકું અને ફોર્મ ભરી શકું. આખું કામ પણ કરી શકું, જેમ કે કહો વીજળીનું બિલ ભરવું છે. " +
             "એલાર્મ, રિમાઇન્ડર, કૉલ, મેસેજ, યુટ્યુબ શોધ, નવા મેસેજ વાંચવા, ટોર્ચ, અવાજ, સમય અને બેટરી. બસ કહો.",
     )
+
+    fun systemDone(action: com.voicecontrol.core.nlp.SystemAction) = when (action) {
+        com.voicecontrol.core.nlp.SystemAction.LOCK -> t("Locking the phone.", "फ़ोन लॉक कर रहा हूं।", "Phone lock kar raha hoon.", "फोन लॉक करत आहे.", "போனை லாக் செய்கிறேன்.", "ఫోన్ లాక్ చేస్తున్నాను.", "ফোন লক করছি।", "ફોન લૉક કરું છું.")
+        com.voicecontrol.core.nlp.SystemAction.SCREENSHOT -> t("Screenshot taken.", "स्क्रीनशॉट ले लिया।", "Screenshot le liya.", "स्क्रीनशॉट घेतला.", "ஸ்கிரீன்ஷாட் எடுத்தேன்.", "స్క్రీన్‌షాట్ తీశాను.", "স্ক্রিনশট নিলাম।", "સ્ક્રીનશૉટ લીધો.")
+        com.voicecontrol.core.nlp.SystemAction.POWER_MENU -> t(
+            "Here is the power menu. Say or tap power off or restart.",
+            "पावर मेन्यू खोल दिया। बंद या रीस्टार्ट दबाइए।",
+            "Power menu khol diya. Power off ya restart dabaiye.",
+            "पॉवर मेन्यू उघडला. बंद किंवा रीस्टार्ट दाबा.",
+            "பவர் மெனு திறந்தேன். ஆஃப் அல்லது ரீஸ்டார்ட் அழுத்துங்கள்.",
+            "పవర్ మెనూ తెరిచాను. ఆఫ్ లేదా రీస్టార్ట్ నొక్కండి.",
+            "পাওয়ার মেনু খুললাম। বন্ধ বা রিস্টার্ট টিপুন।",
+            "પાવર મેનુ ખોલ્યું. બંધ કે રીસ્ટાર્ટ દબાવો.",
+        )
+        else -> goalDone()
+    }
+
+    fun openingCamera() = t("Opening the camera.", "कैमरा खोल रहा हूं।", "Camera khol raha hoon.", "कॅमेरा उघडत आहे.", "கேமரா திறக்கிறேன்.", "కెమెరా తెరుస్తున్నాను.", "ক্যামেরা খুলছি।", "કૅમેરા ખોલું છું.")
+
+    fun brightnessChanged() = t("Brightness changed.", "ब्राइटनेस बदल दी।", "Brightness badal di.", "ब्राइटनेस बदलली.", "பிரைட்னஸ் மாற்றினேன்.", "బ్రైట్‌నెస్ మార్చాను.", "ব্রাইটনেস বদলালাম।", "બ્રાઇટનેસ બદલી.")
+
+    fun needSettingsPermission() = t(
+        "To change brightness I need permission. Please turn on VoiceControl on this screen, then ask me again.",
+        "ब्राइटनेस बदलने के लिए अनुमति चाहिए। इस स्क्रीन पर VoiceControl चालू कीजिए, फिर दोबारा बोलिए।",
+        "Brightness badalne ke liye permission chahiye. Is screen par VoiceControl ON kijiye, phir dobara boliye.",
+        "ब्राइटनेस बदलण्यासाठी परवानगी हवी. या स्क्रीनवर VoiceControl चालू करा, मग पुन्हा सांगा.",
+        "பிரைட்னஸ் மாற்ற அனுமதி தேவை. இந்த திரையில் VoiceControl ஆன் செய்து மீண்டும் சொல்லுங்கள்.",
+        "బ్రైట్‌నెస్ మార్చడానికి అనుమతి కావాలి. ఈ స్క్రీన్‌లో VoiceControl ఆన్ చేసి మళ్ళీ చెప్పండి.",
+        "ব্রাইটনেস বদলাতে অনুমতি দরকার। এই স্ক্রিনে VoiceControl চালু করে আবার বলুন।",
+        "બ્રાઇટનેસ બદલવા પરવાનગી જોઈએ. આ સ્ક્રીન પર VoiceControl ચાલુ કરો, પછી ફરી કહો.",
+    )
+
+    fun answer(value: String) = t(
+        "That's $value.", "जवाब है $value।", "Jawab hai $value.", "उत्तर आहे $value.", "பதில் $value.", "సమాధానం $value.", "উত্তর $value।", "જવાબ છે $value.",
+    )
 }

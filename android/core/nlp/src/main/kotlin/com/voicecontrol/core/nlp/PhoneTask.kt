@@ -44,13 +44,19 @@ sealed interface PhoneTask {
     data class Media(val key: MediaKey) : PhoneTask
     /** "25 guna 4 kitna hota hai": worked out on the phone. */
     data class Calculate(val result: Double) : PhoneTask
+    /** "bachao", "emergency", "SOS": call the emergency contact. */
+    data object Emergency : PhoneTask
+    /** "mera emergency contact Rahul hai". */
+    data class SetEmergencyContact(val who: String) : PhoneTask
+    /** "Rahul ka number kya hai". */
+    data class ContactNumber(val who: String) : PhoneTask
 
     companion object {
         fun parse(utterance: String): PhoneTask? {
             val text = TextCleanup.simplify(utterance)
             if (text.isEmpty()) return null
             val words = text.split(' ')
-            return capabilities(text) ?: time(text) ?: calculate(words) ?: system(text, words) ?: device(text, words) ?: notifications(text) ?:
+            return emergency(text, words) ?: contactNumber(text) ?: capabilities(text) ?: time(text) ?: calculate(words) ?: system(text, words) ?: device(text, words) ?: notifications(text) ?:
                 camera(text, words) ?: media(text, words) ?: reminder(text, words) ?: alarm(text, words) ?:
                 timer(text, words) ?: message(text) ?: call(text) ?: search(text, words)
         }
@@ -72,6 +78,37 @@ sealed interface PhoneTask {
             dateAsks.any { it in text } -> DateToday
             timeAsks.any { it in text } -> TimeNow
             else -> null
+        }
+
+        // --- emergency and contacts --------------------------------------------------------------
+
+        private val sosWords = setOf("emergency", "sos", "bachao", "bachaao", "बचाओ", "इमरजेंसी", "एमरजेंसी")
+        private val contactFillers = setOf("mera", "meri", "my", "mere", "मेरा", "मेरी", "set", "karo", "करो", "hai", "है", "as", "is", "ko", "को", "banao", "बनाओ", "the", "to")
+        private val emergencyContactAsks = listOf("emergency contact", "इमरजेंसी कॉन्टैक्ट", "emergency number")
+
+        private fun emergency(text: String, words: List<String>): PhoneTask? {
+            if (emergencyContactAsks.any { it in text }) {
+                // "mera emergency contact Rahul hai" / "set Rahul as my emergency contact"
+                val name = text.replace(Regex("(emergency contact|emergency number|इमरजेंसी कॉन्टैक्ट)"), " ")
+                    .split(' ').filter { it.isNotBlank() && it !in contactFillers }.joinToString(" ")
+                return if (name.isNotBlank() && name.length <= 40) SetEmergencyContact(name) else null
+            }
+            // Only clear calls for help; "help" alone means "what can I do here".
+            return if (words.any { it in sosWords } || "help me please" in text || "madad karo" in text || "मदद करो" in text) Emergency else null
+        }
+
+        private val numberAsks = listOf(" ka number kya hai", " ka number batao", " ka number bolo", " ka phone number", " का नंबर क्या है", " का नंबर बताओ", "what is the number of ", "what's the number of ")
+
+        private fun contactNumber(text: String): PhoneTask? {
+            val padded = " $text"
+            for (ask in numberAsks) {
+                val at = padded.indexOf(ask)
+                if (at < 0) continue
+                val name = if (ask.startsWith("what")) padded.substring(at + ask.length) else padded.substring(0, at)
+                val clean = name.trim().split(' ').filter { it.isNotEmpty() && it !in setOf("mera", "meri", "my", "mere", "मेरे", "मेरा") }.joinToString(" ")
+                return clean.takeIf { it.isNotBlank() && it.length <= 40 }?.let(::ContactNumber)
+            }
+            return null
         }
 
         // --- what can you do ------------------------------------------------------------------------

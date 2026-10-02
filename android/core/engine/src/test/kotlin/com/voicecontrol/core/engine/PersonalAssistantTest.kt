@@ -129,4 +129,30 @@ class PersonalAssistantTest {
         assertTrue("Messages: Your bill is due." in tts.spoken)
         assertTrue(tts.spoken.any { it.startsWith("Main app khol sakta hoon") })
     }
+
+    private class Guardian(screen: FakeScreen, chat: ScreenSnapshot, private val inner: Phone = Phone(screen, chat)) : PhoneActions by inner {
+        var contact: String? = null
+        val calls get() = inner.done
+        override suspend fun emergencyContact() = contact
+        override suspend fun setEmergencyContact(name: String) = true.also { contact = name.lowercase() }
+    }
+
+    @Test
+    fun `sets an emergency contact by voice, calls them on bachao, reads a number, and asks before 112`() = runTest {
+        val screen = FakeScreen(home)
+        val phone = Guardian(screen, chat)
+        val tts = RecordingTts()
+        engine(screen, ScriptedStt("bachao", "nahi", "mera emergency contact Rahul hai", "bachao", "stop"), tts, phone).start()
+        advanceUntilIdle()
+        // No contact yet: it asks before calling 112, and "nahi" calls no one.
+        assertTrue("Koi emergency contact set nahi hai. Kya 112 pe call karun?" in tts.spoken, tts.spoken.toString())
+        assertTrue("Theek hai. Bachao ya emergency bolne pe main Rahul ko call karunga." in tts.spoken)
+        assertTrue("Madad ke liye Rahul ko call kar raha hoon." in tts.spoken)
+        assertEquals(listOf("call 9876543210"), phone.calls)
+
+        val tts2 = RecordingTts()
+        engine(screen, ScriptedStt("Mummy ka number kya hai", "stop"), tts2, phone).start()
+        advanceUntilIdle()
+        assertTrue("Mummy ka number hai 9 1 2 3 4 5 6 7 8 0." in tts2.spoken, tts2.spoken.toString())
+    }
 }

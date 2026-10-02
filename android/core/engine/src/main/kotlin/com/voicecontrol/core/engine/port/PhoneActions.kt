@@ -41,6 +41,9 @@ interface PhoneActions {
     suspend fun camera(video: Boolean, selfie: Boolean): Boolean = false
     suspend fun brightness(change: VolumeChange): ControlResult = ControlResult.FAILED
     suspend fun media(key: com.voicecontrol.core.nlp.MediaKey): Boolean = false
+    /** The contact called on "bachao" / "emergency" (kept on the phone). */
+    suspend fun emergencyContact(): String? = null
+    suspend fun setEmergencyContact(name: String): Boolean = false
 }
 
 /** A control that may first need a permission the user grants on a settings screen. */

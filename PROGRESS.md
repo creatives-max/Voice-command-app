@@ -233,3 +233,4 @@ phase notes say which earlier phase covered the rest.
 - [x] Dashboard: while the free backend wakes up the proxy keeps trying (~2 min) instead of 502, then says the server is starting
 - [x] More phone controls: home, recent apps, notification panel, quick settings, lock, screenshot, power menu, camera/selfie/video, music play/pause/next/previous, brightness (after a one-time permission), airplane/DND settings, sums ("25 guna 4", "100 ka 18 percent")
 - [x] Assistant jobs (apps opened, alarms, calls, goals…) are kept in the history as an "Assistant" screen, so they reach the dashboard; no flow is made from them
+- [x] Emergency: "bachao" / "emergency" calls the emergency contact (set by voice: "mera emergency contact Rahul hai"); without one it asks before calling 112; "Rahul ka number kya hai" reads the number

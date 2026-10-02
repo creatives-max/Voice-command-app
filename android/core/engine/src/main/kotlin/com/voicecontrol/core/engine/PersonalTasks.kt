@@ -161,6 +161,46 @@ internal class PersonalTasks(
                 if (!actions.media(task.key)) say(phrases.taskFailed())
                 return Result.ANSWERED
             }
+            PhoneTask.Emergency -> {
+                val saved = actions.emergencyContact()
+                val found = saved?.let { actions.findContact(it) as? ContactResult.Found }
+                if (found != null) {
+                    say(phrases.callingForHelp(found.name))
+                    if (actions.call(found.number) == DialResult.FAILED) say(phrases.taskFailed())
+                } else {
+                    // Never call the emergency number on a misheard word: ask first.
+                    val answer = ask(phrases.askCallEmergencyNumber()).orEmpty().lowercase().split(Regex("[\\s,.!?।]+"))
+                    if (answer.any { it in yesWords }) {
+                        say(phrases.calling(EMERGENCY_NUMBER))
+                        actions.call(EMERGENCY_NUMBER)
+                    } else {
+                        say(phrases.emergencyHint())
+                        return Result.ANSWERED
+                    }
+                }
+            }
+            is PhoneTask.SetEmergencyContact -> {
+                when (val found = actions.findContact(task.who)) {
+                    is ContactResult.Found -> say(if (actions.setEmergencyContact(found.name)) phrases.emergencySaved(found.name) else phrases.taskFailed())
+                    ContactResult.NotFound -> say(phrases.contactNotFound(task.who))
+                    ContactResult.NoPermission -> {
+                        say(phrases.needContacts())
+                        return Result.MOVED
+                    }
+                }
+                return Result.ANSWERED
+            }
+            is PhoneTask.ContactNumber -> {
+                when (val found = actions.findContact(task.who)) {
+                    is ContactResult.Found -> say(phrases.contactNumberIs(found.name, found.number.filter { it.isDigit() || it == '+' }.toList().joinToString(" ")))
+                    ContactResult.NotFound -> say(phrases.contactNotFound(task.who))
+                    ContactResult.NoPermission -> {
+                        say(phrases.needContacts())
+                        return Result.MOVED
+                    }
+                }
+                return Result.ANSWERED
+            }
             PhoneTask.TimeNow, PhoneTask.DateToday, PhoneTask.Capabilities, is PhoneTask.Calculate -> Unit
         }
         return Result.MOVED
@@ -189,6 +229,8 @@ internal class PersonalTasks(
         time.format(DateTimeFormatter.ofPattern(if (time.minute == 0) "h a" else "h:mm a", locale))
 
     companion object {
+        const val EMERGENCY_NUMBER = "112"
+        private val yesWords = setOf("haan", "ha", "han", "haa", "yes", "ji", "हाँ", "हां", "जी", "karo", "करो", "please", "call")
         const val MAX_READ_NOTIFICATIONS = 5
         const val MAX_NOTIFICATION_CHARS = 200
 

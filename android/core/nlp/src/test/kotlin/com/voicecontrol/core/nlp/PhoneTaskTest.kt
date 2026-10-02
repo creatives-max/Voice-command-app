@@ -127,4 +127,16 @@ class PhoneTaskTest {
         assertNull(p("100 ka recharge karo"))
         assertEquals(PhoneTask.Alarm(8, 30), p("8:30 ka alarm"))
     }
+
+    @Test
+    fun emergencyAndContacts() {
+        assertEquals(PhoneTask.Emergency, p("bachao"))
+        assertEquals(PhoneTask.Emergency, p("emergency hai"))
+        assertEquals(PhoneTask.Emergency, p("मदद करो"))
+        assertEquals(PhoneTask.SetEmergencyContact("rahul"), p("mera emergency contact Rahul hai"))
+        assertEquals(PhoneTask.SetEmergencyContact("kishor"), p("set Kishor as my emergency contact"))
+        assertEquals(PhoneTask.ContactNumber("rahul"), p("Rahul ka number kya hai"))
+        assertEquals(PhoneTask.ContactNumber("mummy"), p("what is the number of mummy"))
+        assertNull(p("help"))
+    }
 }

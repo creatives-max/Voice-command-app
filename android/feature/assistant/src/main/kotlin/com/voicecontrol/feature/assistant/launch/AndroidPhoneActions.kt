@@ -213,6 +213,12 @@ class AndroidPhoneActions @Inject constructor(
         }.getOrDefault(false)
     }
 
+    private val prefs by lazy { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
+
+    override suspend fun emergencyContact(): String? = prefs.getString(KEY_EMERGENCY, null)?.takeIf { it.isNotBlank() }
+
+    override suspend fun setEmergencyContact(name: String): Boolean = prefs.edit().putString(KEY_EMERGENCY, name).commit()
+
     private suspend fun askPermissions() {
         start(Intent(context, PhonePermissionActivity::class.java))
     }
@@ -235,6 +241,8 @@ class AndroidPhoneActions @Inject constructor(
         const val YOUTUBE = "com.google.android.youtube"
         const val WHATSAPP = "com.whatsapp"
         const val WHATSAPP_BUSINESS = "com.whatsapp.w4b"
+        private const val PREFS = "voicecontrol_assistant"
+        private const val KEY_EMERGENCY = "emergency_contact"
 
         /** wa.me needs the country code: a 10-digit Indian mobile number gets 91. */
         fun internationalDigits(number: String): String {

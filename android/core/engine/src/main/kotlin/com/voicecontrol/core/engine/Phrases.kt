@@ -1128,4 +1128,36 @@ class Phrases(private val language: Language) {
     fun answer(value: String) = t(
         "That's $value.", "जवाब है $value।", "Jawab hai $value.", "उत्तर आहे $value.", "பதில் $value.", "సమాధానం $value.", "উত্তর $value।", "જવાબ છે $value.",
     )
+
+    fun callingForHelp(name: String) = t(
+        "Calling $name for help.", "मदद के लिए $name को कॉल कर रहा हूं।", "Madad ke liye $name ko call kar raha hoon.",
+        "मदतीसाठी $name ला कॉल करत आहे.", "உதவிக்கு $name ஐ அழைக்கிறேன்.", "సహాయం కోసం $name కి కాల్ చేస్తున్నాను.",
+        "সাহায্যের জন্য $name কে কল করছি।", "મદદ માટે $name ને કૉલ કરું છું.",
+    )
+
+    fun askCallEmergencyNumber() = t(
+        "No emergency contact is set. Shall I call 112?", "कोई इमरजेंसी कॉन्टैक्ट नहीं है। क्या 112 पर कॉल करूं?",
+        "Koi emergency contact set nahi hai. Kya 112 pe call karun?", "इमरजेंसी संपर्क नाही. 112 ला कॉल करू का?",
+        "அவசர தொடர்பு இல்லை. 112 அழைக்கட்டுமா?", "అత్యవసర కాంటాక్ట్ లేదు. 112 కి కాల్ చేయనా?",
+        "কোনো জরুরি কন্টাক্ট নেই। 112 এ কল করব?", "કોઈ ઇમરજન્સી કૉન્ટેક્ટ નથી. 112 પર કૉલ કરું?",
+    )
+
+    fun emergencyHint() = t(
+        "You can say: my emergency contact is Rahul.", "आप बोल सकते हैं: मेरा इमरजेंसी कॉन्टैक्ट राहुल है।",
+        "Aap bol sakte hain: mera emergency contact Rahul hai.", "तुम्ही म्हणू शकता: माझा इमरजेंसी कॉन्टॅक्ट राहुल आहे.",
+        "சொல்லலாம்: என் அவசர தொடர்பு ராகுல்.", "ఇలా చెప్పవచ్చు: నా ఎమర్జెన్సీ కాంటాక్ట్ రాహుల్.",
+        "বলতে পারেন: আমার ইমার্জেন্সি কন্টাক্ট রাহুল।", "તમે કહી શકો: મારો ઇમરજન્સી કૉન્ટેક્ટ રાહુલ છે.",
+    )
+
+    fun emergencySaved(name: String) = t(
+        "Done. If you say help or emergency, I'll call $name.", "ठीक है। बचाओ या इमरजेंसी बोलने पर मैं $name को कॉल करूंगा।",
+        "Theek hai. Bachao ya emergency bolne pe main $name ko call karunga.", "ठीक आहे. मदत म्हणाल तर मी $name ला कॉल करीन.",
+        "சரி. உதவி என்று சொன்னால் $name ஐ அழைப்பேன்.", "సరే. సహాయం అంటే $name కి కాల్ చేస్తాను.",
+        "ঠিক আছে। বাঁচাও বললে $name কে কল করব।", "બરાબર. બચાવો કહેશો તો $name ને કૉલ કરીશ.",
+    )
+
+    fun contactNumberIs(name: String, number: String) = t(
+        "$name's number is $number.", "$name का नंबर है $number।", "$name ka number hai $number.", "$name चा नंबर $number आहे.",
+        "$name எண் $number.", "$name నంబర్ $number.", "$name এর নম্বর $number।", "$name નો નંબર $number છે.",
+    )
 }

@@ -133,6 +133,8 @@ class AssistantEngine(
     phoneActions: com.voicecontrol.core.engine.port.PhoneActions? = null,
     /** Operates apps towards a spoken goal ("mujhe bill bharna hai"), asking the user for what it needs. */
     private val goalAgent: com.voicecontrol.core.engine.port.GoalAgent? = null,
+    /** Keeps goals that were done as flows with a voice shortcut, so they run straight away next time. */
+    private val goalMemory: com.voicecontrol.core.engine.port.GoalMemory? = null,
 ) {
     private val personal = PersonalTasks(phoneActions, clock)
     private val _state = MutableStateFlow(EngineState())
@@ -238,6 +240,10 @@ class AssistantEngine(
         var currentSignature: String = ""
         /** The assistant already said "What can I do for you?" in this session. */
         var greeted = false
+        /** Names on the current screen, to help the recognizer hear them. */
+        var bias: List<String> = emptyList()
+        /** The recognizer's other guesses for the last answer (tried when the first matches nothing). */
+        var alternatives: List<String> = emptyList()
         /** The last field filled on the current screen (a search box is sent with Enter when nothing else moves on). */
         var lastFilledId: String? = null
         /** AI-written questions for the current screen, arriving while the first questions are asked. */
@@ -396,6 +402,24 @@ class AssistantEngine(
                     // Continue the same flow on its next screen (possibly in another app).
                     segment++
                     if (!enterSegment(session, multi.segments[segment].first(), previousSignature = session.currentSignature)) {
+                        // A remembered way that no longer fits (the app changed): do the goal step by step instead.
+                        if (goalAgent != null && multi.id.startsWith(FlowDefinition.TAUGHT_PREFIX)) {
+                            active = null
+                            val here = readScreen(session) ?: snapshot
+                            val goalLog = ScreenLog(here, null, null)
+                            val result = try {
+                                runGoal(session, multi.name, goalLog)
+                            } finally {
+                                if (goalLog.steps.isNotEmpty()) session.screens += goalLog.toRecord()
+                            }
+                            if (result == ScreenOutcome.STOPPED) {
+                                say(session, session.phrases.stopped())
+                                session.status = RunStatus.STOPPED
+                                return
+                            }
+                            delay(screenSettleMillis)
+                            continue
+                        }
                         emit(EngineEvent.ERROR, "The next screen did not appear")
                         say(session, session.phrases.screenNotReached())
                         session.status = RunStatus.FAILED
@@ -482,7 +506,19 @@ class AssistantEngine(
      * Reads the screen through accessibility; if nothing readable is exposed and vision fallback is on,
      * detects elements on a screenshot instead (those elements are then operated with taps).
      */
-    private suspend fun readScreen(session: Session): ScreenSnapshot? {
+    private suspend fun readScreen(session: Session): ScreenSnapshot? =
+        readScreenOnce(session)?.also { snap -> session.bias = biasFor(snap) }
+
+    /** Button, field and screen names, short ones first: what the recognizer should expect to hear. */
+    private fun biasFor(snapshot: ScreenSnapshot): List<String> =
+        (snapshot.elements.map { it.label } + listOfNotNull(snapshot.title))
+            .map { it.trim() }
+            .filter { it.length in 2..MAX_BIAS_CHARS && it.any(Char::isLetter) }
+            .distinct()
+            .sortedBy { it.length }
+            .take(MAX_BIAS_PHRASES)
+
+    private suspend fun readScreenOnce(session: Session): ScreenSnapshot? {
         val snapshot = screen.capture()
         visionElements = emptyMap()
         if (snapshot != null && snapshot.hasReadableElements) return withHybridVision(session, snapshot)
@@ -700,8 +736,11 @@ class AssistantEngine(
             }
             // "Mujhe bijli ka bill bharna hai": the helper operates the app and asks for what it needs.
             if (goalAgent != null && GoalRequest.isGoal(heard)) return runGoal(session, heard, log)
-            // The answer is usually just a button's name: "Login", "लॉगिन", "OK", "Next".
-            spokenButton(session, snapshot, heard)?.let { button ->
+            // The answer is usually just a button's name: "Login", "लॉगिन", "OK", "Next". When the recognizer's
+            // first guess names nothing, its other guesses may ("log in" heard as "lock in").
+            (spokenButton(session, snapshot, heard) ?: session.alternatives.firstNotNullOfOrNull { alt ->
+                ButtonMatcher.find(alt, snapshot.elements, ButtonMatcher.STRICT)
+            })?.let { button ->
                 if (press(session, button, log)) return ScreenOutcome.NAVIGATED
                 return@repeat
             }
@@ -762,10 +801,13 @@ class AssistantEngine(
         emit(EngineEvent.STATUS, "Helping with a goal")
         say(session, phrases.onIt())
         val history = mutableListOf<String>()
+        // What was done, screen by screen, to remember the way when the goal is reached.
+        val learned = FlowRecorder()
         var lastKey = ""
         var repeats = 0
         repeat(MAX_AGENT_STEPS) {
             val snap = readScreen(session) ?: return ScreenOutcome.NAVIGATED
+            learned.onEvent(RecordedEvent.Screen(snap))
             session.appPackage = snap.packageName
             setStatus(EngineStatus.THINKING, caption = null)
             val d = runCatching { agent.next(goal, snap.redacted(), history.takeLast(MAX_AGENT_HISTORY), session.cfg.language) }.getOrNull()
@@ -806,8 +848,13 @@ class AssistantEngine(
                         }
                     }
                     if (press(session, target, log)) {
-                        history += "Pressed \"$named\""
+                        learned.onEvent(RecordedEvent.Pressed(target.id, on = snap))
                         delay(screenSettleMillis)
+                        // Tell the planner when a press did nothing, so it tries another way.
+                        val after = screen.capture()
+                        val unchanged = after != null && after.signature == snap.signature &&
+                            after.elements.map { it.label to it.value } == snap.elements.map { it.label to it.value }
+                        history += "Pressed \"$named\"" + if (unchanged) "; nothing changed on the screen" else ""
                     } else {
                         history += "Pressing \"$named\" did not work or the user said no"
                         if (d.confirm || DestructiveActions.isDestructive(named)) return ScreenOutcome.NAVIGATED
@@ -821,7 +868,10 @@ class AssistantEngine(
                         return@repeat
                     }
                     val ok = perform(ScreenAction.SetText(target.id, value)).isSuccess
-                    if (ok) recordUndo(target)
+                    if (ok) {
+                        recordUndo(target)
+                        learned.onEvent(RecordedEvent.Typed(target.id, on = snap))
+                    }
                     history += if (ok) "Typed \"$value\" into \"${target.label}\"" else "Typing into \"${target.label}\" failed"
                 }
                 AgentAction.ASK -> {
@@ -834,6 +884,7 @@ class AssistantEngine(
                                 StepResult.Stop -> return ScreenOutcome.STOPPED
                                 else -> Unit
                             }
+                            learned.onEvent(RecordedEvent.Typed(field.id, on = snap))
                             val now = screen.capture()?.element(field.id)
                             history += when {
                                 field.isSensitive || field.fieldType?.isSensitive == true -> "The user typed \"${field.label}\" themselves"
@@ -875,6 +926,8 @@ class AssistantEngine(
                 AgentAction.DONE -> {
                     if (d.say == null) say(session, phrases.goalDone())
                     emit(EngineEvent.STATUS, "Goal done")
+                    screen.capture()?.let { learned.onEvent(RecordedEvent.Screen(it)) }
+                    offerToRemember(session, goal, learned.recording(), snap)
                     return ScreenOutcome.NAVIGATED
                 }
                 AgentAction.GIVE_UP -> {
@@ -885,6 +938,31 @@ class AssistantEngine(
         }
         say(session, phrases.goalFailed())
         return ScreenOutcome.NAVIGATED
+    }
+
+    /** After a goal was reached: offer to keep the way as a flow that the goal's words start next time. */
+    private suspend fun offerToRemember(session: Session, goal: String, recording: Recording, context: ScreenSnapshot) {
+        val memory = goalMemory ?: return
+        if (recording.actionCount < MIN_LEARNED_ACTIONS) return
+        val phrase = shortcutPhrase(goal) ?: return
+        val flow = runCatching { RecordingToFlow.build(recording, FlowDefinition.TAUGHT_PREFIX + newId(), clock(), name = phrase) }.getOrNull() ?: return
+        if (askYesNoOr(session, context, session.phrases.offerToRemember(phrase), default = false) != true) return
+        if (runCatching { memory.learn(phrase, flow) }.getOrDefault(false)) {
+            say(session, session.phrases.remembered())
+            emit(EngineEvent.STATUS, "Learned “$phrase”")
+        }
+    }
+
+    /** The goal's words as a voice shortcut (at most [ShortcutMatcher.MAX_LENGTH] letters, whole words). */
+    private fun shortcutPhrase(goal: String): String? {
+        val words = goal.trim().trimEnd('.', '?', '!', '।').split(Regex("\\s+"))
+        val kept = StringBuilder()
+        for (w in words) {
+            if (kept.length + w.length + 1 > ShortcutMatcher.MAX_LENGTH) break
+            if (kept.isNotEmpty()) kept.append(' ')
+            kept.append(w)
+        }
+        return kept.toString().takeIf { ShortcutMatcher.validate(it) == null }
     }
 
     /** A WhatsApp chat opened with the message typed in: ask once, then press Send. */
@@ -1602,7 +1680,7 @@ class AssistantEngine(
             var latest = ""
             var pending: Job? = null
             val heard = stt.listen(
-                ListenRequest(session.cfg.language.speechTag, preferOffline = session.offline),
+                ListenRequest(session.cfg.language.speechTag, preferOffline = session.offline, biasPhrases = session.bias),
                 onPartial = { partial ->
                     _state.update { it.copy(heard = partial) }
                     latest = partial
@@ -1630,6 +1708,7 @@ class AssistantEngine(
             result = listenOnce()
         }
         _state.update { it.copy(micLevel = 0f) }
+        session.alternatives = emptyList()
         early?.let { command ->
             session.silentFailures = 0
             session.lastConfidence = null
@@ -1640,6 +1719,7 @@ class AssistantEngine(
             is ListenResult.Heard -> {
                 session.silentFailures = 0
                 session.lastConfidence = result.confidence
+                session.alternatives = result.alternatives.filter { it.isNotBlank() && it != result.text }
                 _state.update { it.copy(heard = result.text) }
                 result.text.takeIf { it.isNotBlank() }
             }
@@ -1882,6 +1962,10 @@ class AssistantEngine(
         /** How long a flow waits after the last answer before pressing Enter in that field. */
         const val ENTER_AFTER_MS = 3_000L
         const val MAX_AGENT_STEPS = 40
+        /** A goal done in fewer steps (just one tap) isn't worth a flow. */
+        const val MIN_LEARNED_ACTIONS = 2
+        const val MAX_BIAS_PHRASES = 50
+        const val MAX_BIAS_CHARS = 40
         const val MAX_AGENT_HISTORY = 30
         const val MAX_AGENT_REPEATS = 2
         const val AGENT_WAIT_MS = 1_500L

@@ -57,10 +57,12 @@ class GoalHelperTest {
         }
     }
 
+    private val learned = mutableListOf<Pair<String, com.voicecontrol.core.model.FlowDefinition>>()
+
     private fun TestScope.engine(screen: FakeScreen, stt: ScriptedStt, tts: RecordingTts, agent: GoalAgent?) = AssistantEngine(
         screen = screen, stt = stt, tts = tts, interpreter = LocalInterpreter(), flows = { null }, profiles = { null },
         recorder = { }, config = { SessionConfig(confirmValues = false) }, scope = this, screenSettleMillis = 10,
-        appDirectory = apps, goalAgent = agent,
+        appDirectory = apps, goalAgent = agent, goalMemory = { goal, flow -> learned += goal to flow; true },
     )
 
     @Test
@@ -73,7 +75,8 @@ class GoalHelperTest {
         }
         val planner = Planner()
         val tts = RecordingTts()
-        engine(screen, ScriptedStt("mujhe bijli ka bill bharna hai", "1234567", "next", "haan", "stop"), tts, planner).start()
+        val stt = ScriptedStt("mujhe bijli ka bill bharna hai", "1234567", "next", "haan", "haan", "stop")
+        engine(screen, stt, tts, planner).start()
         advanceUntilIdle()
 
         val acts = screen.actions
@@ -89,6 +92,18 @@ class GoalHelperTest {
         assertTrue("Aapka consumer number kya hai?" in tts.spoken)
         assertTrue("540 rupaye ka bill bhar diya." in tts.spoken)
         assertTrue(planner.seen.flatMap { it.second }.any { "1234567" in it })
+
+        // The way is remembered as a flow, started next time by the goal's words.
+        assertTrue("Kya main ye tareeka yaad rakh loon? Agli baar bas boliye: mujhe bijli ka bill bharna hai." in tts.spoken || tts.spoken.any { it.startsWith("Shall I remember") })
+        val (phrase, flow) = learned.single()
+        assertEquals("mujhe bijli ka bill bharna hai", phrase)
+        assertEquals("com.phonepe.app", flow.appPackage)
+        assertEquals(
+            listOf("vid:electricity", "vid:consumer", "vid:fetch", "vid:pin", "vid:pay"),
+            flow.orderedSteps.filter { it.elementId.isNotEmpty() }.map { it.elementId },
+        )
+        // Names on screen are given to the recognizer.
+        assertTrue(stt.requests.any { "Consumer number" in it.biasPhrases })
     }
 
     @Test
@@ -109,5 +124,25 @@ class GoalHelperTest {
         engine(screen, ScriptedStt("I want to recharge my phone", "stop"), tts, stuck).start()
         advanceUntilIdle()
         assertTrue(tts.spoken.any { it.startsWith("I'm not sure what to press here") }, tts.spoken.toString())
+    }
+
+    @Test
+    fun `the recognizer's other guesses are tried for button names`() = runTest {
+        val screen = FakeScreen(ppHome)
+        val stt = object : com.voicecontrol.core.engine.port.SpeechToText {
+            var n = 0
+            override suspend fun listen(
+                request: com.voicecontrol.core.engine.port.ListenRequest,
+                onPartial: (String) -> Unit,
+                onLevel: (Float) -> Unit,
+            ) = if (n++ == 0) com.voicecontrol.core.engine.port.ListenResult.Heard("ri charge", listOf("recharge")) else com.voicecontrol.core.engine.port.ListenResult.Heard("stop")
+            override fun cancel() = Unit
+        }
+        AssistantEngine(
+            screen = screen, stt = stt, tts = RecordingTts(), interpreter = LocalInterpreter(), flows = { null }, profiles = { null },
+            recorder = { }, config = { SessionConfig(confirmValues = false) }, scope = this, screenSettleMillis = 10,
+        ).start()
+        advanceUntilIdle()
+        assertTrue(ScreenAction.Click("vid:recharge") in screen.actions)
     }
 }

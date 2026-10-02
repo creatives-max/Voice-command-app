@@ -118,8 +118,13 @@ class AndroidSpeechToText @Inject constructor(
         putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
         putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, request.preferOffline)
         putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
-        putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1_500L)
-        putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1_200L)
+        // Unhurried speakers pause mid-sentence; don't cut them off.
+        putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2_000L)
+        putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1_500L)
+        // The names on screen (buttons, fields, apps) are what people say most: help the recognizer hear them.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU && request.biasPhrases.isNotEmpty()) {
+            putStringArrayListExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, ArrayList(request.biasPhrases))
+        }
     }
 
     companion object {

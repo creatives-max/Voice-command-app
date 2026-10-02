@@ -117,3 +117,11 @@ fun interface GoalAgent {
         language: com.voicecontrol.core.model.Language,
     ): AgentDecision?
 }
+
+/**
+ * Remembers how a goal was done ("mujhe bijli ka bill bharna hai"): saves the steps as a flow on the phone
+ * with the goal as its voice shortcut, so next time it runs straight away. False when it couldn't be saved.
+ */
+fun interface GoalMemory {
+    suspend fun learn(goal: String, flow: com.voicecontrol.core.model.FlowDefinition): Boolean
+}

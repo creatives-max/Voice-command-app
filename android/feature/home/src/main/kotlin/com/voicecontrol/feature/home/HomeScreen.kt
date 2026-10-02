@@ -107,6 +107,15 @@ fun HomeScreen(
                     Button(onClick = { onIntent(HomeIntent.OpenAccessibilitySettings) }) { Text("Open accessibility settings") }
                 }
             }
+            SectionCard(
+                title = "Things you can say",
+                subtitle = "Say “voice control”, or tap the mic, then for example:",
+                icon = Icons.Filled.Mic,
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SAY_EXAMPLES.forEach { line -> Text("• $line") }
+                }
+            }
             val email = state.accountEmail
             SectionCard(
                 title = if (email != null) "Account" else "Sign in to sync",
@@ -146,3 +155,15 @@ fun HomeScreen(
         }
     }
 }
+
+/** Shown on the home screen so people know what to say; one line per kind of job. */
+internal val SAY_EXAMPLES = listOf(
+    "“WhatsApp kholo” / “Open YouTube”",
+    "“Mujhe bijli ka bill bharna hai” (it does the whole job)",
+    "“Subah 6 baje ka alarm” · “Raat 9 baje dawai ki yaad dilana”",
+    "“Rahul ko call karo” · “Mummy ko WhatsApp pe message bhejo”",
+    "“YouTube pe Arijit ke gaane chalao”",
+    "“Kya naya message aaya?”",
+    "“Torch jalao” · “Awaaz badhao” · “Battery kitni hai?”",
+    "“Tum kya kya kar sakte ho?”",
+)

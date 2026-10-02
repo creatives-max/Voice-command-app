@@ -983,4 +983,114 @@ class Phrases(private val language: Language) {
     fun oneMoment() = t(
         "One moment…", "एक सेकंड…", "Ek second…", "एक सेकंद…", "ஒரு நொடி…", "ఒక్క క్షణం…", "এক সেকেন্ড…", "એક સેકન્ડ…",
     )
+
+    fun reminderSet(time: String, about: String?) = if (about == null) alarmSet(time) else t(
+        "Okay, I'll remind you about $about at $time.",
+        "ठीक है, $time बजे $about की याद दिला दूंगा।",
+        "Theek hai, $time baje $about ki yaad dila dunga.",
+        "ठीक आहे, $time वाजता $about ची आठवण करून देईन.",
+        "சரி, $time க்கு $about பற்றி நினைவூட்டுகிறேன்.",
+        "సరే, $time కి $about గురించి గుర్తు చేస్తాను.",
+        "ঠিক আছে, $time এ $about মনে করিয়ে দেব।",
+        "બરાબર, $time વાગ્યે $about યાદ કરાવીશ.",
+    )
+
+    fun torch(on: Boolean) = if (on) {
+        t("Torch is on.", "टॉर्च जला दी।", "Torch jala di.", "टॉर्च लावली.", "டார்ச் ஆன் செய்தேன்.", "టార్చ్ ఆన్ చేశాను.", "টর্চ জ্বালালাম।", "ટોર્ચ ચાલુ કરી.")
+    } else {
+        t("Torch is off.", "टॉर्च बंद कर दी।", "Torch band kar di.", "टॉर्च बंद केली.", "டார்ச் ஆஃப் செய்தேன்.", "టార్చ్ ఆఫ్ చేశాను.", "টর্চ বন্ধ করলাম।", "ટોર્ચ બંધ કરી.")
+    }
+
+    fun volumeChanged(change: com.voicecontrol.core.nlp.VolumeChange) = when (change) {
+        com.voicecontrol.core.nlp.VolumeChange.UP -> t("Volume up.", "आवाज़ बढ़ा दी।", "Awaaz badha di.", "आवाज वाढवला.", "ஒலி அதிகரித்தேன்.", "వాల్యూమ్ పెంచాను.", "আওয়াজ বাড়ালাম।", "અવાજ વધાર્યો.")
+        com.voicecontrol.core.nlp.VolumeChange.DOWN -> t("Volume down.", "आवाज़ कम कर दी।", "Awaaz kam kar di.", "आवाज कमी केला.", "ஒலி குறைத்தேன்.", "వాల్యూమ్ తగ్గించాను.", "আওয়াজ কমালাম।", "અવાજ ઘટાડ્યો.")
+        com.voicecontrol.core.nlp.VolumeChange.MAX -> t("Volume is full.", "आवाज़ पूरी कर दी।", "Awaaz poori kar di.", "आवाज पूर्ण केला.", "ஒலி முழுமையாக.", "వాల్యూమ్ పూర్తిగా పెంచాను.", "আওয়াজ পুরো করলাম।", "અવાજ પૂરો કર્યો.")
+        com.voicecontrol.core.nlp.VolumeChange.MUTE -> t("Phone is on silent.", "फ़ोन साइलेंट कर दिया।", "Phone silent kar diya.", "फोन सायलेंट केला.", "போன் சைலன்ட் செய்தேன்.", "ఫోన్ సైలెంట్ చేశాను.", "ফোন সাইলেন্ট করলাম।", "ફોન સાઇલન્ટ કર્યો.")
+    }
+
+    fun battery(percent: Int, charging: Boolean) = if (charging) t(
+        "Battery is at $percent percent and charging.",
+        "बैटरी $percent प्रतिशत है, चार्ज हो रही है।",
+        "Battery $percent percent hai, charge ho rahi hai.",
+        "बॅटरी $percent टक्के आहे, चार्ज होत आहे.",
+        "பேட்டரி $percent சதவீதம், சார்ஜ் ஆகிறது.",
+        "బ్యాటరీ $percent శాతం ఉంది, ఛార్జ్ అవుతోంది.",
+        "ব্যাটারি $percent শতাংশ, চার্জ হচ্ছে।",
+        "બેટરી $percent ટકા છે, ચાર્જ થઈ રહી છે.",
+    ) else t(
+        "Battery is at $percent percent.",
+        "बैटरी $percent प्रतिशत है।",
+        "Battery $percent percent hai.",
+        "बॅटरी $percent टक्के आहे.",
+        "பேட்டரி $percent சதவீதம்.",
+        "బ్యాటరీ $percent శాతం ఉంది.",
+        "ব্যাটারি $percent শতাংশ।",
+        "બેટરી $percent ટકા છે.",
+    )
+
+    fun openingSettings() = t(
+        "Opening settings. Tell me what to press.",
+        "सेटिंग खोल रहा हूं। बताइए क्या दबाऊं।",
+        "Setting khol raha hoon. Bataiye kya dabaun.",
+        "सेटिंग उघडत आहे. काय दाबू ते सांगा.",
+        "செட்டிங்ஸ் திறக்கிறேன். எதை அழுத்த வேண்டும் சொல்லுங்கள்.",
+        "సెట్టింగ్స్ తెరుస్తున్నాను. ఏమి నొక్కాలో చెప్పండి.",
+        "সেটিংস খুলছি। কী টিপব বলুন।",
+        "સેટિંગ ખોલું છું. શું દબાવું તે કહો.",
+    )
+
+    fun noNotifications() = t(
+        "No new notifications since I started listening.",
+        "अभी कोई नया मैसेज या नोटिफिकेशन नहीं है।",
+        "Abhi koi naya message ya notification nahi hai.",
+        "आता कोणताही नवीन मेसेज नाही.",
+        "புதிய அறிவிப்புகள் இல்லை.",
+        "కొత్త నోటిఫికేషన్లు లేవు.",
+        "নতুন কোনো মেসেজ নেই।",
+        "હમણાં કોઈ નવો મેસેજ નથી.",
+    )
+
+    fun notificationsIntro(count: Int) = t(
+        "You have $count new.",
+        "आपके $count नए हैं।",
+        "Aapke $count naye hain.",
+        "तुमचे $count नवीन आहेत.",
+        "உங்களுக்கு $count புதியவை.",
+        "మీకు $count కొత్తవి ఉన్నాయి.",
+        "আপনার $count টা নতুন।",
+        "તમારા $count નવા છે.",
+    )
+
+    fun notificationLine(app: String, title: String?, text: String) = if (title.isNullOrBlank()) "$app: $text." else t(
+        "$app, from $title: $text.",
+        "$app पर $title: $text।",
+        "$app par $title: $text.",
+        "$app वर $title: $text.",
+        "$app இல் $title: $text.",
+        "$app లో $title: $text.",
+        "$app এ $title: $text।",
+        "$app પર $title: $text.",
+    )
+
+    fun capabilities() = t(
+        "I can open apps, press buttons and fill forms for you. I can do a whole job: say what you want, like pay my electricity bill. " +
+            "I can set alarms and reminders, call or message people, search YouTube or Google, read your new messages, " +
+            "turn on the torch, change the volume and tell the time or battery. Just tell me.",
+        "मैं ऐप खोल सकता हूं, बटन दबा सकता हूं और फ़ॉर्म भर सकता हूं। पूरा काम भी कर सकता हूं, जैसे बोलिए बिजली का बिल भरना है। " +
+            "अलार्म और रिमाइंडर लगा सकता हूं, कॉल या मैसेज कर सकता हूं, यूट्यूब या गूगल पर ढूंढ सकता हूं, नए मैसेज पढ़ सकता हूं, " +
+            "टॉर्च जला सकता हूं, आवाज़ बदल सकता हूं और टाइम या बैटरी बता सकता हूं। बस बोलिए।",
+        "Main app khol sakta hoon, button daba sakta hoon aur form bhar sakta hoon. Poora kaam bhi kar sakta hoon, jaise boliye bijli ka bill bharna hai. " +
+            "Alarm aur reminder laga sakta hoon, call ya message kar sakta hoon, YouTube ya Google pe dhoondh sakta hoon, naye message padh sakta hoon, " +
+            "torch jala sakta hoon, awaaz badal sakta hoon aur time ya battery bata sakta hoon. Bas boliye.",
+        "मी अॅप उघडू शकतो, बटण दाबू शकतो आणि फॉर्म भरू शकतो. पूर्ण काम पण करू शकतो, जसे म्हणा वीज बिल भरायचे आहे. " +
+            "अलार्म, रिमाइंडर, कॉल, मेसेज, यूट्यूब शोध, नवीन मेसेज वाचणे, टॉर्च, आवाज, वेळ आणि बॅटरी सांगू शकतो. फक्त सांगा.",
+        "ஆப் திறக்க, பட்டன் அழுத்த, படிவம் நிரப்ப முடியும். முழு வேலையும் செய்வேன், உதாரணமாக மின் கட்டணம் செலுத்த வேண்டும் என்று சொல்லுங்கள். " +
+            "அலாரம், நினைவூட்டல், அழைப்பு, செய்தி, யூடியூப் தேடல், புதிய செய்திகள் படித்தல், டார்ச், ஒலி, நேரம், பேட்டரி. சொல்லுங்கள்.",
+        "యాప్ తెరవగలను, బటన్ నొక్కగలను, ఫారం నింపగలను. మొత్తం పని కూడా చేస్తాను, ఉదాహరణకు కరెంట్ బిల్లు కట్టాలి అని చెప్పండి. " +
+            "అలారం, రిమైండర్, కాల్, మెసేజ్, యూట్యూబ్ శోధన, కొత్త మెసేజ్‌లు చదవడం, టార్చ్, వాల్యూమ్, సమయం, బ్యాటరీ. చెప్పండి.",
+        "আমি অ্যাপ খুলতে, বোতাম টিপতে আর ফর্ম ভরতে পারি। পুরো কাজও করতে পারি, যেমন বলুন বিদ্যুতের বিল দিতে হবে। " +
+            "অ্যালার্ম, রিমাইন্ডার, কল, মেসেজ, ইউটিউব খোঁজা, নতুন মেসেজ পড়া, টর্চ, আওয়াজ, সময় আর ব্যাটারি। শুধু বলুন।",
+        "હું એપ ખોલી શકું, બટન દબાવી શકું અને ફોર્મ ભરી શકું. આખું કામ પણ કરી શકું, જેમ કે કહો વીજળીનું બિલ ભરવું છે. " +
+            "એલાર્મ, રિમાઇન્ડર, કૉલ, મેસેજ, યુટ્યુબ શોધ, નવા મેસેજ વાંચવા, ટોર્ચ, અવાજ, સમય અને બેટરી. બસ કહો.",
+    )
 }

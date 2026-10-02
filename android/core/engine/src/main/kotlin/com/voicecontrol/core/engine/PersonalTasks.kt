@@ -54,6 +54,10 @@ internal class PersonalTasks(
                 say(phrases.today(today.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", locale))))
                 return Result.ANSWERED
             }
+            PhoneTask.Capabilities -> {
+                say(phrases.capabilities())
+                return Result.ANSWERED
+            }
             else -> Unit
         }
         val actions = phone ?: run {
@@ -90,7 +94,41 @@ internal class PersonalTasks(
                 }
                 say(phrases.taskFailed())
             }
-            PhoneTask.TimeNow, PhoneTask.DateToday -> Unit
+            is PhoneTask.Reminder -> {
+                val ok = actions.setReminder(task.hour, task.minute, task.text)
+                say(if (ok) phrases.reminderSet(spokenTime(LocalTime.of(task.hour, task.minute), locale), task.text) else phrases.taskFailed())
+            }
+            is PhoneTask.Torch -> {
+                say(if (actions.torch(task.on)) phrases.torch(task.on) else phrases.taskFailed())
+                return Result.ANSWERED
+            }
+            is PhoneTask.Volume -> {
+                say(if (actions.volume(task.change)) phrases.volumeChanged(task.change) else phrases.taskFailed())
+                return Result.ANSWERED
+            }
+            PhoneTask.Battery -> {
+                val info = actions.battery()
+                say(if (info != null) phrases.battery(info.percent, info.charging) else phrases.taskFailed())
+                return Result.ANSWERED
+            }
+            is PhoneTask.OpenSettings -> {
+                if (!actions.openSettings(task.page)) {
+                    say(phrases.taskFailed())
+                    return Result.ANSWERED
+                }
+                say(phrases.openingSettings())
+            }
+            PhoneTask.ReadNotifications -> {
+                val latest = actions.notifications().take(MAX_READ_NOTIFICATIONS)
+                if (latest.isEmpty()) {
+                    say(phrases.noNotifications())
+                } else {
+                    say(phrases.notificationsIntro(latest.size))
+                    latest.forEach { n -> say(phrases.notificationLine(n.app, n.title, n.text.take(MAX_NOTIFICATION_CHARS))) }
+                }
+                return Result.ANSWERED
+            }
+            PhoneTask.TimeNow, PhoneTask.DateToday, PhoneTask.Capabilities -> Unit
         }
         return Result.MOVED
     }
@@ -113,6 +151,9 @@ internal class PersonalTasks(
         time.format(DateTimeFormatter.ofPattern(if (time.minute == 0) "h a" else "h:mm a", locale))
 
     companion object {
+        const val MAX_READ_NOTIFICATIONS = 5
+        const val MAX_NOTIFICATION_CHARS = 200
+
         /** Words for buttons the assistant leaves on screen: "bhejo" presses Send, "call karo" presses Call. */
         private val aliases = mapOf(
             "send" to listOf("send", "bhejo", "bhej do", "bhejiye", "भेजो", "भेज दो", "भेजिए", "send karo", "send kar do"),

@@ -73,10 +73,35 @@ const ALLOWED_PREFIXES = [
 ];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export async function handleProxy(req: ProxyRequest, backendUrl: string, fetcher: typeof fetch = fetch): Promise<ProxyResponse> {
+/** Waits between tries while the backend wakes up (a sleeping free instance takes 1–2 minutes). */
+export const WAKE_RETRY_DELAYS_MS = [2_000, 4_000, 8_000, 12_000, 15_000, 20_000, 20_000, 20_000];
+
+class BackendWaking extends Error {}
+
+const sleepFor = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+export async function handleProxy(
+  req: ProxyRequest,
+  backendUrl: string,
+  fetcher: typeof fetch = fetch,
+  sleep: (ms: number) => Promise<void> = sleepFor,
+): Promise<ProxyResponse> {
   const base = backendUrl.replace(/\/$/, "");
-  const call = (path: string, init: RequestInit) =>
-    fetcher(`${base}${path}`, { ...init, headers: { "Content-Type": "application/json", ...(init.headers ?? {}) }, cache: "no-store" });
+  // A gateway error or no connection means the request never reached the backend (it is starting or
+  // restarting), so trying again is safe, sign-ins included.
+  const call = async (path: string, init: RequestInit) => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await fetcher(`${base}${path}`, { ...init, headers: { "Content-Type": "application/json", ...(init.headers ?? {}) }, cache: "no-store" });
+        if (![502, 503, 504].includes(res.status)) return res;
+      } catch {
+        // not reachable yet
+      }
+      const delay = WAKE_RETRY_DELAYS_MS[attempt];
+      if (delay === undefined) throw new BackendWaking();
+      await sleep(delay);
+    }
+  };
   const [head, ...rest] = req.path;
   // Only sign-ins and refreshes need it (they create or continue a session); no control characters.
   const cleanAgent = [...(req.userAgent ?? "")].filter((c) => c >= " " && c !== "\u007f").join("").slice(0, 300);
@@ -131,7 +156,10 @@ export async function handleProxy(req: ProxyRequest, backendUrl: string, fetcher
     }
     const body = res.status === 204 ? null : await res.text();
     return { status: res.status, body, setCookies };
-  } catch {
+  } catch (e) {
+    if (e instanceof BackendWaking) {
+      return json(503, { error: "backend_starting", message: "The VoiceControl server is starting up. Please try again in a minute." });
+    }
     return json(502, { error: "backend_unreachable", message: "The VoiceControl backend is not reachable" });
   }
 }

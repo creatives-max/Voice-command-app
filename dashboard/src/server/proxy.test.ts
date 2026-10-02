@@ -1,4 +1,4 @@
-import { ACCESS_COOKIE, REFRESH_COOKIE, handleProxy, type ProxyRequest } from "./proxy";
+import { WAKE_RETRY_DELAYS_MS, ACCESS_COOKIE, REFRESH_COOKIE, handleProxy, type ProxyRequest } from "./proxy";
 
 function req(overrides: Partial<ProxyRequest>): ProxyRequest {
   return { method: "GET", path: ["flows"], search: "", body: null, cookies: { get: () => undefined }, ...overrides };
@@ -72,12 +72,22 @@ describe("handleProxy", () => {
     expect(String(fetcher.mock.calls[2]![0])).toBe("http://b/v1/care/links");
   });
 
-  it("returns 502 when the backend is down", async () => {
-    const fetcher = vi.fn(async () => {
+  it("waits for a sleeping backend to wake up, then says it is starting", async () => {
+    const noWait = async () => undefined;
+    const down = vi.fn(async () => {
       throw new Error("ECONNREFUSED");
     });
-    const res = await handleProxy(req({}), "http://b", fetcher as typeof fetch);
-    expect(res.status).toBe(502);
+    const res = await handleProxy(req({}), "http://b", down as typeof fetch, noWait);
+    expect(res.status).toBe(503);
+    expect(JSON.parse(res.body!).error).toBe("backend_starting");
+    expect(down).toHaveBeenCalledTimes(WAKE_RETRY_DELAYS_MS.length + 1);
+
+    // Gateway errors while it starts, then the sign-in goes through.
+    let n = 0;
+    const waking = vi.fn(async () => (n++ < 2 ? new Response("<html>", { status: 502 }) : new Response(JSON.stringify(tokens), { status: 200 })));
+    const login = await handleProxy(req({ method: "POST", path: ["auth", "login"], body: "{}" }), "http://b", waking as typeof fetch, noWait);
+    expect(login.status).toBe(200);
+    expect(waking).toHaveBeenCalledTimes(3);
   });
 
   it("passes the browser's User-Agent on sign-in and refresh only, without control characters", async () => {

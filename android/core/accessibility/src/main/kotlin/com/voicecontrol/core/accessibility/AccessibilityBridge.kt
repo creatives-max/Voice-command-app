@@ -100,7 +100,45 @@ class AccessibilityBridge @Inject constructor(
         _currentSnapshot.value = null
     }
 
+    /** A notification seen on this phone (kept in memory only, for "read my messages"). */
+    data class SeenNotification(val appPackage: String, val app: String, val title: String?, val text: String, val atMillis: Long)
+
+    private val notifications = ArrayDeque<SeenNotification>()
+
+    /** Notifications from the last [maxAgeMillis], newest first. */
+    fun recentNotifications(maxAgeMillis: Long = NOTIFICATION_MAX_AGE_MS): List<SeenNotification> {
+        val since = System.currentTimeMillis() - maxAgeMillis
+        return synchronized(notifications) { notifications.filter { it.atMillis >= since }.reversed() }
+    }
+
+    private fun recordNotification(event: AccessibilityEvent) {
+        val pkg = event.packageName?.toString() ?: return
+        val svc = service ?: return
+        if (pkg == svc.packageName || pkg in ignoredPackages || pkg == "android") return
+        val n = event.parcelableData as? android.app.Notification
+        val skipFlags = android.app.Notification.FLAG_ONGOING_EVENT or android.app.Notification.FLAG_GROUP_SUMMARY or
+            android.app.Notification.FLAG_FOREGROUND_SERVICE
+        if (n != null && (n.flags and skipFlags) != 0) return
+        val extras = n?.extras
+        val title = extras?.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString()?.takeIf { it.isNotBlank() }
+        val text = (extras?.getCharSequence(android.app.Notification.EXTRA_BIG_TEXT) ?: extras?.getCharSequence(android.app.Notification.EXTRA_TEXT))
+            ?.toString()?.takeIf { it.isNotBlank() }
+            ?: event.text.joinToString(" ").takeIf { it.isNotBlank() }
+            ?: return
+        val pm = svc.packageManager
+        val app = runCatching { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
+        synchronized(notifications) {
+            notifications.removeAll { it.appPackage == pkg && it.title == title && it.text == text }
+            notifications.addLast(SeenNotification(pkg, app, title, text.take(NOTIFICATION_MAX_CHARS), System.currentTimeMillis()))
+            while (notifications.size > NOTIFICATION_MAX_COUNT) notifications.removeFirst()
+        }
+    }
+
     internal fun onEvent(event: AccessibilityEvent) {
+        if (event.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
+            recordNotification(event)
+            return
+        }
         val pkg = event.packageName?.toString() ?: return
         if (pkg in ignoredPackages) return
         val isStateChange = event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
@@ -225,6 +263,9 @@ class AccessibilityBridge @Inject constructor(
 
     companion object {
         const val SCREEN_SETTLE_MS = 350L
+        const val NOTIFICATION_MAX_COUNT = 30
+        const val NOTIFICATION_MAX_CHARS = 500
+        const val NOTIFICATION_MAX_AGE_MS = 12 * 60 * 60 * 1000L
         /** The onboarding practice form inside VoiceControl, which sessions may fill like any other app. */
         const val PRACTICE_FORM_ACTIVITY = "com.voicecontrol.feature.onboarding.PracticeFormActivity"
         val ignoredPackages = setOf(

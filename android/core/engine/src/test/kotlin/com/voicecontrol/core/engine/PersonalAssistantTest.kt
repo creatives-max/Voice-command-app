@@ -93,4 +93,40 @@ class PersonalAssistantTest {
         assertTrue(ScreenAction.Click("vid:send") in screen.actions)
         assertTrue("Mummy ko bhej diya." in tts.spoken)
     }
+
+    private class Gadgets(screen: FakeScreen, chat: ScreenSnapshot) : PhoneActions by Phone(screen, chat) {
+        val done = mutableListOf<String>()
+        override suspend fun torch(on: Boolean) = true.also { done += "torch $on" }
+        override suspend fun volume(change: com.voicecontrol.core.nlp.VolumeChange) = true.also { done += "volume $change" }
+        override suspend fun battery() = com.voicecontrol.core.engine.port.BatteryInfo(76, charging = false)
+        override suspend fun setReminder(hour: Int, minute: Int, text: String?) = true.also { done += "reminder $hour:$minute $text" }
+        override suspend fun notifications() = listOf(
+            com.voicecontrol.core.engine.port.NotificationInfo("WhatsApp", "Rahul", "Kab aa rahe ho?"),
+            com.voicecontrol.core.engine.port.NotificationInfo("Messages", null, "Your bill is due"),
+        )
+    }
+
+    @Test
+    fun `controls the phone, reads messages and explains what it can do`() = runTest {
+        val screen = FakeScreen(home)
+        val phone = Gadgets(screen, chat)
+        val tts = RecordingTts()
+        engine(
+            screen,
+            ScriptedStt("torch jalao", "awaaz badhao", "battery kitni hai", "raat 9 baje dawai ki yaad dilana", "kya naya message aaya", "tum kya kya kar sakte ho", "stop"),
+            tts,
+            phone,
+        ).start()
+        advanceUntilIdle()
+
+        assertEquals(listOf("torch true", "volume UP", "reminder 21:0 dawai"), phone.done)
+        assertTrue("Torch jala di." in tts.spoken)
+        assertTrue("Awaaz badha di." in tts.spoken)
+        assertTrue("Battery 76 percent hai." in tts.spoken)
+        assertTrue(tts.spoken.any { it.startsWith("Theek hai, 9") && it.endsWith("baje dawai ki yaad dila dunga.") }, tts.spoken.toString())
+        assertTrue("Aapke 2 naye hain." in tts.spoken)
+        assertTrue("WhatsApp par Rahul: Kab aa rahe ho?." in tts.spoken)
+        assertTrue("Messages: Your bill is due." in tts.spoken)
+        assertTrue(tts.spoken.any { it.startsWith("Main app khol sakta hoon") })
+    }
 }

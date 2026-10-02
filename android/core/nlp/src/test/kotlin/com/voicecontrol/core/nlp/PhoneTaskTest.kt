@@ -63,4 +63,32 @@ class PhoneTaskTest {
         ).forEach { kotlin.test.assertTrue(GoalRequest.isGoal(it), it) }
         listOf("Login", "WhatsApp kholo", "next", "pata nahi", "Pay bill").forEach { kotlin.test.assertFalse(GoalRequest.isGoal(it), it) }
     }
+
+    @Test
+    fun phoneControls() {
+        assertEquals(PhoneTask.Torch(true), p("torch jalao"))
+        assertEquals(PhoneTask.Torch(false), p("torch band karo"))
+        assertEquals(PhoneTask.Torch(true), p("टॉर्च जलाओ"))
+        assertEquals(PhoneTask.Volume(VolumeChange.UP), p("awaaz badhao"))
+        assertEquals(PhoneTask.Volume(VolumeChange.DOWN), p("volume kam karo"))
+        assertEquals(PhoneTask.Volume(VolumeChange.MAX), p("volume full karo"))
+        assertEquals(PhoneTask.Volume(VolumeChange.MUTE), p("phone silent karo"))
+        assertEquals(PhoneTask.Battery, p("battery kitni hai"))
+        assertEquals(PhoneTask.OpenSettings(SettingsPage.WIFI), p("wifi on karo"))
+        assertEquals(PhoneTask.OpenSettings(SettingsPage.BLUETOOTH), p("bluetooth kholo"))
+        assertEquals(PhoneTask.OpenSettings(SettingsPage.MAIN), p("settings kholo"))
+        assertNull(p("YouTube kholo"))
+        assertNull(p("WhatsApp start karo"))
+    }
+
+    @Test
+    fun remindersNotificationsAndHelp() {
+        assertEquals(PhoneTask.Reminder(21, 0, "dawai"), p("raat 9 baje dawai ki yaad dilana"))
+        assertEquals(PhoneTask.Reminder(8, 30, "call mom"), p("remind me at 8:30 am to call mom"))
+        assertEquals(PhoneTask.Timer(600), p("10 minute baad yaad dilana"))
+        assertEquals(PhoneTask.ReadNotifications, p("kya naya message aaya hai"))
+        assertEquals(PhoneTask.ReadNotifications, p("read my notifications"))
+        assertEquals(PhoneTask.Capabilities, p("tum kya kya kar sakte ho"))
+        assertEquals(PhoneTask.Capabilities, p("What can you do?"))
+    }
 }

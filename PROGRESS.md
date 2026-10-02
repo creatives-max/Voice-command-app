@@ -228,3 +228,6 @@ phase notes say which earlier phase covered the rest.
 - [x] Wake phrase fixed for Android 14+: the microphone service is kept between sessions and restarted when VoiceControl opens; "voice control" works without "hey"; Settings shows what the listener is doing
 - [x] Helper reads the screen: visible text (amounts, messages, errors) goes to the planner with long numbers and one-time codes masked on the phone and again on the server; it checks success before saying done; privacy policy updated
 - [x] Wake phrase + request in one breath ("voice control, YouTube kholo"): the request is done right away instead of asking first
+- [x] Phone controls by voice: torch, volume (up/down/full/vibrate), battery level, Wi-Fi/Bluetooth/internet/display/sound/location settings
+- [x] Reminders ("raat 9 baje dawai ki yaad dilana" → labelled alarm); reading new notifications aloud (kept in memory on the phone, last 12 h); "tum kya kya kar sakte ho" tour; home screen "Things you can say"
+- [x] Dashboard: while the free backend wakes up the proxy keeps trying (~2 min) instead of 502, then says the server is starting

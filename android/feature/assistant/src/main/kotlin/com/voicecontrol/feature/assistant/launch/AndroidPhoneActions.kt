@@ -25,7 +25,10 @@ import javax.inject.Singleton
  * start them while another app is in front because it holds the overlay permission.
  */
 @Singleton
-class AndroidPhoneActions @Inject constructor(@ApplicationContext private val context: Context) : PhoneActions {
+class AndroidPhoneActions @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val bridge: com.voicecontrol.core.accessibility.AccessibilityBridge,
+) : PhoneActions {
 
     override suspend fun setAlarm(hour: Int, minute: Int): Boolean = start(
         Intent(AlarmClock.ACTION_SET_ALARM)
@@ -81,6 +84,66 @@ class AndroidPhoneActions @Inject constructor(@ApplicationContext private val co
             start(Intent(Intent.ACTION_VIEW, Uri.parse(link)).setPackage(WHATSAPP_BUSINESS)) ||
             start(Intent(Intent.ACTION_VIEW, Uri.parse(link)))
     }
+
+    override suspend fun setReminder(hour: Int, minute: Int, text: String?): Boolean = start(
+        Intent(AlarmClock.ACTION_SET_ALARM)
+            .putExtra(AlarmClock.EXTRA_HOUR, hour)
+            .putExtra(AlarmClock.EXTRA_MINUTES, minute)
+            .putExtra(AlarmClock.EXTRA_MESSAGE, text?.take(60) ?: "VoiceControl")
+            .putExtra(AlarmClock.EXTRA_SKIP_UI, true),
+    )
+
+    override suspend fun torch(on: Boolean): Boolean = withContext(Dispatchers.Main) {
+        runCatching {
+            val camera = context.getSystemService(Context.CAMERA_SERVICE) as android.hardware.camera2.CameraManager
+            val id = camera.cameraIdList.firstOrNull { cid ->
+                camera.getCameraCharacteristics(cid).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+            } ?: return@runCatching false
+            camera.setTorchMode(id, on)
+            true
+        }.getOrDefault(false)
+    }
+
+    override suspend fun volume(change: com.voicecontrol.core.nlp.VolumeChange): Boolean = withContext(Dispatchers.Main) {
+        runCatching {
+            val audio = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            val stream = android.media.AudioManager.STREAM_MUSIC
+            val show = android.media.AudioManager.FLAG_SHOW_UI
+            when (change) {
+                com.voicecontrol.core.nlp.VolumeChange.UP -> repeat(2) { audio.adjustStreamVolume(stream, android.media.AudioManager.ADJUST_RAISE, show) }
+                com.voicecontrol.core.nlp.VolumeChange.DOWN -> repeat(2) { audio.adjustStreamVolume(stream, android.media.AudioManager.ADJUST_LOWER, show) }
+                com.voicecontrol.core.nlp.VolumeChange.MAX -> audio.setStreamVolume(stream, audio.getStreamMaxVolume(stream), show)
+                // Silent mode needs Do Not Disturb access; vibrate is allowed for every app.
+                com.voicecontrol.core.nlp.VolumeChange.MUTE -> audio.ringerMode = android.media.AudioManager.RINGER_MODE_VIBRATE
+            }
+            true
+        }.getOrDefault(false)
+    }
+
+    override suspend fun battery(): com.voicecontrol.core.engine.port.BatteryInfo? = runCatching {
+        val manager = context.getSystemService(Context.BATTERY_SERVICE) as android.os.BatteryManager
+        val percent = manager.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        if (percent !in 0..100) return@runCatching null
+        com.voicecontrol.core.engine.port.BatteryInfo(percent, manager.isCharging)
+    }.getOrNull()
+
+    override suspend fun openSettings(page: com.voicecontrol.core.nlp.SettingsPage): Boolean {
+        val q = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q
+        val action = when (page) {
+            com.voicecontrol.core.nlp.SettingsPage.WIFI -> if (q) android.provider.Settings.Panel.ACTION_WIFI else android.provider.Settings.ACTION_WIFI_SETTINGS
+            com.voicecontrol.core.nlp.SettingsPage.INTERNET -> if (q) android.provider.Settings.Panel.ACTION_INTERNET_CONNECTIVITY else android.provider.Settings.ACTION_WIRELESS_SETTINGS
+            com.voicecontrol.core.nlp.SettingsPage.BLUETOOTH -> android.provider.Settings.ACTION_BLUETOOTH_SETTINGS
+            com.voicecontrol.core.nlp.SettingsPage.DISPLAY -> android.provider.Settings.ACTION_DISPLAY_SETTINGS
+            com.voicecontrol.core.nlp.SettingsPage.SOUND -> android.provider.Settings.ACTION_SOUND_SETTINGS
+            com.voicecontrol.core.nlp.SettingsPage.BATTERY -> Intent.ACTION_POWER_USAGE_SUMMARY
+            com.voicecontrol.core.nlp.SettingsPage.LOCATION -> android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS
+            com.voicecontrol.core.nlp.SettingsPage.MAIN -> android.provider.Settings.ACTION_SETTINGS
+        }
+        return start(Intent(action)) || start(Intent(android.provider.Settings.ACTION_SETTINGS))
+    }
+
+    override suspend fun notifications(): List<com.voicecontrol.core.engine.port.NotificationInfo> =
+        bridge.recentNotifications().map { com.voicecontrol.core.engine.port.NotificationInfo(it.app, it.title, it.text) }
 
     private suspend fun askPermissions() {
         start(Intent(context, PhonePermissionActivity::class.java))

@@ -3,6 +3,11 @@ package com.voicecontrol.core.nlp
 /** Where a spoken search goes. */
 enum class SearchPlace { WEB, YOUTUBE, MAPS }
 
+enum class VolumeChange { UP, DOWN, MUTE, MAX }
+
+/** System settings pages people ask for by name. */
+enum class SettingsPage { WIFI, BLUETOOTH, INTERNET, DISPLAY, SOUND, BATTERY, LOCATION, MAIN }
+
 /**
  * Everyday phone jobs a personal assistant does on request, understood in English, Hinglish and Hindi:
  * "6 baje ka alarm laga do", "set a timer for 5 minutes", "YouTube pe Arijit ke gaane chalao",
@@ -17,13 +22,24 @@ sealed interface PhoneTask {
     data class Message(val who: String, val text: String?) : PhoneTask
     data object TimeNow : PhoneTask
     data object DateToday : PhoneTask
+    /** "9 baje dawai ki yaad dilana": an alarm at that time labelled with what to remember. */
+    data class Reminder(val hour: Int, val minute: Int, val text: String?) : PhoneTask
+    data class Torch(val on: Boolean) : PhoneTask
+    data class Volume(val change: VolumeChange) : PhoneTask
+    data object Battery : PhoneTask
+    data class OpenSettings(val page: SettingsPage) : PhoneTask
+    /** "kya naya message aaya": read the latest notifications aloud. */
+    data object ReadNotifications : PhoneTask
+    /** "tum kya kya kar sakte ho": a short tour of what the assistant does. */
+    data object Capabilities : PhoneTask
 
     companion object {
         fun parse(utterance: String): PhoneTask? {
             val text = TextCleanup.simplify(utterance)
             if (text.isEmpty()) return null
             val words = text.split(' ')
-            return time(text) ?: alarm(text, words) ?: timer(text, words) ?: message(text) ?: call(text) ?: search(text, words)
+            return capabilities(text) ?: time(text) ?: device(text, words) ?: notifications(text) ?: reminder(text, words) ?: alarm(text, words) ?:
+                timer(text, words) ?: message(text) ?: call(text) ?: search(text, words)
         }
 
         // --- time and date ---------------------------------------------------------------------
@@ -43,6 +59,93 @@ sealed interface PhoneTask {
             dateAsks.any { it in text } -> DateToday
             timeAsks.any { it in text } -> TimeNow
             else -> null
+        }
+
+        // --- what can you do ------------------------------------------------------------------------
+
+        private val capabilityAsks = listOf(
+            "what can you do", "what all can you do", "what do you do", "help me with what", "your features",
+            "tum kya kya kar sakte ho", "tum kya kar sakte ho", "aap kya kya kar sakte ho", "aap kya kar sakte ho", "kya kya kar sakte ho",
+            "तुम क्या क्या कर सकते हो", "तुम क्या कर सकते हो", "आप क्या क्या कर सकते हो", "आप क्या कर सकते हो", "क्या क्या कर सकते हो",
+        )
+
+        private fun capabilities(text: String): PhoneTask? = if (capabilityAsks.any { it in text }) Capabilities else null
+
+        // --- phone controls ----------------------------------------------------------------------
+
+        private val torchWords = setOf("torch", "flashlight", "flash", "टॉर्च", "बत्ती", "light")
+        private val onWords = setOf("on", "jalao", "jala", "chalu", "chala", "kholo", "जलाओ", "जला", "चालू", "ऑन", "start")
+        private val offWords = setOf("off", "band", "bujhao", "bujha", "बंद", "बुझाओ", "ऑफ", "stop")
+        private val volumeWords = setOf("volume", "awaaz", "awaz", "aawaz", "sound", "आवाज़", "आवाज", "वॉल्यूम")
+        private val upWords = setOf("up", "badhao", "badha", "tez", "zyada", "jyada", "increase", "louder", "बढ़ाओ", "बढ़ा", "तेज़", "तेज", "ज़्यादा", "ज्यादा")
+        private val downWords = setOf("down", "kam", "ghatao", "dheere", "dheemi", "decrease", "lower", "softer", "कम", "घटाओ", "धीमी", "धीरे")
+        private val muteWords = setOf("mute", "silent", "chup", "band", "बंद", "म्यूट", "साइलेंट")
+        private val maxWords = setOf("full", "max", "maximum", "poori", "puri", "पूरी", "फुल")
+        private val batteryAsks = listOf("battery kitni", "battery kitna", "battery level", "how much battery", "battery percentage", "charge kitna", "बैटरी कितनी", "बैटरी कितना", "चार्ज कितना")
+        private val settingsWords = setOf("settings", "setting", "सेटिंग", "सेटिंग्स")
+        private val pages = mapOf(
+            SettingsPage.WIFI to setOf("wifi", "wi-fi", "वाईफाई", "वाई-फाई"),
+            SettingsPage.BLUETOOTH to setOf("bluetooth", "ब्लूटूथ"),
+            SettingsPage.INTERNET to setOf("internet", "data", "mobile data", "इंटरनेट", "डेटा"),
+            SettingsPage.DISPLAY to setOf("display", "brightness", "screen", "डिस्प्ले", "ब्राइटनेस"),
+            SettingsPage.SOUND to setOf("sound", "ringtone", "साउंड", "रिंगटोन"),
+            SettingsPage.BATTERY to setOf("battery", "बैटरी"),
+            SettingsPage.LOCATION to setOf("location", "gps", "लोकेशन"),
+        )
+
+        private fun device(text: String, words: List<String>): PhoneTask? {
+            if (batteryAsks.any { it in text }) return Battery
+            if (words.any { it in torchWords } && (words.any { it in onWords } || words.any { it in offWords })) {
+                // "torch band karo" turns it off; "torch jalao" / "torch on" turns it on.
+                return Torch(on = words.none { it in offWords })
+            }
+            if (words.any { it in volumeWords }) {
+                when {
+                    words.any { it in maxWords } -> return Volume(VolumeChange.MAX)
+                    words.any { it in upWords } -> return Volume(VolumeChange.UP)
+                    words.any { it in downWords } -> return Volume(VolumeChange.DOWN)
+                    words.any { it in muteWords } -> return Volume(VolumeChange.MUTE)
+                }
+            }
+            if (words.any { it in muteWords } && words.any { it == "phone" || it == "फोन" || it == "mobile" }) return Volume(VolumeChange.MUTE)
+            val opens = words.any { it in onWords || it in settingsWords || it == "open" || it == "खोलो" }
+            if (opens) {
+                val page = pages.entries.firstOrNull { (_, names) -> names.any { n -> " $n " in " $text " } }?.key
+                if (page != null && page != SettingsPage.BATTERY && page != SettingsPage.SOUND && page != SettingsPage.DISPLAY) return OpenSettings(page)
+                if (page != null && words.any { it in settingsWords }) return OpenSettings(page)
+                if (words.any { it in settingsWords } && words.size <= 3) return OpenSettings(SettingsPage.MAIN)
+            }
+            return null
+        }
+
+        // --- notifications -----------------------------------------------------------------------
+
+        private val notificationAsks = listOf(
+            "read my messages", "read my notifications", "any new message", "new messages", "read notifications", "what are my notifications",
+            "kya naya message", "naya message aaya", "naye message", "mere message padho", "messages padho", "message padh", "notification padho",
+            "notifications padho", "kisne message kiya", "kiska message aaya", "koi message aaya",
+            "नया मैसेज", "नए मैसेज", "मैसेज पढ़ो", "मेसेज पढ़ो", "नोटिफिकेशन पढ़ो", "किसका मैसेज", "कोई मैसेज आया",
+        )
+
+        private fun notifications(text: String): PhoneTask? = if (notificationAsks.any { it in text }) ReadNotifications else null
+
+        // --- reminders ---------------------------------------------------------------------------
+
+        private val remindWords = listOf("yaad dilana", "yaad dila dena", "yaad dila do", "yaad karana", "remind me", "reminder", "याद दिलाना", "याद दिला देना", "याद दिला दो", "रिमाइंडर")
+        private val reminderFillers = setOf(
+            "yaad", "dilana", "dila", "dena", "do", "karana", "remind", "me", "reminder", "set", "a", "at", "to", "for", "laga", "lagao",
+            "baje", "बजे", "ko", "को", "ki", "की", "ka", "का", "ke", "के", "subah", "shaam", "sham", "raat", "dopahar", "सुबह", "शाम", "रात", "दोपहर",
+            "am", "pm", "morning", "evening", "night", "याद", "दिलाना", "दिला", "देना", "दो", "रिमाइंडर", "saade", "sade", "sava", "paune", "साढ़े", "सवा", "पौने",
+        )
+
+        private fun reminder(text: String, words: List<String>): PhoneTask? {
+            if (remindWords.none { it in text }) return null
+            // "10 minute baad yaad dilana" is a timer.
+            if (words.any { it in units }) return null
+            val (hour, minute) = clock(words) ?: return null
+            val about = words.filter { w -> w !in reminderFillers && w.toIntOrNull() == null && hourWords[w] == null }
+                .joinToString(" ").takeIf { it.isNotBlank() }
+            return Reminder(hour, minute, about)
         }
 
         // --- alarms ----------------------------------------------------------------------------

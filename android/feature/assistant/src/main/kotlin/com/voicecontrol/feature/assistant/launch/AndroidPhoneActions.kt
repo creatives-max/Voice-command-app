@@ -82,7 +82,7 @@ class AndroidPhoneActions @Inject constructor(@ApplicationContext private val co
             start(Intent(Intent.ACTION_VIEW, Uri.parse(link)))
     }
 
-    private fun askPermissions() {
+    private suspend fun askPermissions() {
         start(Intent(context, PhonePermissionActivity::class.java))
     }
 

@@ -96,8 +96,9 @@ class AssistantController @Inject constructor(
     }
 
     /** Starts a session without a tap (auto-start when an app with a saved flow opens). */
-    fun startSession() {
-        if (!engine.isActive && micPermission.granted()) engine.start()
+    /** Starts a session; [request] is what the user already asked for with the wake phrase. */
+    fun startSession(request: String? = null) {
+        if (!engine.isActive && micPermission.granted()) engine.start(request = request)
     }
 
     /** Runs [flow] now (opening its app first). */

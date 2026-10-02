@@ -156,9 +156,13 @@ class AssistantEngine(
     fun toggle() = if (isActive) stop() else start()
 
     /** Starts a session; with [flow], that flow is run instead of matching one to the screen. */
-    fun start(flow: FlowDefinition? = null) {
+    /**
+     * Starts a session. [request] is what the user already asked for while starting it ("voice control,
+     * YouTube kholo"): it is handled first instead of asking "What can I do for you?".
+     */
+    fun start(flow: FlowDefinition? = null, request: String? = null) {
         if (isActive) return
-        job = scope.launch { runSession(flow) }
+        job = scope.launch { runSession(flow, request?.trim()?.takeIf { it.isNotEmpty() }) }
     }
 
     /** Starts screen-reader mode: reads the whole screen and lets the user move and activate by voice. */
@@ -240,6 +244,8 @@ class AssistantEngine(
         var currentSignature: String = ""
         /** The assistant already said "What can I do for you?" in this session. */
         var greeted = false
+        /** Asked for when the session started (with the wake phrase); answered before asking anything. */
+        var firstRequest: String? = null
         /** Names on the current screen, to help the recognizer hear them. */
         var bias: List<String> = emptyList()
         /** The recognizer's other guesses for the last answer (tried when the first matches nothing). */
@@ -299,9 +305,10 @@ class AssistantEngine(
         )
     }
 
-    private suspend fun runSession(preselected: FlowDefinition?) {
+    private suspend fun runSession(preselected: FlowDefinition?, request: String? = null) {
         val cfg = config.current()
         val session = Session(cfg)
+        session.firstRequest = request
         undoStack.clear()
         _state.value = EngineState(status = EngineStatus.STARTING, active = true)
         emit(EngineEvent.STATUS, if (preselected != null) "Started “${preselected.name}”" else "Session started")
@@ -686,8 +693,8 @@ class AssistantEngine(
         announce: Boolean,
     ): ScreenOutcome {
         val phrases = session.phrases
-        // Nothing to fill and no press taught by a flow: talk with the user instead.
-        if (plan.steps.isEmpty() && !plan.submitFromFlow) return commandMode(session, snapshot, log)
+        // Nothing to fill and no press taught by a flow, or the user already said what they want: talk instead.
+        if ((plan.steps.isEmpty() && !plan.submitFromFlow) || session.firstRequest != null) return commandMode(session, snapshot, log)
         val questions = plan.steps.count { !it.skip && !it.virtual && it.action != StepAction.CLICK }
         if (announce && questions > 0) say(session, phrases.start(questions))
 
@@ -711,7 +718,11 @@ class AssistantEngine(
         var prompt = if (session.greeted) phrases.whatNext() else phrases.howCanIHelp()
         session.greeted = true
         repeat(MAX_COMMAND_TURNS) { turn ->
-            val heard = askAndListen(session, prompt) ?: return@repeat
+            val heard = session.firstRequest?.also {
+                session.firstRequest = null
+                emit(EngineEvent.STATUS, "Request with the wake phrase")
+                _state.update { s -> s.copy(heard = it) }
+            } ?: askAndListen(session, prompt) ?: return@repeat
             shortcutFlow(session, snapshot, heard)?.let { flow ->
                 session.switchTo = flow
                 return ScreenOutcome.SWITCHED

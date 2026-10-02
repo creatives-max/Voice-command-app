@@ -34,6 +34,27 @@ object WakeWord {
 
     private const val MIN_CORE_LENGTH = 6
 
+    private val leadIns = setOf("please", "plz", "zara", "ज़रा", "जरा", "to", "toh", "तो", "ki", "ok", "okay", "and", "aur", "और")
+
+    /**
+     * What was said after the wake phrase in the same breath ("voice control, YouTube kholo" → "YouTube
+     * kholo"), or null when nothing followed. Words are kept as the recognizer wrote them.
+     */
+    fun after(transcript: String, phrase: String): String? {
+        val words = transcript.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        for (start in words.indices) {
+            for (end in start + 1..minOf(words.size, start + MAX_PHRASE_WORDS)) {
+                if (!matches(words.subList(start, end).joinToString(" "), phrase)) continue
+                val rest = words.drop(end).map { it.trim(',', '.', '!', '?', '।') }.filter { it.isNotEmpty() }.toMutableList()
+                while (rest.isNotEmpty() && rest.first().lowercase() in leadIns) rest.removeAt(0)
+                return rest.joinToString(" ").takeIf { r -> r.count { it.isLetterOrDigit() } >= 2 }
+            }
+        }
+        return null
+    }
+
+    private const val MAX_PHRASE_WORDS = 6
+
     private fun matchesExactly(transcript: String, phrase: String): Boolean {
         val p = normalize(phrase)
         if (p.length < MIN_LENGTH) return false

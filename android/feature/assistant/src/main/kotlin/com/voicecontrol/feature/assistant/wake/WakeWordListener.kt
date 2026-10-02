@@ -86,13 +86,22 @@ class WakeWordListener @Inject constructor(
                 failures == 0 -> status.set(WakeState.LISTENING)
             }
             var heard = false
+            var lastPartial = ""
+            var stopLater: kotlinx.coroutines.Job? = null
             val listening = scope.async {
                 stt.listen(
                     ListenRequest(prefs.language.speechTag, preferOffline = true, biasPhrases = listOf(prefs.wakeWord)),
                     onPartial = { partial ->
-                        if (!heard && WakeWord.matches(partial, prefs.wakeWord)) {
+                        lastPartial = partial
+                        if (heard || WakeWord.matches(partial, prefs.wakeWord)) {
                             heard = true
-                            stt.stopListening()
+                            // Let the user finish a request said in the same breath ("voice control, YouTube kholo"):
+                            // stop once the words stop changing.
+                            stopLater?.cancel()
+                            stopLater = scope.launch {
+                                delay(REQUEST_SETTLE_MS)
+                                stt.stopListening()
+                            }
                         }
                     },
                 )
@@ -106,13 +115,15 @@ class WakeWordListener @Inject constructor(
                 null
             } finally {
                 yieldToSession.cancel()
+                stopLater?.cancel()
             }
             // The microphone service stays up and switches to the session (stopping it here would need a new
             // start from the background, which Android 14+ refuses).
             if (result == null) continue
-            if (heard || (result is ListenResult.Heard && WakeWord.matches(result.text, prefs.wakeWord))) {
+            val finalText = (result as? ListenResult.Heard)?.text ?: lastPartial
+            if (heard || WakeWord.matches(finalText, prefs.wakeWord)) {
                 failures = 0
-                controller.startSession()
+                controller.startSession(WakeWord.after(finalText, prefs.wakeWord) ?: WakeWord.after(lastPartial, prefs.wakeWord))
                 // Let the session start before checking again.
                 delay(SESSION_START_MS)
                 continue
@@ -134,6 +145,8 @@ class WakeWordListener @Inject constructor(
         const val BUSY_RECHECK_MS = 1_000L
         const val ERRORS_TO_REPORT = 3
         const val SESSION_START_MS = 3_000L
+        /** After the wake phrase, how long the words must stay unchanged before listening stops. */
+        const val REQUEST_SETTLE_MS = 1_200L
         const val RESTART_MS = 250L
         const val RETRY_MS = 2_000L
         const val MAX_BACKOFF_MS = 30_000L

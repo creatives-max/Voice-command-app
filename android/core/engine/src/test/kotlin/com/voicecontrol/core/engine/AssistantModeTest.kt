@@ -91,4 +91,16 @@ class AssistantModeTest {
         assertEquals("com.google.android.gm", AppMatcher.find("जीमेल", list)?.packageName)
         assertNull(AppMatcher.find("snapchat", list))
     }
+
+    @Test
+    fun `a request said with the wake phrase is done without asking first`() = runTest {
+        val screen = FakeScreen(home).apply { onLaunch["com.whatsapp"] = chats }
+        val tts = RecordingTts()
+        val stt = ScriptedStt("stop")
+        engine(screen, stt, tts).start(request = "WhatsApp kholo")
+        advanceUntilIdle()
+        assertTrue(ScreenAction.LaunchApp("com.whatsapp") in screen.actions)
+        assertFalse("What can I do for you?" in tts.spoken)
+        assertTrue("What next?" in tts.spoken)
+    }
 }

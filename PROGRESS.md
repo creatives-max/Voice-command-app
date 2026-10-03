@@ -241,3 +241,5 @@ phase notes say which earlier phase covered the rest.
 - "usko call karo", "call him", "uska number kya hai" use the person talked about just before; with no one yet it asks "Kisko? Naam bataiye."
 - On screens without a form the AI sees the last turns of the conversation (masked), so follow-ups and small talk continue naturally.
 - Barge-in (stop talking when the user speaks) is on by default.
+- Usual apps: apps opened by voice are counted on the phone; when there is nothing to press it offers them ("Aap aksar WhatsApp, YouTube kholte hain…").
+- "dobara call karo", "phir se phone lagao", "call again" call the last person again.

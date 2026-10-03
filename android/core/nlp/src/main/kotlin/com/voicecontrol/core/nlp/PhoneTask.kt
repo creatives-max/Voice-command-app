@@ -431,7 +431,21 @@ sealed interface PhoneTask {
         )
         private val callHeads = listOf("call to", "call", "phone", "dial", "ring", "कॉल करो", "कॉल", "डायल")
 
+        private val againWords = listOf("dobara", "dubara", "phir se", "fir se", "again", "दोबारा", "फिर से")
+        private val redials = setOf("redial", "call back", "call again", "call them again", "call him again", "call her again")
+
+        /** "dobara call karo", "phir se phone lagao", "call again": the last person again. */
+        private fun redial(text: String): PhoneTask? {
+            if (text in redials) return Call("usko")
+            val again = againWords.firstOrNull { " $it " in " $text " } ?: return null
+            val rest = " $text ".replace(" $again ", " ").trim()
+            val pronounFirst = rest.substringBefore(' ').let { it in PRONOUNS }
+            val tail = if (pronounFirst) rest.substringAfter(' ') else rest
+            return if (tail in setOf("call karo", "call kar do", "call lagao", "phone karo", "phone lagao", "phone kar do", "कॉल करो", "कॉल लगाओ", "फोन करो", "फोन लगाओ", "call")) Call("usko") else null
+        }
+
         private fun call(text: String): PhoneTask? {
+            redial(text)?.let { return it }
             for (tail in callTails.sortedByDescending { it.length }) {
                 val at = text.indexOf(" $tail")
                 if (at > 0 && text.substring(at + tail.length + 1).isBlank()) return who(text.substring(0, at))?.let(::Call)

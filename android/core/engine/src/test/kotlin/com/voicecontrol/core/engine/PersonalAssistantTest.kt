@@ -189,10 +189,10 @@ class PersonalAssistantTest {
         val screen = FakeScreen(home)
         val phone = Phone(screen, chat)
         val tts = RecordingTts()
-        engine(screen, ScriptedStt("usko call karo", "Rahul ka number kya hai", "usko call karo", "stop"), tts, phone).start()
+        engine(screen, ScriptedStt("usko call karo", "Rahul ka number kya hai", "usko call karo", "dobara call karo", "stop"), tts, phone).start()
         advanceUntilIdle()
         assertTrue("Kisko? Naam bataiye." in tts.spoken, tts.spoken.toString())
-        assertEquals(listOf("call 9876543210"), phone.done)
+        assertEquals(listOf("call 9876543210", "call 9876543210"), phone.done)
     }
 
     @Test
@@ -208,5 +208,26 @@ class PersonalAssistantTest {
         ).start()
         advanceUntilIdle()
         assertEquals("Namaste Rahul ji! WhatsApp khula hai, bataiye kya karna hai?", tts.spoken.first())
+    }
+
+    @Test
+    fun `with nothing to press it offers the apps the user opens most`() = runTest {
+        val empty = ScreenSnapshot("com.launcher", elements = listOf(ScreenElement("vid:w", ElementKind.BUTTON, "A very long widget label nobody would say")), signature = "empty")
+        val screen = FakeScreen(empty)
+        val tts = RecordingTts()
+        val apps = object : com.voicecontrol.core.engine.port.AppDirectory {
+            override suspend fun apps() = listOf(com.voicecontrol.core.engine.port.InstalledApp("WhatsApp", "com.whatsapp"))
+            override suspend fun favourites(limit: Int) = listOf(
+                com.voicecontrol.core.engine.port.InstalledApp("WhatsApp", "com.whatsapp"),
+                com.voicecontrol.core.engine.port.InstalledApp("YouTube", "com.google.android.youtube"),
+            )
+        }
+        AssistantEngine(
+            screen = screen, stt = ScriptedStt("pata nahi", "stop"), tts = tts, interpreter = LocalInterpreter(), flows = { null }, profiles = { null },
+            recorder = { }, config = { SessionConfig(language = Language.HINGLISH, confirmValues = false) }, scope = this, screenSettleMillis = 10,
+            clock = { noon }, phoneActions = Phone(screen, chat), appDirectory = apps,
+        ).start()
+        advanceUntilIdle()
+        assertTrue("Aap aksar WhatsApp, YouTube kholte hain. Inmein se koi boliye, ya bataiye kya chahiye." in tts.spoken, tts.spoken.toString())
     }
 }

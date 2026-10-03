@@ -793,7 +793,7 @@ class AssistantEngine(
                     return@repeat
                 }
                 if (openApp(session, name)) return ScreenOutcome.NAVIGATED
-                prompt = phrases.suggest(suggestions(snapshot))
+                prompt = suggestHere(session, snapshot)
                 return@repeat
             }
             val interp = interpret(session, snapshot, null, heard, prompt)
@@ -801,7 +801,7 @@ class AssistantEngine(
                 IntentKind.CLICK -> if (clickTarget(session, snapshot, interp, log)) return ScreenOutcome.NAVIGATED
                 IntentKind.NEXT, IntentKind.SUBMIT -> {
                     val main = ButtonMatcher.primarySubmit(snapshot.elements)
-                    if (main == null) prompt = phrases.suggest(suggestions(snapshot))
+                    if (main == null) prompt = suggestHere(session, snapshot)
                     else if (press(session, main, log)) return ScreenOutcome.NAVIGATED
                 }
                 IntentKind.BACK -> {
@@ -813,7 +813,7 @@ class AssistantEngine(
                     return ScreenOutcome.NAVIGATED
                 }
                 IntentKind.STOP, IntentKind.NO -> return ScreenOutcome.STOPPED
-                IntentKind.HELP -> prompt = interp.reply?.takeIf { it.isNotBlank() } ?: phrases.suggest(suggestions(snapshot))
+                IntentKind.HELP -> prompt = interp.reply?.takeIf { it.isNotBlank() } ?: suggestHere(session, snapshot)
                 IntentKind.UNDO -> say(session, undoLast()?.let(phrases::undone) ?: phrases.nothingToUndo())
                 IntentKind.READ_SCREEN -> if (runReader(session, snapshot, log)) return ScreenOutcome.NAVIGATED
                 // "phir se bolo": the last answer again (the question is asked again anyway).
@@ -824,7 +824,7 @@ class AssistantEngine(
                         return runGoal(session, heard, log)
                     }
                     prompt = interp.reply?.takeIf { it.isNotBlank() }
-                        ?: (phrases.didNotCatch() + " " + phrases.suggest(suggestions(snapshot)))
+                        ?: (phrases.didNotCatch() + " " + suggestHere(session, snapshot))
                 }
             }
         }
@@ -1061,6 +1061,14 @@ class AssistantEngine(
             .distinct()
             .take(MAX_SUGGESTIONS)
 
+    /** What the user can say here: the screen's buttons, else the apps they open most. */
+    private suspend fun suggestHere(session: Session, snapshot: ScreenSnapshot): String {
+        val here = suggestions(snapshot)
+        val favourites = if (here.isNotEmpty()) emptyList() else runCatching { appDirectory?.favourites(MAX_FAVOURITES) }.getOrNull().orEmpty()
+            .filter { it.packageName != snapshot.packageName }.map { it.label }
+        return session.phrases.suggest(here, favourites)
+    }
+
     /** Opens the installed app the user named; false (after explaining) when there is none. */
     private suspend fun openApp(session: Session, name: String): Boolean {
         val apps = runCatching { appDirectory?.apps() }.getOrNull().orEmpty()
@@ -1071,6 +1079,7 @@ class AssistantEngine(
         }
         val ok = act(session, ScreenAction.LaunchApp(app.packageName), session.phrases.opening(app.label))
         if (ok) {
+            runCatching { appDirectory?.opened(app.packageName) }
             emit(EngineEvent.STEP, "Opened ${app.label}")
             session.noteAssistant("Opened ${app.label}")
         }
@@ -2022,6 +2031,7 @@ class AssistantEngine(
         const val MAX_COMMAND_TURNS = 12
         const val MAX_SUGGESTIONS = 4
         private const val MAX_TURNS = 8
+        private const val MAX_FAVOURITES = 3
         private const val MAX_TURN_CHARS = 200
         const val USER_SAID = "user said"
         const val ASSISTANT_SAID = "assistant said"

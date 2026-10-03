@@ -310,7 +310,8 @@ class Phrases(private val language: Language) {
     )
 
     /** Suggestions when the user is unsure: what this screen offers, and that apps can be opened. */
-    fun suggest(options: List<String>): String {
+    fun suggest(options: List<String>, favourites: List<String> = emptyList()): String {
+        if (options.isEmpty() && favourites.isNotEmpty()) return suggestFavourites(favourites)
         if (options.isEmpty()) return suggestApps()
         val list = options.joinToString(", ")
         return t(
@@ -322,6 +323,21 @@ class Phrases(private val language: Language) {
             "ఇక్కడ మీరు చేయగలరు: $list. వీటిలో ఒకటి చెప్పండి, లేదా యాప్ పేరుతో తెరువు అని చెప్పండి.",
             "এখানে আপনি করতে পারেন: $list। যেকোনো একটা বলুন, অথবা অ্যাপের নাম বলে খোলো বলুন।",
             "અહીં તમે આ કરી શકો: $list. એમાંથી એક કહો, અથવા એપનું નામ લઈને ખોલો કહો.",
+        )
+    }
+
+    /** Nothing to press here: offer the apps the user opens most. */
+    private fun suggestFavourites(apps: List<String>): String {
+        val list = apps.joinToString(", ")
+        return t(
+            "You often open $list. Say one of them, or tell me what you need.",
+            "आप अक्सर $list खोलते हैं। इनमें से कोई बोलिए, या बताइए क्या चाहिए।",
+            "Aap aksar $list kholte hain. Inmein se koi boliye, ya bataiye kya chahiye.",
+            "तुम्ही नेहमी $list उघडता. यापैकी एक सांगा, किंवा काय हवे ते सांगा.",
+            "நீங்கள் அடிக்கடி $list திறக்கிறீர்கள். ஒன்றைச் சொல்லுங்கள், அல்லது என்ன வேண்டும் என்று சொல்லுங்கள்.",
+            "మీరు తరచుగా $list తెరుస్తారు. వాటిలో ఒకటి చెప్పండి, లేదా ఏమి కావాలో చెప్పండి.",
+            "আপনি প্রায়ই $list খোলেন। যেকোনো একটা বলুন, অথবা কী লাগবে বলুন।",
+            "તમે ઘણી વાર $list ખોલો છો. એમાંથી એક કહો, અથવા શું જોઈએ છે કહો.",
         )
     }
 

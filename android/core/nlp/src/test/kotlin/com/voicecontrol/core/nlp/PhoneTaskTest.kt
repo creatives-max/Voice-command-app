@@ -160,5 +160,9 @@ class PhoneTaskTest {
         assertEquals(PhoneTask.Message("unko", null), p("unko message bhejo"))
         assertEquals(PhoneTask.Call("उसको"), p("उसको फोन लगाओ"))
         assertEquals(PhoneTask.ContactNumber("uska"), p("uska number kya hai"))
+        assertEquals(PhoneTask.Call("usko"), p("dobara call karo"))
+        assertEquals(PhoneTask.Call("usko"), p("usko phir se phone lagao"))
+        assertEquals(PhoneTask.Call("usko"), p("call again"))
+        assertEquals(PhoneTask.Call("rahul"), p("Rahul ko call karo"))
     }
 }

@@ -86,6 +86,12 @@ data class InstalledApp(val label: String, val packageName: String)
 /** The phone's launchable apps ("open WhatsApp"). */
 fun interface AppDirectory {
     suspend fun apps(): List<InstalledApp>
+
+    /** An app was opened by voice (counted on the phone, for [favourites]). */
+    suspend fun opened(packageName: String) = Unit
+
+    /** The apps opened most often by voice, most used first. */
+    suspend fun favourites(limit: Int): List<InstalledApp> = emptyList()
 }
 
 /** What the helper does next while working towards the user's goal ("do it for me"). */

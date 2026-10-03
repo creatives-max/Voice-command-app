@@ -224,7 +224,7 @@ class AiService(
         const val MAX_UTTERANCE = 500
         const val MAX_ELEMENTS = 300
         const val MAX_IMAGE_BYTES = 4_000_000
-        const val MAX_MEMORY = 12
+        const val MAX_MEMORY = 20
         const val MAX_QUESTION_FIELDS = 40
         const val MAX_GOAL = 500
         const val MAX_TEXTS = 80

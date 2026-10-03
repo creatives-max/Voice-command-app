@@ -183,4 +183,30 @@ class PersonalAssistantTest {
         assertTrue("Saare note mita diye." in tts.spoken)
         assertTrue(phone.notes.isEmpty())
     }
+
+    @Test
+    fun `usko call karo calls the person talked about just before`() = runTest {
+        val screen = FakeScreen(home)
+        val phone = Phone(screen, chat)
+        val tts = RecordingTts()
+        engine(screen, ScriptedStt("usko call karo", "Rahul ka number kya hai", "usko call karo", "stop"), tts, phone).start()
+        advanceUntilIdle()
+        assertTrue("Kisko? Naam bataiye." in tts.spoken, tts.spoken.toString())
+        assertEquals(listOf("call 9876543210"), phone.done)
+    }
+
+    @Test
+    fun `greets by name and names the app that is open`() = runTest {
+        val screen = FakeScreen(ScreenSnapshot("com.whatsapp", elements = listOf(ScreenElement("vid:chats", ElementKind.BUTTON, "Chats")), signature = "wa-home"))
+        val tts = RecordingTts()
+        AssistantEngine(
+            screen = screen, stt = ScriptedStt("stop"), tts = tts, interpreter = LocalInterpreter(), flows = { null },
+            profiles = { com.voicecontrol.core.model.UserProfile(fullName = "Rahul Sharma") },
+            recorder = { }, config = { SessionConfig(language = Language.HINGLISH, confirmValues = false) }, scope = this, screenSettleMillis = 10,
+            clock = { noon }, phoneActions = Phone(screen, chat),
+            appDirectory = { listOf(com.voicecontrol.core.engine.port.InstalledApp("WhatsApp", "com.whatsapp")) },
+        ).start()
+        advanceUntilIdle()
+        assertEquals("Namaste Rahul ji! WhatsApp khula hai, bataiye kya karna hai?", tts.spoken.first())
+    }
 }

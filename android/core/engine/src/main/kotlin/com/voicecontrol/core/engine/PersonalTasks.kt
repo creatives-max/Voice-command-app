@@ -31,6 +31,10 @@ internal class PersonalTasks(
         MESSAGE_READY,
     }
 
+    /** The last person called, messaged or looked up, for "usko call karo" / "call him". */
+    var lastPerson: String? = null
+        private set
+
     /** Who the last [Result.MESSAGE_READY] message is for. */
     var messageTo: String = ""
         private set
@@ -191,9 +195,13 @@ internal class PersonalTasks(
                 return Result.ANSWERED
             }
             is PhoneTask.ContactNumber -> {
-                when (val found = actions.findContact(task.who)) {
-                    is ContactResult.Found -> say(phrases.contactNumberIs(found.name, found.number.filter { it.isDigit() || it == '+' }.toList().joinToString(" ")))
-                    ContactResult.NotFound -> say(phrases.contactNotFound(task.who))
+                val who = person(task.who, phrases, say) ?: return Result.ANSWERED
+                when (val found = actions.findContact(who)) {
+                    is ContactResult.Found -> {
+                        lastPerson = who
+                        say(phrases.contactNumberIs(found.name, found.number.filter { it.isDigit() || it == '+' }.toList().joinToString(" ")))
+                    }
+                    ContactResult.NotFound -> say(phrases.contactNotFound(who))
                     ContactResult.NoPermission -> {
                         say(phrases.needContacts())
                         return Result.MOVED
@@ -238,11 +246,18 @@ internal class PersonalTasks(
     private suspend fun contact(actions: PhoneActions, who: String, phrases: Phrases, say: suspend (String) -> Unit): Pair<String, String>? {
         val digits = who.filter { it.isDigit() || it == '+' }
         if (digits.count(Char::isDigit) >= 3 && who.none { it.isLetter() }) return who to digits
-        return when (val found = actions.findContact(who)) {
-            is ContactResult.Found -> found.name to found.number
-            ContactResult.NotFound -> null.also { missed = Result.ANSWERED; say(phrases.contactNotFound(who)) }
+        val name = person(who, phrases, say) ?: return null.also { missed = Result.ANSWERED }
+        return when (val found = actions.findContact(name)) {
+            is ContactResult.Found -> (found.name to found.number).also { lastPerson = name }
+            ContactResult.NotFound -> null.also { missed = Result.ANSWERED; say(phrases.contactNotFound(name)) }
             ContactResult.NoPermission -> null.also { missed = Result.MOVED; say(phrases.needContacts()) }
         }
+    }
+
+    /** "usko" / "him" becomes the person talked about last; null (after asking who) when there was none. */
+    private suspend fun person(who: String, phrases: Phrases, say: suspend (String) -> Unit): String? {
+        if (who !in PhoneTask.PRONOUNS) return who
+        return lastPerson ?: null.also { say(phrases.whoDoYouMean()) }
     }
 
     /** 100.0 → "100", 2.5 → "2.5", 3.3333 → "3.33". */

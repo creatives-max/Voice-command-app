@@ -26,7 +26,7 @@ data class AppSettings(
     /** On screens without a saved flow, use a matching starter template (sign-up, login, address…). */
     val useTemplates: Boolean = true,
     /** Stop talking as soon as the user starts speaking. */
-    val bargeIn: Boolean = false,
+    val bargeIn: Boolean = true,
     /** Ask "Did you say …?" when speech recognition is unsure. */
     val confirmLowConfidence: Boolean = true,
     /** Listen for [wakeWord] while idle and start a session when it is heard. */

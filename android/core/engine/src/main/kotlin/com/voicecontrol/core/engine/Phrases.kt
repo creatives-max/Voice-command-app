@@ -252,6 +252,51 @@ class Phrases(private val language: Language) {
         "કહો, હું તમારા માટે શું કરું?",
     )
 
+    /**
+     * The first words of a session, like a person would greet: by name when the profile has one, by time of
+     * day, and about the app that is open ("Namaste Rahul ji! WhatsApp khula hai, bataiye kya karna hai?").
+     * Without a name or an app it is just [howCanIHelp].
+     */
+    fun greeting(name: String?, app: String?, hour: Int): String {
+        if (name == null && app == null) return howCanIHelp()
+        val hello = when (language) {
+            Language.ENGLISH -> when (hour) {
+                in 4..11 -> "Good morning"
+                in 12..16 -> "Good afternoon"
+                else -> "Good evening"
+            }
+            else -> t("", "नमस्ते", "Namaste", "नमस्कार", "வணக்கம்", "నమస్తే", "নমস্কার", "નમસ્તે")
+        }
+        val who = name?.let { if (language == Language.ENGLISH) " $it" else t(" $it", " $it जी", " $it ji", " $it", " $it", " $it గారు", " $it", " $it") }.orEmpty()
+        val ask = if (app == null) {
+            howCanIHelp()
+        } else {
+            t(
+                "$app is open. What would you like to do?",
+                "$app खुला है, बताइए क्या करना है?",
+                "$app khula hai, bataiye kya karna hai?",
+                "$app उघडले आहे, काय करायचे ते सांगा?",
+                "$app திறந்துள்ளது, என்ன செய்ய வேண்டும் சொல்லுங்கள்?",
+                "$app తెరిచి ఉంది, ఏమి చేయాలో చెప్పండి?",
+                "$app খোলা আছে, কী করতে হবে বলুন?",
+                "$app ખુલ્લું છે, શું કરવું છે કહો?",
+            )
+        }
+        return if (name == null) ask else "$hello$who! $ask"
+    }
+
+    /** "Usko call karo" before anyone was named. */
+    fun whoDoYouMean() = t(
+        "Who do you mean? Please say the name.",
+        "किसको? नाम बताइए।",
+        "Kisko? Naam bataiye.",
+        "कोणाला? नाव सांगा.",
+        "யாருக்கு? பெயரைச் சொல்லுங்கள்.",
+        "ఎవరికి? పేరు చెప్పండి.",
+        "কাকে? নামটা বলুন।",
+        "કોને? નામ કહો.",
+    )
+
     /** After an action, on the next screen without a form. */
     fun whatNext() = t(
         "What next?",

@@ -59,7 +59,7 @@ sealed interface PhoneTask {
 
     companion object {
         fun parse(utterance: String): PhoneTask? {
-            val text = TextCleanup.simplify(utterance)
+            val text = TextCleanup.simplify(utterance).let(::spacePronoun)
             if (text.isEmpty()) return null
             val words = text.split(' ')
             return emergency(text, words) ?: notes(text) ?: contactNumber(text) ?: showAlarms(text, words) ?: quickSearch(text, words) ?: capabilities(text) ?: time(text) ?: calculate(words) ?: system(text, words) ?: device(text, words) ?: notifications(text) ?:
@@ -106,6 +106,11 @@ sealed interface PhoneTask {
         private val numberAsks = listOf(" ka number kya hai", " ka number batao", " ka number bolo", " ka phone number", " का नंबर क्या है", " का नंबर बताओ", "what is the number of ", "what's the number of ")
 
         private fun contactNumber(text: String): PhoneTask? {
+            // "uska number kya hai": the person talked about just before.
+            val first = text.substringBefore(' ')
+            if (first in PRONOUNS && text.substringAfter(' ', "").startsWith("number")) {
+                if (listOf("kya", "batao", "bolo", "क्या", "बताओ").any { " $it" in text }) return ContactNumber(first)
+            }
             val padded = " $text"
             for (ask in numberAsks) {
                 val at = padded.indexOf(ask)
@@ -405,6 +410,20 @@ sealed interface PhoneTask {
         }
 
         // --- calls and messages ----------------------------------------------------------------
+
+        /** "him", "usko", "उन्हें": the person talked about just before (the engine fills in who). */
+        val PRONOUNS = setOf("uska", "unka", "उसका", "उनका", "usko", "unko", "isko", "inko", "unhe", "unhen", "unhein", "उसको", "उनको", "इसको", "उन्हें", "उन्हे", "him", "her", "them")
+        private val koPronouns = setOf("usko", "unko", "isko", "inko", "unhe", "unhen", "unhein", "उसको", "उनको", "इसको", "उन्हें", "उन्हे")
+
+        private val contactVerbs = setOf("call", "phone", "message", "msg", "whatsapp", "text", "कॉल", "फोन", "फ़ोन", "मैसेज", "मेसेज")
+
+        /** "usko call karo" reads like "usko ko call karo", so the call and message rules find the person. */
+        private fun spacePronoun(text: String): String {
+            val first = text.substringBefore(' ')
+            if (first !in koPronouns || text.substringAfter(' ', "").substringBefore(' ') !in contactVerbs) return text
+            val ko = if (first.any { it in '\u0900'..'\u097F' }) "को" else "ko"
+            return "$first $ko ${text.substringAfter(' ')}"
+        }
 
         private val callTails = listOf(
             "ko call karo", "ko call kar do", "ko call lagao", "ko phone karo", "ko phone lagao", "ko phone kar do", "ko call", "ko phone",

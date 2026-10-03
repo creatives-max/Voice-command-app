@@ -235,3 +235,9 @@ phase notes say which earlier phase covered the rest.
 - [x] Assistant jobs (apps opened, alarms, calls, goals…) are kept in the history as an "Assistant" screen, so they reach the dashboard; no flow is made from them
 - [x] Emergency: "bachao" / "emergency" calls the emergency contact (set by voice: "mera emergency contact Rahul hai"); without one it asks before calling 112; "Rahul ka number kya hai" reads the number
 - [x] Notes by voice ("note karo ki…", "mere notes padho", "notes mita do"), "mere alarm dikhao", weather / news / cricket score searches, "phir se bolo" repeats the last answer, caller's name said when the phone rings (Settings → Say who is calling)
+
+### Talks more like a person
+- First words greet by name (from the profile), by time of day and about the app that is open: "Namaste Rahul ji! WhatsApp khula hai, bataiye kya karna hai?".
+- "usko call karo", "call him", "uska number kya hai" use the person talked about just before; with no one yet it asks "Kisko? Naam bataiye."
+- On screens without a form the AI sees the last turns of the conversation (masked), so follow-ups and small talk continue naturally.
+- Barge-in (stop talking when the user speaks) is on by default.

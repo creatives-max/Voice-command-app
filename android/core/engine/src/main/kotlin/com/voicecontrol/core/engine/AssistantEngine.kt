@@ -251,6 +251,15 @@ class AssistantEngine(
         /** Assistant jobs done (apps opened, alarms, calls, goals): kept in the history as their own screen. */
         val assistantSteps = mutableListOf<StepRecord>()
 
+        /** The conversation so far ("assistant said" / "user said"), so "usko", "doosra wala" make sense to the AI. */
+        val turns = ArrayDeque<MemoryItem>()
+
+        fun noteTurn(who: String, text: String) {
+            if (text.isBlank()) return
+            turns.addLast(MemoryItem(who, null, TextMask.mask(text.take(MAX_TURN_CHARS))))
+            while (turns.size > MAX_TURNS) turns.removeFirst()
+        }
+
         fun noteAssistant(what: String) {
             assistantSteps += StepRecord("assistant:${assistantSteps.size}", what.take(80), ElementKind.BUTTON, outcome = StepOutcome.CLICKED)
         }
@@ -734,7 +743,7 @@ class AssistantEngine(
      */
     private suspend fun commandMode(session: Session, snapshot: ScreenSnapshot, log: ScreenLog): ScreenOutcome {
         val phrases = session.phrases
-        var prompt = if (session.greeted) phrases.whatNext() else phrases.howCanIHelp()
+        var prompt = if (session.greeted) phrases.whatNext() else greeting(session, snapshot)
         session.greeted = true
         repeat(MAX_COMMAND_TURNS) { turn ->
             val heard = session.firstRequest?.also {
@@ -742,6 +751,7 @@ class AssistantEngine(
                 emit(EngineEvent.STATUS, "Request with the wake phrase")
                 _state.update { s -> s.copy(heard = it) }
             } ?: askAndListen(session, prompt) ?: return@repeat
+            session.noteTurn(USER_SAID, heard)
             shortcutFlow(session, snapshot, heard)?.let { flow ->
                 session.switchTo = flow
                 return ScreenOutcome.SWITCHED
@@ -1803,6 +1813,7 @@ class AssistantEngine(
 
     /** Speaks [text] but stops as soon as the user starts talking (barge-in). */
     private suspend fun sayInterruptible(session: Session, text: String, detector: SpeechDetector) {
+        session.noteTurn(ASSISTANT_SAID, text)
         setStatus(EngineStatus.SPEAKING, caption = text)
         coroutineScope {
             val speaking = async { tts.speak(text, session.cfg.language.voiceTag, session.rate) }
@@ -1861,8 +1872,10 @@ class AssistantEngine(
         question: String?,
     ): Interpretation {
         setStatus(EngineStatus.THINKING)
+        // On a screen without a form the AI also sees the conversation, for "usko", "wahi wala", "aur ek baar".
+        val context = if (fieldId == null) session.memory + session.turns.toList().dropLast(1) else session.memory.toList()
         val request = InterpretRequest(
-            snapshot.redacted(), fieldId, utterance, session.cfg.language, question, session.cfg.transliterate, session.memory.toList(),
+            snapshot.redacted(), fieldId, utterance, session.cfg.language, question, session.cfg.transliterate, context,
         )
         return localCommands.commandOf(request)
             ?: runCatching { interpreter.interpret(request) }.getOrElse { localCommands.interpret(request) }
@@ -1970,7 +1983,17 @@ class AssistantEngine(
         return result.isSuccess
     }
 
+    /** "Namaste Rahul ji! WhatsApp khula hai, bataiye kya karna hai?": by name, time of day and the open app. */
+    private suspend fun greeting(session: Session, snapshot: ScreenSnapshot): String {
+        val name = session.profile?.fullName?.trim()?.substringBefore(' ')?.takeIf { it.length in 2..20 && it.all(Char::isLetter) }
+        val app = runCatching { appDirectory?.apps() }.getOrNull().orEmpty()
+            .firstOrNull { it.packageName == snapshot.packageName && !it.packageName.startsWith(OWN_PACKAGE) }?.label
+        val hour = java.time.Instant.ofEpochMilli(clock()).atZone(java.time.ZoneId.systemDefault()).hour
+        return session.phrases.greeting(name, app, hour)
+    }
+
     private suspend fun say(session: Session, text: String) {
+        session.noteTurn(ASSISTANT_SAID, text)
         setStatus(EngineStatus.SPEAKING, caption = text)
         tts.speak(text, session.cfg.language.voiceTag, session.rate)
     }
@@ -1998,6 +2021,11 @@ class AssistantEngine(
         /** Turns the assistant listens on one screen before giving up (silence ends it sooner). */
         const val MAX_COMMAND_TURNS = 12
         const val MAX_SUGGESTIONS = 4
+        private const val MAX_TURNS = 8
+        private const val MAX_TURN_CHARS = 200
+        const val USER_SAID = "user said"
+        const val ASSISTANT_SAID = "assistant said"
+        private const val OWN_PACKAGE = "com.voicecontrol"
         private const val MAX_SUGGESTION_CHARS = 30
         private const val MAX_WRITTEN_CHARS = 200
         /** How long the first question waits for AI-written ones (enough for a cached answer). */

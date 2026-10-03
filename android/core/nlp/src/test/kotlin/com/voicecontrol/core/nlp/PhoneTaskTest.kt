@@ -152,4 +152,13 @@ class PhoneTaskTest {
         assertEquals(PhoneTask.Search(SearchPlace.WEB, "latest news"), p("aaj ki khabar sunao"))
         assertEquals(PhoneTask.Search(SearchPlace.WEB, "cricket score"), p("cricket match ka score kya hai"))
     }
+
+    @Test
+    fun pronounsNameThePersonTalkedAbout() {
+        assertEquals(PhoneTask.Call("usko"), p("usko call karo"))
+        assertEquals(PhoneTask.Call("him"), p("call him"))
+        assertEquals(PhoneTask.Message("unko", null), p("unko message bhejo"))
+        assertEquals(PhoneTask.Call("उसको"), p("उसको फोन लगाओ"))
+        assertEquals(PhoneTask.ContactNumber("uska"), p("uska number kya hai"))
+    }
 }

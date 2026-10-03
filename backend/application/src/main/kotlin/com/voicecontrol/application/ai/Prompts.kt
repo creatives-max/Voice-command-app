@@ -14,7 +14,7 @@ import kotlinx.serialization.json.putJsonObject
 
 /** Prompts and JSON schemas shared by every LLM provider. */
 object Prompts {
-    private const val MAX_MEMORY = 12
+    private const val MAX_MEMORY = 20
 
     val INTERPRET_SYSTEM = """
         You are the language brain of VoiceControl, an Android assistant that fills forms in other apps by voice.
@@ -40,6 +40,9 @@ object Prompts {
           and native digits (৯, ૪, ௫, ౬…) become ASCII digits.
         - "memory" lists earlier answers in this session. Resolve references to them: "same as above", "same as
           permanent address", "his name", "that one", "wahi", "वही", "அதே", "అదే", "একই", "એ જ" → the referred value.
+          Items labelled "assistant said" / "user said" are the conversation so far, oldest first: use them to
+          understand follow-ups ("usko", "doosra wala", "aur ek", "that one") and to answer like the same person
+          continuing the conversation, without repeating yourself.
         - If transliterate is true and the field is a name/email/address, write Indic-script words in Latin letters.
         - Never fill, guess or output values for password, OTP or PIN fields; never target them.
         - Only use ids that exist on the screen.

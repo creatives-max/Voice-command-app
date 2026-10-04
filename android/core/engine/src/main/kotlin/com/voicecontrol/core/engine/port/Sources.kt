@@ -118,6 +118,20 @@ data class AgentDecision(
  * newest last, and never holds sensitive values. Null when unavailable (offline,
  * on-device only, signed out, or no planning model).
  */
+/** Why the helper couldn't plan a step, so the user hears the real reason (not always "sign in"). */
+enum class AgentProblem {
+    /** Not signed in, or the sign-in ran out. */
+    SIGNED_OUT,
+    /** On-device only mode is on. */
+    LOCAL_ONLY,
+    /** The server couldn't be reached at all (no internet, or the server is down). */
+    NO_CONNECTION,
+    /** The server is slow or waking up (the free plan sleeps); trying again usually works. */
+    SERVER_SLOW,
+    /** The server answered but couldn't plan (no AI configured, or an error). */
+    SERVER_ERROR,
+}
+
 fun interface GoalAgent {
     suspend fun next(
         goal: String,
@@ -125,6 +139,9 @@ fun interface GoalAgent {
         history: List<String>,
         language: com.voicecontrol.core.model.Language,
     ): AgentDecision?
+
+    /** Why the last [next] returned null, when known. */
+    fun problem(): AgentProblem? = null
 }
 
 /**

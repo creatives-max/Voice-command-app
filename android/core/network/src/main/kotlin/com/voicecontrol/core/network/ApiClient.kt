@@ -45,9 +45,10 @@ fun createHttpClient(engine: io.ktor.client.engine.HttpClientEngine, debug: Bool
     if (userAgent != null) install(UserAgent) { agent = userAgent }
     install(ContentNegotiation) { json(NetworkJson) }
     install(HttpTimeout) {
-        connectTimeoutMillis = 5_000
-        requestTimeoutMillis = 20_000
-        socketTimeoutMillis = 20_000
+        connectTimeoutMillis = 10_000
+        // The server gives the AI up to 24 s for a step; the phone waits a little longer than that.
+        requestTimeoutMillis = 35_000
+        socketTimeoutMillis = 35_000
     }
     if (debug) install(Logging) { level = LogLevel.INFO }
 }

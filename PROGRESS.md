@@ -290,3 +290,5 @@ phase notes say which earlier phase covered the rest.
 - Listening without a question plays a soft tone ("I'm listening") instead of silence.
 - Smart mode also looks at screens the phone can't read (web pages): a screenshot is used to find the buttons and fields.
 - New messages are read three at a time, then "2 aur hain. Sunaaun?".
+- "Sign in chahiye" was said for every failure. Now the real reason: not signed in, on-device mode, no connection, or the server isn't answering; a slow or sleeping server gets "Server jaag raha hai…" and up to three more tries. The phone waits 35 s per request (the server allows the AI 24 s). Smart mode says once why it isn't helping.
+- Server: an AI account out of credit is logged plainly ("add credit in the Anthropic console") and reported as source "billing".

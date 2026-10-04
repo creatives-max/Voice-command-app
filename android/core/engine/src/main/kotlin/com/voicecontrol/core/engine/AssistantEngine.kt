@@ -34,6 +34,7 @@ import com.voicecontrol.core.nlp.AppRequest
 import com.voicecontrol.core.nlp.GoalRequest
 import com.voicecontrol.core.nlp.PhoneTask
 import com.voicecontrol.core.engine.port.AgentAction
+import com.voicecontrol.core.engine.port.AgentProblem
 import com.voicecontrol.core.model.StepOutcome
 import com.voicecontrol.core.model.StepRecord
 import com.voicecontrol.core.model.UserProfile
@@ -246,6 +247,9 @@ class AssistantEngine(
         var currentSignature: String = ""
         /** Screens smart mode already filled in this session (not filled again when they come back). */
         val smartHandled = HashSet<String>()
+
+        /** The user was told once why smart mode isn't helping in this session. */
+        var toldSmartOff = false
 
         /** Smart mode could not reach the AI in this session: carry on the built-in way. */
         var smartOff = false
@@ -948,6 +952,7 @@ class AssistantEngine(
         }
         // A job asked for already got "Theek hai, main kar deta hoon": the steps can stay quiet.
         var narrated = !auto
+        var wakeRetries = 0
         repeat(MAX_AGENT_STEPS) {
             stepsSinceAgreed++
             val snap = readScreen(session) ?: return ScreenOutcome.NAVIGATED
@@ -970,15 +975,30 @@ class AssistantEngine(
                 if (filler != null && !saidMoment) filler.cancel() else filler?.join()
                 result
             }
+            val problem = if (d == null) runCatching { agent.problem() }.getOrNull() else null
+            // A sleeping or slow server: say so once and try again (it usually answers within a minute).
+            if (d == null && (problem == AgentProblem.SERVER_SLOW || problem == AgentProblem.NO_CONNECTION) && wakeRetries < MAX_WAKE_RETRIES) {
+                if (wakeRetries == 0) say(session, phrases.serverWaking())
+                wakeRetries++
+                emit(EngineEvent.STATUS, "Server slow or asleep: trying again ($wakeRetries)")
+                delay(WAKE_RETRY_DELAY_MS)
+                return@repeat
+            }
             if (d == null && fallback && history.isEmpty()) {
-                emit(EngineEvent.STATUS, "Smart mode unavailable; carrying on without it")
+                emit(EngineEvent.STATUS, "Smart mode unavailable (${problem ?: "unknown"}); carrying on without it")
+                // Tell once why smart mode isn't helping, unless it's simply switched off for this phone.
+                if (!session.toldSmartOff && problem != null && problem != AgentProblem.LOCAL_ONLY) {
+                    session.toldSmartOff = true
+                    say(session, phrases.smartModeUnavailable(problem))
+                }
                 session.smartOff = true
                 return ScreenOutcome.NAVIGATED
             }
             if (d == null) {
-                say(session, if (history.isEmpty()) phrases.needInternetForHelp() else phrases.goalFailed())
+                say(session, if (history.isEmpty()) phrases.helperUnavailable(problem) else phrases.goalFailed())
                 return ScreenOutcome.NAVIGATED
             }
+            wakeRetries = 0
             d.plan?.takeIf { it.isNotBlank() }?.let { plan = it }
             // The same step on the same screen again and again: the plan is stuck, so ask the user.
             val key = "${snap.signature}|${d.action}|${d.targetId}|${d.appName}"
@@ -2370,6 +2390,9 @@ class AssistantEngine(
         const val MAX_AGENT_TEXTS = 80
         const val MAX_AGENT_TEXT_CHARS = 200
         const val MAX_AGENT_REPEATS = 2
+        /** Tries when the server is asleep or slow (each try waits up to the network timeout). */
+        const val MAX_WAKE_RETRIES = 3
+        const val WAKE_RETRY_DELAY_MS = 5_000L
         /** Steps after the user agreed to a payment or send in which its PIN "Submit" isn't asked again. */
         const val AGREED_FOLLOW_UP_STEPS = 3
         const val AGENT_WAIT_MS = 1_500L

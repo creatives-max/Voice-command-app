@@ -159,6 +159,11 @@ class AiService(
         } catch (e: UnsupportedOperationException) {
             return AgentStep(AgentActionKind.GIVE_UP, source = provider.name)
         } catch (e: Exception) {
+            // Out of AI credit: say so plainly in the logs, the phone tells the user the server can't help now.
+            if (e.message.orEmpty().contains("credit balance", ignoreCase = true)) {
+                log.error("AI account is out of credit: add credit in the Anthropic console (Plans & Billing)")
+                return AgentStep(AgentActionKind.GIVE_UP, source = "billing")
+            }
             log.warn("LLM provider {} failed planning a step: {}", provider.name, e.message)
             return AgentStep(AgentActionKind.GIVE_UP, source = "error")
         }

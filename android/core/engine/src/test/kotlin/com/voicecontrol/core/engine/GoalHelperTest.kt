@@ -425,4 +425,33 @@ class GoalHelperTest {
         advanceUntilIdle()
         assertTrue(seen.first().any { it == "Tips for this app from earlier jobs: To I want to recharge my phone: Recharge" }, seen.first().toString())
     }
+
+    @Test
+    fun `a sleeping server is waited for with one message, and signing out is named as the reason`() = runTest {
+        var calls = 0
+        val waking = object : GoalAgent {
+            var slow = true
+            override suspend fun next(goal: String, screen: ScreenSnapshot, history: List<String>, language: com.voicecontrol.core.model.Language): AgentDecision? {
+                calls++
+                if (calls <= 2) return null
+                slow = false
+                return if (screen.signature == "done") AgentDecision(AgentAction.DONE, say = "Ho gaya.") else AgentDecision(AgentAction.CLICK, "vid:recharge")
+            }
+            override fun problem() = if (slow) com.voicecontrol.core.engine.port.AgentProblem.SERVER_SLOW else null
+        }
+        val tts = RecordingTts()
+        engine(FakeScreen(ppHome).apply { onClick["vid:recharge"] = done }, ScriptedStt("I want to recharge my phone", "nahi", "stop"), tts, waking).start()
+        advanceUntilIdle()
+        assertEquals(1, tts.spoken.count { it == "The server is waking up. Give me a moment…" }, tts.spoken.toString())
+        assertTrue("Ho gaya." in tts.spoken, tts.spoken.toString())
+
+        val signedOut = object : GoalAgent {
+            override suspend fun next(goal: String, screen: ScreenSnapshot, history: List<String>, language: com.voicecontrol.core.model.Language): AgentDecision? = null
+            override fun problem() = com.voicecontrol.core.engine.port.AgentProblem.SIGNED_OUT
+        }
+        val tts2 = RecordingTts()
+        engine(FakeScreen(ppHome), ScriptedStt("I want to recharge my phone", "stop"), tts2, signedOut).start()
+        advanceUntilIdle()
+        assertTrue(tts2.spoken.any { it.startsWith("For this, please sign in to VoiceControl.") }, tts2.spoken.toString())
+    }
 }

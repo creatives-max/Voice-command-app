@@ -1109,6 +1109,86 @@ class Phrases(private val language: Language) {
         )
     }
 
+    fun serverWaking() = t(
+        "The server is waking up. Give me a moment…",
+        "सर्वर जाग रहा है। थोड़ा रुकिए…",
+        "Server jaag raha hai. Thoda rukiye…",
+        "सर्व्हर सुरू होत आहे. थोडे थांबा…",
+        "சர்வர் தொடங்குகிறது. கொஞ்சம் காத்திருங்கள்…",
+        "సర్వర్ మొదలవుతోంది. కొంచెం ఆగండి…",
+        "সার্ভার চালু হচ্ছে। একটু অপেক্ষা করুন…",
+        "સર્વર ચાલુ થઈ રહ્યું છે. થોડું રોકાઓ…",
+    )
+
+    /** Why "do it for me" can't help right now, in the user's words; unknown falls back to [needInternetForHelp]. */
+    fun helperUnavailable(problem: com.voicecontrol.core.engine.port.AgentProblem?): String = when (problem) {
+        com.voicecontrol.core.engine.port.AgentProblem.SIGNED_OUT -> t(
+            "For this, please sign in to VoiceControl. Meanwhile, tell me which button to press.",
+            "इसके लिए वॉइसकंट्रोल में साइन इन करना होगा। तब तक बताइए कौन सा बटन दबाऊं।",
+            "Iske liye VoiceControl mein sign in karna hoga. Tab tak bataiye kaunsa button dabaun.",
+            "यासाठी व्हॉइसकंट्रोलमध्ये साइन इन करावे लागेल. तोपर्यंत कोणते बटण दाबू ते सांगा.",
+            "இதற்கு வாய்ஸ்கண்ட்ரோலில் உள்நுழைய வேண்டும். அதுவரை எந்த பட்டனை அழுத்த வேண்டும் என்று சொல்லுங்கள்.",
+            "దీనికి వాయిస్‌కంట్రోల్‌లో సైన్ ఇన్ చేయాలి. అప్పటివరకు ఏ బటన్ నొక్కాలో చెప్పండి.",
+            "এর জন্য ভয়েসকন্ট্রোলে সাইন ইন করতে হবে। ততক্ষণ বলুন কোন বোতাম টিপব।",
+            "આ માટે વોઇસકંટ્રોલમાં સાઇન ઇન કરવું પડશે. ત્યાં સુધી કયું બટન દબાવું તે કહો.",
+        )
+        com.voicecontrol.core.engine.port.AgentProblem.LOCAL_ONLY -> t(
+            "On-device only mode is on, so I can't do this by myself. Tell me which button to press.",
+            "ऑन-डिवाइस मोड चालू है, इसलिए ये मैं खुद नहीं कर सकता। बताइए कौन सा बटन दबाऊं।",
+            "On-device mode on hai, isliye ye main khud nahi kar sakta. Bataiye kaunsa button dabaun.",
+            "ऑन-डिव्हाइस मोड चालू आहे, म्हणून हे मी स्वतः करू शकत नाही. कोणते बटण दाबू ते सांगा.",
+            "ஆன்-டிவைஸ் பயன்முறை இயக்கத்தில் உள்ளது, அதனால் இதை நானே செய்ய முடியாது. எந்த பட்டனை அழுத்த வேண்டும் என்று சொல்லுங்கள்.",
+            "ఆన్-డివైస్ మోడ్ ఆన్‌లో ఉంది, కాబట్టి ఇది నేనే చేయలేను. ఏ బటన్ నొక్కాలో చెప్పండి.",
+            "অন-ডিভাইস মোড চালু আছে, তাই এটা আমি নিজে করতে পারব না। বলুন কোন বোতাম টিপব।",
+            "ઓન-ડિવાઇસ મોડ ચાલુ છે, એટલે આ હું જાતે નહીં કરી શકું. કયું બટન દબાવું તે કહો.",
+        )
+        com.voicecontrol.core.engine.port.AgentProblem.NO_CONNECTION -> t(
+            "I can't reach the internet or the server right now. Meanwhile, tell me which button to press.",
+            "अभी इंटरनेट या सर्वर से जुड़ नहीं पा रहा। तब तक बताइए कौन सा बटन दबाऊं।",
+            "Abhi internet ya server se jud nahi pa raha. Tab tak bataiye kaunsa button dabaun.",
+            "आत्ता इंटरनेट किंवा सर्व्हरशी जोडता येत नाही. तोपर्यंत कोणते बटण दाबू ते सांगा.",
+            "இப்போது இணையம் அல்லது சர்வருடன் இணைக்க முடியவில்லை. அதுவரை எந்த பட்டனை அழுத்த வேண்டும் என்று சொல்லுங்கள்.",
+            "ఇప్పుడు ఇంటర్నెట్ లేదా సర్వర్‌కి కనెక్ట్ కాలేకపోతున్నాను. అప్పటివరకు ఏ బటన్ నొక్కాలో చెప్పండి.",
+            "এখন ইন্টারনেট বা সার্ভারে যুক্ত হতে পারছি না। ততক্ষণ বলুন কোন বোতাম টিপব।",
+            "અત્યારે ઇન્ટરનેટ કે સર્વર સાથે જોડાઈ શકતો નથી. ત્યાં સુધી કયું બટન દબાવું તે કહો.",
+        )
+        com.voicecontrol.core.engine.port.AgentProblem.SERVER_SLOW, com.voicecontrol.core.engine.port.AgentProblem.SERVER_ERROR -> t(
+            "The server isn't answering right now; let's try again in a little while. Meanwhile, tell me which button to press.",
+            "सर्वर अभी जवाब नहीं दे रहा; थोड़ी देर बाद फिर कोशिश करेंगे। तब तक बताइए कौन सा बटन दबाऊं।",
+            "Server abhi jawab nahi de raha; thodi der baad phir koshish karenge. Tab tak bataiye kaunsa button dabaun.",
+            "सर्व्हर आत्ता उत्तर देत नाही; थोड्या वेळाने पुन्हा प्रयत्न करू. तोपर्यंत कोणते बटण दाबू ते सांगा.",
+            "சர்வர் இப்போது பதிலளிக்கவில்லை; சிறிது நேரம் கழித்து மீண்டும் முயற்சிப்போம். அதுவரை எந்த பட்டனை அழுத்த வேண்டும் என்று சொல்லுங்கள்.",
+            "సర్వర్ ఇప్పుడు స్పందించడం లేదు; కొంతసేపటి తర్వాత మళ్ళీ ప్రయత్నిద్దాం. అప్పటివరకు ఏ బటన్ నొక్కాలో చెప్పండి.",
+            "সার্ভার এখন উত্তর দিচ্ছে না; একটু পরে আবার চেষ্টা করব। ততক্ষণ বলুন কোন বোতাম টিপব।",
+            "સર્વર અત્યારે જવાબ નથી આપતું; થોડી વાર પછી ફરી પ્રયત્ન કરીશું. ત્યાં સુધી કયું બટન દબાવું તે કહો.",
+        )
+        null -> needInternetForHelp()
+    }
+
+    /** Smart mode can't reach the AI: said once, then the built-in way carries on. */
+    fun smartModeUnavailable(problem: com.voicecontrol.core.engine.port.AgentProblem): String = when (problem) {
+        com.voicecontrol.core.engine.port.AgentProblem.SIGNED_OUT -> t(
+            "Smart mode needs you to sign in to VoiceControl. I'll carry on the simple way.",
+            "स्मार्ट मोड के लिए वॉइसकंट्रोल में साइन इन करना होगा। अभी मैं सीधे तरीके से चलाता हूँ।",
+            "Smart mode ke liye VoiceControl mein sign in karna hoga. Abhi main seedhe tareeke se chalata hoon.",
+            "स्मार्ट मोडसाठी साइन इन करावे लागेल. आत्ता मी साध्या पद्धतीने चालवतो.",
+            "ஸ்மார்ட் பயன்முறைக்கு உள்நுழைய வேண்டும். இப்போது எளிய முறையில் தொடர்கிறேன்.",
+            "స్మార్ట్ మోడ్‌కి సైన్ ఇన్ కావాలి. ఇప్పుడు సాధారణ పద్ధతిలో కొనసాగిస్తాను.",
+            "স্মার্ট মোডের জন্য সাইন ইন করতে হবে। এখন সাধারণভাবে চালাচ্ছি।",
+            "સ્માર્ટ મોડ માટે સાઇન ઇન કરવું પડશે. હમણાં સાદી રીતે ચલાવું છું.",
+        )
+        else -> t(
+            "The server isn't answering, so I'll carry on the simple way for now.",
+            "सर्वर जवाब नहीं दे रहा, इसलिए अभी सीधे तरीके से चलाता हूँ।",
+            "Server jawab nahi de raha, isliye abhi seedhe tareeke se chalata hoon.",
+            "सर्व्हर उत्तर देत नाही, म्हणून आत्ता साध्या पद्धतीने चालवतो.",
+            "சர்வர் பதிலளிக்கவில்லை, அதனால் இப்போது எளிய முறையில் தொடர்கிறேன்.",
+            "సర్వర్ స్పందించడం లేదు, కాబట్టి ఇప్పుడు సాధారణ పద్ధతిలో కొనసాగిస్తాను.",
+            "সার্ভার উত্তর দিচ্ছে না, তাই এখন সাধারণভাবে চালাচ্ছি।",
+            "સર્વર જવાબ નથી આપતું, એટલે હમણાં સાદી રીતે ચલાવું છું.",
+        )
+    }
+
     fun needInternetForHelp() = t(
         "To do this for you I need the internet and to be signed in. Meanwhile, tell me which button to press.",
         "ये आपके लिए करने के लिए इंटरनेट और साइन इन चाहिए। तब तक बताइए कौन सा बटन दबाऊं।",

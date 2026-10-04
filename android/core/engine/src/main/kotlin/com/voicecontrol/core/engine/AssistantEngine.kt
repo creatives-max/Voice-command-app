@@ -229,6 +229,8 @@ class AssistantEngine(
         var appPackage: String = ""
         var status = RunStatus.COMPLETED
         var silentFailures = 0
+        /** Requests in a row that weren't understood (re-asked in other words, then with examples). */
+        var misses = 0
         /** Flow variables: answers, READ results, SET_VARIABLE values. Never sensitive values. */
         val vars = LinkedHashMap<String, String>()
         /** Values already on the current screen, by label slug (lowest precedence). */
@@ -792,6 +794,9 @@ class AssistantEngine(
                 return@repeat
             }
             session.noteTurn(USER_SAID, heard)
+            // Misunderstandings count only in a row: anything understood starts again from zero.
+            val missed = session.misses
+            session.misses = 0
             shortcutFlow(session, snapshot, heard)?.let { flow ->
                 session.switchTo = flow
                 return ScreenOutcome.SWITCHED
@@ -893,7 +898,7 @@ class AssistantEngine(
                         return runGoal(session, heard, log)
                     }
                     prompt = interp.reply?.takeIf { it.isNotBlank() }
-                        ?: (phrases.didNotCatch() + " " + suggestHere(session, snapshot))
+                        ?: notUnderstood(session, snapshot, missed)
                 }
             }
         }
@@ -1222,6 +1227,19 @@ class AssistantEngine(
                 NOT_FORM_FIELD_WORDS.none { it in (e.label + " " + e.hint.orEmpty()).lowercase() }
         }
         return fields.size >= 2 || (fields.size == 1 && ButtonMatcher.primarySubmit(snapshot.elements) != null)
+    }
+
+    /**
+     * Gentler each time something isn't understood: first "say it another way", then what this screen
+     * offers, then examples of what can be said.
+     */
+    private suspend fun notUnderstood(session: Session, snapshot: ScreenSnapshot, before: Int): String {
+        session.misses = before + 1
+        return when (session.misses) {
+            1 -> session.phrases.sayItAnotherWay()
+            2 -> session.phrases.didNotCatch() + " " + suggestHere(session, snapshot)
+            else -> session.phrases.examplesToSay()
+        }
     }
 
     /** What the user can say here: the screen's buttons, else the apps they open most. */
@@ -1983,6 +2001,15 @@ class AssistantEngine(
             session.lastConfidence = null
             _state.update { it.copy(heard = command) }
             return command
+        }
+        // "Rahul ko …": half a sentence. Listen once more (without asking again) and join the two parts.
+        val firstPart = (result as? ListenResult.Heard)?.text
+        if (early == null && firstPart != null && com.voicecontrol.core.nlp.Unfinished.looksUnfinished(firstPart)) {
+            emit(EngineEvent.STATUS, "Sentence sounds unfinished: listening a little longer")
+            _state.update { it.copy(heard = "$firstPart …") }
+            val rest = listenOnce()
+            if (rest is ListenResult.Heard && rest.text.isNotBlank()) result = ListenResult.Heard("$firstPart ${rest.text}", emptyList(), rest.confidence)
+            _state.update { it.copy(micLevel = 0f) }
         }
         return when (result) {
             is ListenResult.Heard -> {

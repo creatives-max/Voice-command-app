@@ -255,4 +255,18 @@ class PersonalAssistantTest {
         assertTrue("WhatsApp band kar diya." in tts.spoken, tts.spoken.toString())
         assertEquals("home", screen.snapshot?.signature)
     }
+
+    @Test
+    fun `half a sentence is waited for, and misunderstandings get gentler help each time`() = runTest {
+        val screen = FakeScreen(home)
+        val phone = Phone(screen, chat)
+        val tts = RecordingTts()
+        engine(screen, ScriptedStt("Rahul ko", "call karo", "blah blah", "blah blah", "blah blah", "stop"), tts, phone, language = Language.ENGLISH).start()
+        advanceUntilIdle()
+        assertEquals(listOf("call 9876543210"), phone.done)
+        val i1 = tts.spoken.indexOf("Sorry, I didn't get that. Could you say it another way?")
+        val i3 = tts.spoken.indexOfFirst { it.startsWith("You can say things like") }
+        assertTrue(i1 >= 0 && i3 > i1, tts.spoken.toString())
+        assertTrue(tts.spoken.subList(i1, i3).any { it.startsWith("Sorry, I didn't catch that.") }, tts.spoken.toString())
+    }
 }

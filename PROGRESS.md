@@ -282,3 +282,5 @@ phase notes say which earlier phase covered the rest.
 - Button names said in Hindi script match English buttons by sound ("रिचार्ज" → Recharge, "प्रोफाइल" → Profile, "कॉल्स" → Calls) and the other way; only across scripts, so "back" never presses "Bike".
 - Fraud: a payment, send or delete asked while a call is going on starts with a scam warning ("Dhyaan dijiye: abhi call chal raha hai…") and still needs a yes; remote-control apps (AnyDesk, TeamViewer, RustDesk, AirDroid…) aren't opened by voice or by the helper.
 - Settings → "Speak on media volume": VoiceControl's voice follows the normal volume buttons instead of the separate (often low) Accessibility volume.
+- Patient listening: a sentence ending on a joining word ("Rahul ko …", "doodh aur …") is waited for once more and joined with the rest.
+- Not understood: first "Thoda doosre tareeke se boliye?", then what this screen offers, then examples of what to say; counted only in a row.

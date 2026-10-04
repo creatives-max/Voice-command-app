@@ -131,6 +131,14 @@ fun interface GoalAgent {
  * Remembers how a goal was done ("mujhe bijli ka bill bharna hai"): saves the steps as a flow on the phone
  * with the goal as its voice shortcut, so next time it runs straight away. False when it couldn't be saved.
  */
+/**
+ * Wakes the server ahead of the first question (a sleeping free-plan server takes about a minute), so it
+ * is awake by the time the AI is needed. Cheap and fire-and-forget; does nothing on-device only.
+ */
+fun interface BackendWarmup {
+    fun warm()
+}
+
 fun interface GoalMemory {
     suspend fun learn(goal: String, flow: com.voicecontrol.core.model.FlowDefinition): Boolean
 

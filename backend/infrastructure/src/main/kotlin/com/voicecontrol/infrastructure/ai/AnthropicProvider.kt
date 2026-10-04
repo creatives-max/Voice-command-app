@@ -4,6 +4,7 @@ import com.anthropic.client.AnthropicClient
 import com.anthropic.client.okhttp.AnthropicOkHttpClient
 import com.anthropic.core.JsonValue
 import com.anthropic.models.messages.Base64ImageSource
+import com.anthropic.models.messages.CacheControlEphemeral
 import com.anthropic.models.messages.ContentBlockParam
 import com.anthropic.models.messages.ImageBlockParam
 import com.anthropic.models.messages.JsonOutputFormat
@@ -41,7 +42,7 @@ class AnthropicProvider(
 
     override suspend fun interpret(command: InterpretCommand): Interpretation = withContext(Dispatchers.IO) {
         val params = base(Prompts.INTERPRET_SCHEMA, OutputConfig.Effort.LOW, maxTokens = 4_096)
-            .system(Prompts.INTERPRET_SYSTEM)
+            .systemOfTextBlockParams(listOf(cachedSystem(Prompts.INTERPRET_SYSTEM)))
             .addUserMessage(Prompts.interpretUserMessage(command))
             .build()
         ModelOutput.interpretation(textOf(client.messages().create(params)), name)
@@ -49,7 +50,7 @@ class AnthropicProvider(
 
     override suspend fun writeQuestions(command: QuestionsCommand): List<FieldQuestion> = withContext(Dispatchers.IO) {
         val params = base(Prompts.QUESTIONS_SCHEMA, OutputConfig.Effort.LOW, maxTokens = 8_000)
-            .system(Prompts.QUESTIONS_SYSTEM)
+            .systemOfTextBlockParams(listOf(cachedSystem(Prompts.QUESTIONS_SYSTEM)))
             .addUserMessage(Prompts.questionsUserMessage(command))
             .build()
         ModelOutput.questions(textOf(client.messages().create(params)))
@@ -57,7 +58,7 @@ class AnthropicProvider(
 
     override suspend fun nextAgentStep(command: com.voicecontrol.domain.ai.AgentStepCommand): com.voicecontrol.domain.ai.AgentStep = withContext(Dispatchers.IO) {
         val params = base(Prompts.AGENT_SCHEMA, OutputConfig.Effort.LOW, maxTokens = 4_096)
-            .system(Prompts.AGENT_SYSTEM)
+            .systemOfTextBlockParams(listOf(cachedSystem(Prompts.AGENT_SYSTEM)))
             .addUserMessage(Prompts.agentUserMessage(command))
             .build()
         ModelOutput.agentStep(textOf(client.messages().create(params)), name)
@@ -83,6 +84,13 @@ class AnthropicProvider(
             .build()
         ModelOutput.vision(textOf(client.messages().create(params)), name)
     }
+
+    /**
+     * The system prompt marked for prompt caching: it is the same on every call, so after the first call
+     * in five minutes it is read from the cache, which is faster and costs a tenth of fresh input.
+     */
+    private fun cachedSystem(text: String): TextBlockParam =
+        TextBlockParam.builder().text(text).cacheControl(CacheControlEphemeral.builder().build()).build()
 
     private fun base(schema: JsonObject, effort: OutputConfig.Effort, maxTokens: Long): MessageCreateParams.Builder {
         val schemaBuilder = JsonOutputFormat.Schema.builder()

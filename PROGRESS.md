@@ -285,3 +285,5 @@ phase notes say which earlier phase covered the rest.
 - Patient listening: a sentence ending on a joining word ("Rahul ko …", "doodh aur …") is waited for once more and joined with the rest.
 - Not understood: first "Thoda doosre tareeke se boliye?", then what this screen offers, then examples of what to say; counted only in a row.
 - Per-app notes: after a job, a short note of what was pressed or filled (names only, never values) is kept for that app on the phone (last 5); the helper gets them as "Tips for this app from earlier jobs".
+- Faster/cheaper AI: the system prompts are marked for prompt caching (read from cache after the first call within five minutes). Checked live: all scenarios pass; steps ~2.8 s after the first.
+- Server warm-up: starting a voice session pings the server's health check (at most every 4 minutes, not in on-device only mode), so a sleeping free-plan server wakes during the greeting.

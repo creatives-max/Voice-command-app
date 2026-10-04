@@ -53,6 +53,7 @@ fun interface MicPermission {
 class AssistantController @Inject constructor(
     private val screen: ScreenGateway,
     private val engine: AssistantEngine,
+    private val warmup: com.voicecontrol.core.engine.port.BackendWarmup = com.voicecontrol.core.engine.port.BackendWarmup { },
     private val micPermission: MicPermission,
 ) : OverlayActions, FlowLauncher {
 
@@ -92,13 +93,18 @@ class AssistantController @Inject constructor(
             return
         }
         local.update { it.copy(panelOpen = false, flashCaption = null, flashMode = null) }
+        // Wake the server while the greeting is spoken, so the AI answers without the free plan's wait.
+        warmup.warm()
         engine.start()
     }
 
     /** Starts a session without a tap (auto-start when an app with a saved flow opens). */
     /** Starts a session; [request] is what the user already asked for with the wake phrase. */
     fun startSession(request: String? = null) {
-        if (!engine.isActive && micPermission.granted()) engine.start(request = request)
+        if (!engine.isActive && micPermission.granted()) {
+            warmup.warm()
+            engine.start(request = request)
+        }
     }
 
     /** Runs [flow] now (opening its app first). */

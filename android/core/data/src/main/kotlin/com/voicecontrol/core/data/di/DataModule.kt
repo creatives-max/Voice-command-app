@@ -44,6 +44,7 @@ abstract class DataModule {
     @Binds abstract fun interpreter(impl: CompositeInterpreter): Interpreter
     @Binds abstract fun backendSession(impl: BackendSessionImpl): BackendSession
     @Binds abstract fun visionDetector(impl: RemoteVisionDetector): VisionDetector
+    @Binds abstract fun backendWarmup(impl: com.voicecontrol.core.data.ai.BackendWarmer): com.voicecontrol.core.engine.port.BackendWarmup
     @Binds abstract fun goalMemory(impl: com.voicecontrol.core.data.shortcuts.LearnedGoals): com.voicecontrol.core.engine.port.GoalMemory
     @Binds abstract fun goalAgent(impl: com.voicecontrol.core.data.ai.RemoteGoalAgent): com.voicecontrol.core.engine.port.GoalAgent
     @Binds abstract fun questionWriter(impl: com.voicecontrol.core.data.ai.RemoteQuestionWriter): com.voicecontrol.core.engine.port.QuestionWriter

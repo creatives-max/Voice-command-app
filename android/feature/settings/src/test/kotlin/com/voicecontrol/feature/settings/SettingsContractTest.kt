@@ -18,6 +18,16 @@ class SettingsContractTest {
     }
 
     @Test
+    fun `smart mode and on-device only exclude each other`() {
+        val smart = AppSettings().with(Option.SMART_MODE, true)
+        assertTrue(smart.toSessionConfig().smartMode)
+        val local = smart.with(Option.LOCAL_ONLY, true)
+        assertFalse(local.smartMode)
+        assertFalse(local.toSessionConfig().smartMode)
+        assertFalse(local.with(Option.SMART_MODE, true).localOnly)
+    }
+
+    @Test
     fun `every option round trips`() {
         Option.entries.forEach { option ->
             assertEquals(true, AppSettings().with(option, true).isOn(option), option.name)

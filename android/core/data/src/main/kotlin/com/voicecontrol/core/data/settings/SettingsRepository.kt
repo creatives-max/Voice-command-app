@@ -45,6 +45,7 @@ class SettingsRepository @Inject constructor(
         val templates = stringPreferencesKey("starter_templates")
         val useTemplates = booleanPreferencesKey("use_templates")
         val bargeIn = booleanPreferencesKey("barge_in")
+        val smartMode = booleanPreferencesKey("smart_mode")
         val offlineSpeech = booleanPreferencesKey("offline_speech")
         val rememberAnswers = booleanPreferencesKey("remember_answers")
         val rememberedAnswers = stringPreferencesKey("remembered_answers")
@@ -144,6 +145,7 @@ class SettingsRepository @Inject constructor(
             p[Keys.deviceName] = next.deviceName.trim().take(60)
             p[Keys.useTemplates] = next.useTemplates
             p[Keys.bargeIn] = next.bargeIn
+            p[Keys.smartMode] = next.smartMode
             p[Keys.offlineSpeech] = next.offlineSpeech
             p[Keys.rememberAnswers] = next.rememberAnswers
             p[Keys.confirmLowConfidence] = next.confirmLowConfidence
@@ -179,6 +181,7 @@ class SettingsRepository @Inject constructor(
             deviceName = p[Keys.deviceName] ?: d.deviceName,
             useTemplates = p[Keys.useTemplates] ?: d.useTemplates,
             bargeIn = p[Keys.bargeIn] ?: d.bargeIn,
+            smartMode = p[Keys.smartMode] ?: d.smartMode,
             offlineSpeech = p[Keys.offlineSpeech] ?: d.offlineSpeech,
             rememberAnswers = p[Keys.rememberAnswers] ?: d.rememberAnswers,
             confirmLowConfidence = p[Keys.confirmLowConfidence] ?: d.confirmLowConfidence,

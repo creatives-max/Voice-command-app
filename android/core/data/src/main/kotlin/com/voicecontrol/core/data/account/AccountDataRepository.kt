@@ -106,6 +106,7 @@ class AccountDataRepository @Inject constructor(
         put("localOnly", s.localOnly)
         put("saveHistory", s.saveHistory)
         put("visionFallback", s.visionFallback)
+        put("smartMode", s.smartMode)
         put("remoteRuns", s.remoteRuns)
         put("deviceName", JsonPrimitive(s.deviceName))
         put("wakeWordEnabled", s.wakeWordEnabled)

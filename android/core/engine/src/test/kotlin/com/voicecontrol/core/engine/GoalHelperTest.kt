@@ -59,9 +59,9 @@ class GoalHelperTest {
 
     private val learned = mutableListOf<Pair<String, com.voicecontrol.core.model.FlowDefinition>>()
 
-    private fun TestScope.engine(screen: FakeScreen, stt: ScriptedStt, tts: RecordingTts, agent: GoalAgent?) = AssistantEngine(
+    private fun TestScope.engine(screen: FakeScreen, stt: ScriptedStt, tts: RecordingTts, agent: GoalAgent?, smart: Boolean = false) = AssistantEngine(
         screen = screen, stt = stt, tts = tts, interpreter = LocalInterpreter(), flows = { null }, profiles = { null },
-        recorder = { }, config = { SessionConfig(confirmValues = false) }, scope = this, screenSettleMillis = 10,
+        recorder = { }, config = { SessionConfig(confirmValues = false, smartMode = smart) }, scope = this, screenSettleMillis = 10,
         appDirectory = apps, goalAgent = agent, goalMemory = { goal, flow -> learned += goal to flow; true },
     )
 
@@ -158,5 +158,60 @@ class GoalHelperTest {
         advanceUntilIdle()
         assertEquals(1, tts.spoken.count { it == "One moment…" }, tts.spoken.toString())
         assertTrue("Ho gaya." in tts.spoken)
+    }
+
+    @Test
+    fun `smart mode lets the AI fill a form, asking in its own words, without announcing or offering to remember`() = runTest {
+        val screen = FakeScreen(bill).apply { onClick["vid:fetch"] = done }
+        val tts = RecordingTts()
+        val asked = mutableListOf<String>()
+        val ai = GoalAgent { goal, s, _, _ ->
+            asked += goal
+            when {
+                s.signature == "done" -> AgentDecision(AgentAction.DONE, say = "Bill mil gaya.")
+                s.element("vid:consumer")?.value.isNullOrBlank() -> AgentDecision(AgentAction.ASK, "vid:consumer", question = "Bijli ke bill pe likha consumer number boliye.")
+                else -> AgentDecision(AgentAction.CLICK, "vid:fetch")
+            }
+        }
+        engine(screen, ScriptedStt("1234567", "stop"), tts, ai, smart = true).start()
+        advanceUntilIdle()
+        assertTrue("Bijli ke bill pe likha consumer number boliye." in tts.spoken, tts.spoken.toString())
+        assertTrue(ScreenAction.SetText("vid:consumer", "1234567") in screen.actions)
+        assertTrue(ScreenAction.Click("vid:fetch") in screen.actions)
+        assertTrue("Bill mil gaya." in tts.spoken)
+        assertEquals(AssistantEngine.SMART_FORM_GOAL, asked.first())
+        assertFalse(tts.spoken.any { it.startsWith("Sure, I'll do it") || it.startsWith("Shall I remember") }, tts.spoken.toString())
+        assertTrue(learned.isEmpty())
+    }
+
+    @Test
+    fun `smart mode without the server carries on the built-in way`() = runTest {
+        val screen = FakeScreen(bill)
+        val tts = RecordingTts()
+        engine(screen, ScriptedStt("1234567", "stop", "stop"), tts, GoalAgent { _, _, _, _ -> null }, smart = true).start()
+        advanceUntilIdle()
+        assertTrue(ScreenAction.SetText("vid:consumer", "1234567") in screen.actions, tts.spoken.toString())
+        assertFalse(tts.spoken.any { it.startsWith("To do this for you I need the internet") })
+    }
+
+    @Test
+    fun `smart mode sends any request to the AI but presses a named button itself`() = runTest {
+        val screen = FakeScreen(ppHome).apply { onClick["vid:electricity"] = done; onClick["vid:recharge"] = done }
+        val goals = mutableListOf<String>()
+        val ai = GoalAgent { goal, s, _, _ ->
+            goals += goal
+            if (s.signature == "done") AgentDecision(AgentAction.DONE, say = "Ho gaya.") else AgentDecision(AgentAction.CLICK, "vid:electricity")
+        }
+        engine(screen, ScriptedStt("light wala bill", "stop"), RecordingTts(), ai, smart = true).start()
+        advanceUntilIdle()
+        assertEquals("light wala bill", goals.first())
+        assertTrue(ScreenAction.Click("vid:electricity") in screen.actions)
+
+        val screen2 = FakeScreen(ppHome).apply { onClick["vid:recharge"] = done }
+        val goals2 = mutableListOf<String>()
+        engine(screen2, ScriptedStt("Recharge", "stop"), RecordingTts(), GoalAgent { g, _, _, _ -> goals2 += g; null }, smart = true).start()
+        advanceUntilIdle()
+        assertTrue(ScreenAction.Click("vid:recharge") in screen2.actions)
+        assertTrue(goals2.isEmpty())
     }
 }

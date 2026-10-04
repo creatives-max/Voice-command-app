@@ -15,6 +15,8 @@ data class AppSettings(
     val localOnly: Boolean = false,
     val saveHistory: Boolean = true,
     val showOverlay: Boolean = true,
+    /** Smart mode: the AI operates every screen without a saved flow (asks, fills, presses). */
+    val smartMode: Boolean = false,
     /** Allow sending a screenshot to the backend when an app exposes no readable fields. */
     val visionFallback: Boolean = false,
     /** Start the voice session automatically when an app with a saved flow opens. */
@@ -69,5 +71,6 @@ data class AppSettings(
         // On-device only mode never uses online recognition either.
         preferOffline = offlineSpeech || localOnly,
         rememberAnswers = rememberAnswers,
+        smartMode = smartMode && !localOnly,
     )
 }

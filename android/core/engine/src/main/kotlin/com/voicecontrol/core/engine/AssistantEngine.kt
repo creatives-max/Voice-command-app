@@ -242,6 +242,12 @@ class AssistantEngine(
         val hybrid = HashMap<String, HybridVision.Result>()
         /** Signature of the screen as last seen (loops can change it by adding rows). */
         var currentSignature: String = ""
+        /** Smart mode could not reach the AI in this session: carry on the built-in way. */
+        var smartOff = false
+
+        /** Smart mode is on and usable: the AI operates screens that have no saved flow. */
+        val smart get() = cfg.smartMode && !cfg.localOnly && !smartOff && goalAgent != null
+
         /** The assistant already said "What can I do for you?" in this session. */
         var greeted = false
         /** Asked for when the session started (with the wake phrase); answered before asking anything. */
@@ -723,6 +729,11 @@ class AssistantEngine(
         val phrases = session.phrases
         // Nothing to fill and no press taught by a flow, or the user already said what they want: talk instead.
         if ((plan.steps.isEmpty() && !plan.submitFromFlow) || session.firstRequest != null) return commandMode(session, snapshot, log)
+        // Smart mode: a form without a saved flow is filled by the AI, which asks the user in plain words.
+        if (session.smart && plan.flowId == null) {
+            val outcome = runGoal(session, SMART_FORM_GOAL, log, auto = true)
+            if (!session.smartOff) return outcome
+        }
         val questions = plan.steps.count { !it.skip && !it.virtual && it.action != StepAction.CLICK }
         if (announce && questions > 0) say(session, phrases.start(questions))
 
@@ -777,7 +788,13 @@ class AssistantEngine(
                 return@repeat
             }
             // "Mujhe bijli ka bill bharna hai": the helper operates the app and asks for what it needs.
-            if (goalAgent != null && GoalRequest.isGoal(heard)) return runGoal(session, heard, log)
+            // In smart mode every request that isn't a plain command ("stop", "back", "next") goes to it.
+            val smartRequest = session.smart && localCommands.commandOf(request(session, snapshot, heard)) == null &&
+                ButtonMatcher.find(heard, snapshot.elements, ButtonMatcher.STRICT) == null
+            if (goalAgent != null && (smartRequest || GoalRequest.isGoal(heard))) {
+                val outcome = runGoal(session, heard, log, auto = smartRequest && !GoalRequest.isGoal(heard))
+                if (!session.smartOff) return outcome
+            }
             // The answer is usually just a button's name: "Login", "लॉगिन", "OK", "Next". When the recognizer's
             // first guess names nothing, its other guesses may ("log in" heard as "lock in").
             (spokenButton(session, snapshot, heard) ?: session.alternatives.firstNotNullOfOrNull { alt ->
@@ -838,12 +855,17 @@ class AssistantEngine(
      * that pay, send or delete are confirmed first. Ends when the goal is reached, can't be done, the user
      * says stop, or after [MAX_AGENT_STEPS]; then the conversation carries on ("What next?").
      */
-    private suspend fun runGoal(session: Session, goal: String, log: ScreenLog): ScreenOutcome {
+    /**
+     * [auto]: started by smart mode rather than asked for as a job. It doesn't announce itself, isn't
+     * offered as a shortcut, and when the AI can't be reached it turns smart mode off for the session
+     * (silently) so the caller carries on the built-in way.
+     */
+    private suspend fun runGoal(session: Session, goal: String, log: ScreenLog, auto: Boolean = false): ScreenOutcome {
         val agent = goalAgent ?: return ScreenOutcome.NAVIGATED
         val phrases = session.phrases
-        emit(EngineEvent.STATUS, "Helping with a goal")
-        session.noteAssistant("Did it for me")
-        say(session, phrases.onIt())
+        emit(EngineEvent.STATUS, if (auto) "Smart mode" else "Helping with a goal")
+        session.noteAssistant(if (auto) "Smart mode" else "Did it for me")
+        if (!auto) say(session, phrases.onIt())
         val history = mutableListOf<String>()
         // What was done, screen by screen, to remember the way when the goal is reached.
         val learned = FlowRecorder()
@@ -870,6 +892,11 @@ class AssistantEngine(
                 val result = planned.await()
                 if (filler != null && !saidMoment) filler.cancel() else filler?.join()
                 result
+            }
+            if (d == null && auto && history.isEmpty()) {
+                emit(EngineEvent.STATUS, "Smart mode unavailable; carrying on without it")
+                session.smartOff = true
+                return ScreenOutcome.NAVIGATED
             }
             if (d == null) {
                 say(session, if (history.isEmpty()) phrases.needInternetForHelp() else phrases.goalFailed())
@@ -987,7 +1014,7 @@ class AssistantEngine(
                     if (d.say == null) say(session, phrases.goalDone())
                     emit(EngineEvent.STATUS, "Goal done")
                     screen.capture()?.let { learned.onEvent(RecordedEvent.Screen(it)) }
-                    offerToRemember(session, goal, learned.recording(), snap)
+                    if (!auto) offerToRemember(session, goal, learned.recording(), snap)
                     return ScreenOutcome.NAVIGATED
                 }
                 AgentAction.GIVE_UP -> {
@@ -2031,6 +2058,10 @@ class AssistantEngine(
         const val MAX_COMMAND_TURNS = 12
         const val MAX_SUGGESTIONS = 4
         private const val MAX_TURNS = 8
+        /** What smart mode asks the AI to do on a form screen without a saved flow. */
+        const val SMART_FORM_GOAL = "Help the user with the form on this screen: ask them, in a friendly way and one at a time, " +
+            "for each value it needs (skip what is already filled), fill it in, then submit once they agree. " +
+            "If it is not really a form, ask what they want to do here."
         private const val MAX_FAVOURITES = 3
         private const val MAX_TURN_CHARS = 200
         const val USER_SAID = "user said"

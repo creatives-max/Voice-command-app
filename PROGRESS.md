@@ -243,3 +243,10 @@ phase notes say which earlier phase covered the rest.
 - Barge-in (stop talking when the user speaks) is on by default.
 - Usual apps: apps opened by voice are counted on the phone; when there is nothing to press it offers them ("Aap aksar WhatsApp, YouTube kholte hain…").
 - "dobara call karo", "phir se phone lagao", "call again" call the last person again.
+
+### Smart mode (Claude)
+- Settings → "Smart mode (Claude)", off by default; can't be on together with On-device only.
+- When on, a form screen without a saved flow is handled by the AI: it reads the screen, asks the user in its own words one value at a time, fills them in and submits once the user agrees.
+- On other screens every request that isn't a plain command ("stop", "back", "next") or an exact button name goes to the AI, which decides what to press and what to ask.
+- Saved flows still run as taught. Pay/send/delete are still confirmed. Passwords, OTPs and PINs are still typed by the user.
+- If the AI can't be reached, smart mode switches itself off for that session and the built-in way carries on.

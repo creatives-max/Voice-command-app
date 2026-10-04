@@ -26,6 +26,11 @@ data class SessionConfig(
     val confirmDestructive: Boolean = true,
     /** Recognize speech on the phone when the language pack is installed (works without internet). */
     val preferOffline: Boolean = false,
+    /**
+     * Smart mode: the AI reads every screen without a saved flow, writes the questions, decides what to
+     * press and fills in the answers (needs the internet; risky presses are still confirmed).
+     */
+    val smartMode: Boolean = false,
     /** Remember answers on this phone and offer them next time (see [AnswerMemory]). */
     val rememberAnswers: Boolean = false,
 )

@@ -57,13 +57,27 @@ object ButtonMatcher {
     internal fun score(target: String, label: String): Double {
         if (label.isEmpty()) return 0.0
         if (target == label) return 1.0
-        // Whole words only: "ok" is not in "book".
-        if (" $label ".contains(" $target ") || " $target ".contains(" $label ")) return 0.85
+        // Whole words only: "ok" is not in "book". A button named inside a longer request counts only when
+        // the other words just say to press it ("Login button dabao"), not "Zepto pe Maggi order karo".
+        if (" $label ".contains(" $target ")) return 0.85
+        if (" $target ".contains(" $label ") && namesOnlyThisButton(target, label)) return 0.85
         val a = target.split(' ').toSet()
         val b = label.split(' ').toSet()
         val overlap = a.intersect(b).size.toDouble() / a.union(b).size
         val fuzzy = 1.0 - levenshtein(target, label).toDouble() / maxOf(target.length, label.length)
         return maxOf(overlap, fuzzy * 0.9)
+    }
+
+    private val pressWords = setOf(
+        "button", "dabao", "daba", "dabaiye", "do", "dijiye", "karo", "kar", "press", "click", "tap", "select", "choose", "pe", "par",
+        "wala", "wali", "the", "please", "plz", "on", "ko", "open", "kholo", "chalao", "chuno", "बटन", "batan", "ab", "jao", "go", "to",
+    )
+
+    private fun namesOnlyThisButton(target: String, label: String): Boolean {
+        val words = target.split(' ')
+        if (words.size <= 3) return true
+        val labelWords = label.split(' ').toSet()
+        return words.filter { it !in labelWords }.all { it in pressWords }
     }
 
     /** Written in an Indian script (Devanagari, Bengali, Gujarati, Tamil, Telugu…). */

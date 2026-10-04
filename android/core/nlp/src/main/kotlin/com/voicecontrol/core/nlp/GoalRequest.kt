@@ -12,6 +12,9 @@ object GoalRequest {
         "करना है", "करनी है", "भरना है", "भेजना है", "देखना है", "लेना है", "बनाना है", "चाहिए", "कैसे करें", "कैसे करे", "कैसे करूं", "करके दो",
         "i want to", "i need to", "i'd like to", "i would like to", "help me", "how do i", "how to", "how can i", "can you", "please book",
         "please pay", "for me",
+        // Orders and bookings: "Zepto pe Maggi order karo", "ticket book kar do", "doodh mangwao".
+        "order karo", "order kar do", "order kardo", "order karna", "book karo", "book kar do", "mangwao", "mangwa do", "kharido",
+        "ऑर्डर करो", "ऑर्डर कर दो", "बुक करो", "बुक कर दो", "मंगवाओ", "मंगवा दो", "खरीदो", "order karna hai",
     )
     private val joined = listOf(" aur ", " और ", " and then ", " and ", " phir ", " फिर ")
 

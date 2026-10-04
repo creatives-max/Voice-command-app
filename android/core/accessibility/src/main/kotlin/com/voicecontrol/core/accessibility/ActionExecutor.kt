@@ -58,7 +58,7 @@ class ActionExecutor(
         }
         is ScreenAction.TapAt -> if (tap(action.x.toFloat(), action.y.toFloat())) ActionResult.Success else ActionResult.Failure("Tap gesture cancelled")
         is ScreenAction.TypeIntoFocused -> typeIntoFocused(action.text)
-        is ScreenAction.LaunchApp -> launchApp(action.packageName)
+        is ScreenAction.LaunchApp -> launchApp(action.packageName, action.fresh)
         is ScreenAction.PressEnter -> withNode(action.elementId) { node ->
             val ime = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R &&
                 node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)
@@ -67,10 +67,12 @@ class ActionExecutor(
     }
 
     /** Accessibility services may start activities from the background (system-bound service exemption). */
-    private fun launchApp(packageName: String): ActionResult {
+    /** [fresh]: clear the app's task so it opens on its first screen (a flow starting from the beginning). */
+    private fun launchApp(packageName: String, fresh: Boolean = false): ActionResult {
         val intent = service.packageManager.getLaunchIntentForPackage(packageName)
             ?: return ActionResult.Failure("App $packageName is not installed")
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+        if (fresh) intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
         return runCatching { service.startActivity(intent) }
             .fold({ ActionResult.Success }, { ActionResult.Failure(it.message ?: "Could not open $packageName") })
     }

@@ -23,6 +23,8 @@ class FakeScreen(var snapshot: ScreenSnapshot?) : ScreenGateway {
     val onLaunch = mutableMapOf<String, ScreenSnapshot>()
     /** Screen to show after pressing Enter in the given field. */
     val onEnter = mutableMapOf<String, ScreenSnapshot>()
+    /** Screen to show after the Back key (null: stays). */
+    var onBack: ((ScreenSnapshot) -> ScreenSnapshot?)? = null
 
     override val isAvailable: StateFlow<Boolean> = MutableStateFlow(true)
     override val screenChanges: Flow<ScreenSnapshot> = emptyFlow()
@@ -39,6 +41,7 @@ class FakeScreen(var snapshot: ScreenSnapshot?) : ScreenGateway {
             is ScreenAction.SetChecked -> snapshot = snap.copy(elements = snap.elements.map { if (it.id == action.elementId) it.copy(isChecked = action.checked) else it })
             is ScreenAction.LaunchApp -> snapshot = onLaunch[action.packageName] ?: return ActionResult.Failure("not installed")
             is ScreenAction.PressEnter -> snapshot = onEnter[action.elementId] ?: return ActionResult.Failure("no enter")
+            ScreenAction.Back -> onBack?.invoke(snap)?.let { snapshot = it }
             else -> Unit
         }
         return ActionResult.Success

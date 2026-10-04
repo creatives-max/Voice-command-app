@@ -61,7 +61,8 @@ class PhoneTaskTest {
             "mujhe bijli ka bill bharna hai", "I want to book a train ticket", "recharge kaise kare",
             "PhonePe kholo aur 100 ka recharge karo", "मुझे बस का टिकट चाहिए", "help me send money to Ravi",
         ).forEach { kotlin.test.assertTrue(GoalRequest.isGoal(it), it) }
-        listOf("Login", "WhatsApp kholo", "next", "pata nahi", "Pay bill").forEach { kotlin.test.assertFalse(GoalRequest.isGoal(it), it) }
+        listOf("Login", "WhatsApp kholo", "next", "pata nahi", "Pay bill", "order history dikhao").forEach { kotlin.test.assertFalse(GoalRequest.isGoal(it), it) }
+        listOf("Zepto pe maggi order karo", "train ticket book kar do", "doodh mangwao zepto se").forEach { kotlin.test.assertTrue(GoalRequest.isGoal(it), it) }
     }
 
     @Test

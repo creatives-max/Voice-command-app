@@ -292,3 +292,10 @@ phase notes say which earlier phase covered the rest.
 - New messages are read three at a time, then "2 aur hain. Sunaaun?".
 - "Sign in chahiye" was said for every failure. Now the real reason: not signed in, on-device mode, no connection, or the server isn't answering; a slow or sleeping server gets "Server jaag raha hai…" and up to three more tries. The phone waits 35 s per request (the server allows the AI 24 s). Smart mode says once why it isn't helping.
 - Server: an AI account out of credit is logged plainly ("add credit in the Anthropic console") and reported as source "billing".
+
+### Flows checked end to end (FlowEndToEndTest: a 6-screen grocery order)
+- Taught by hand: every press and the search box are saved in order; running it from the launcher, from the app's home and from deep inside the app all do every step.
+- Learned from the helper: the remembered flow has every step and runs again without the AI.
+- Fixed: paying asked twice ("Shall I press Pay Now?" then "Are you sure?"); now one question (with the scam warning during a call).
+- Fixed: a flow started while its app was open on another screen (the cart) didn't run; now Back up to 4 times to the flow's first screen, else the app is opened afresh.
+- Fixed: "Zepto pe Maggi order karo" pressed the "Zepto" button; a button named inside a longer request is pressed only when the other words just say to press it; "order karo / book karo / mangwao" start the helper.

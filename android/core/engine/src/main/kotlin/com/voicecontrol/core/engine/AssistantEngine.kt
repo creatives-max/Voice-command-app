@@ -358,7 +358,7 @@ class AssistantEngine(
             var segment = 0
             val opening = preselected?.let(::openingStep)
             opening?.let { boundary ->
-                if (!enterSegment(session, boundary, previousSignature = null)) {
+                if (!enterSegment(session, boundary, previousSignature = null, startSignature = preselected.screenSignature)) {
                     emit(EngineEvent.ERROR, "Could not open ${boundary.appPackage ?: "the app"}")
                     say(session, session.phrases.screenNotReached())
                     session.status = RunStatus.FAILED
@@ -428,7 +428,7 @@ class AssistantEngine(
                     session.switchTo = null
                     active = chosen
                     segment = 0
-                    if (!enterSegment(session, openingStep(chosen), previousSignature = null)) {
+                    if (!enterSegment(session, openingStep(chosen), previousSignature = null, startSignature = chosen.screenSignature)) {
                         emit(EngineEvent.ERROR, "Could not open ${chosen.appPackage}")
                         say(session, session.phrases.screenNotReached())
                         session.status = RunStatus.FAILED
@@ -598,18 +598,26 @@ class AssistantEngine(
      * Gets to the screen a flow segment starts on: OPEN_APP launches the app and waits for it,
      * NEXT_SCREEN waits until the screen differs from [previousSignature]. Returns false on timeout.
      */
-    private suspend fun enterSegment(session: Session, boundary: FlowStep, previousSignature: String?): Boolean {
+    /**
+     * [startSignature]: a flow started on demand begins on this screen of its app. When the app is already
+     * open (or was left) somewhere else, it is brought back there first (see [reachStart]).
+     */
+    private suspend fun enterSegment(session: Session, boundary: FlowStep, previousSignature: String?, startSignature: String? = null): Boolean {
         val timeoutMs = (boundary.waitSeconds ?: DEFAULT_WAIT_SECONDS).coerceIn(1, MAX_WAIT_SECONDS) * 1_000L
         val pkg = boundary.appPackage?.takeIf { it.isNotBlank() }
         return when (boundary.action) {
             StepAction.OPEN_APP -> {
                 if (pkg == null) return false
-                if (screen.capture()?.packageName == pkg) return true
-                say(session, session.phrases.openingApp(boundary.label.ifBlank { pkg }))
-                emit(EngineEvent.SCREEN, "Opening $pkg")
-                setStatus(EngineStatus.ACTING)
-                if (!perform(ScreenAction.LaunchApp(pkg)).isSuccess) return false
-                waitForScreen(timeoutMs) { it.packageName == pkg }
+                if (screen.capture()?.packageName != pkg) {
+                    say(session, session.phrases.openingApp(boundary.label.ifBlank { pkg }))
+                    emit(EngineEvent.SCREEN, "Opening $pkg")
+                    setStatus(EngineStatus.ACTING)
+                    if (!perform(ScreenAction.LaunchApp(pkg)).isSuccess) return false
+                    if (!waitForScreen(timeoutMs) { it.packageName == pkg }) return false
+                }
+                // The app may show the screen it was left on (a cart, a chat): go back to where the flow starts.
+                startSignature?.takeIf { it.isNotBlank() }?.let { reachStart(session, pkg, it, timeoutMs) }
+                true
             }
             StepAction.NEXT_SCREEN -> {
                 if (previousSignature == null) return true
@@ -629,6 +637,25 @@ class AssistantEngine(
             }
             else -> true
         }
+    }
+
+    /**
+     * Brings [pkg] to the screen a flow starts on ([signature]): Back a few times while staying in the app,
+     * else the app is opened afresh at its start. Best effort: the flow then runs from wherever it is.
+     */
+    private suspend fun reachStart(session: Session, pkg: String, signature: String, timeoutMs: Long) {
+        val here = screen.capture() ?: return
+        if (here.signature == signature) return
+        emit(EngineEvent.SCREEN, "Going back to where the flow starts")
+        repeat(MAX_BACKS_TO_START) {
+            if (!perform(ScreenAction.Back).isSuccess) return@repeat
+            delay(screenSettleMillis)
+            val now = screen.capture() ?: return
+            if (now.packageName == pkg && now.signature == signature) return
+            if (now.packageName != pkg) return@repeat
+        }
+        // Left the app or still elsewhere: open it fresh at its start.
+        if (perform(ScreenAction.LaunchApp(pkg, fresh = true)).isSuccess) waitForScreen(timeoutMs) { it.packageName == pkg }
     }
 
     private suspend fun waitForScreen(timeoutMs: Long, accept: (ScreenSnapshot) -> Boolean): Boolean {
@@ -1354,7 +1381,9 @@ class AssistantEngine(
         if (plan.autoSubmit || !session.cfg.askBeforeSubmit) {
             return if (press(session, button, log)) ScreenOutcome.NAVIGATED else ScreenOutcome.COMPLETED
         }
-        val question = plan.submitQuestion ?: phrases.confirmPress(button.label)
+        // This question is the one confirmation (with the scam warning during a call): no second "are you sure?".
+        val question = (plan.submitQuestion ?: phrases.confirmPress(button.label))
+            .let { if (DestructiveActions.isDestructive(button.label)) scamCheck(session, it) else it }
         repeat(MAX_ATTEMPTS) {
             val heard = askAndListen(session, question) ?: return@repeat
             // Naming another button ("Cancel", "Edit") presses that one instead.
@@ -1366,7 +1395,7 @@ class AssistantEngine(
             val interp = interpret(session, snapshot, null, heard, question)
             when (interp.intent) {
                 IntentKind.YES, IntentKind.SUBMIT, IntentKind.NEXT ->
-                    return if (press(session, button, log)) ScreenOutcome.NAVIGATED else ScreenOutcome.COMPLETED
+                    return if (press(session, button, log, confirmed = true)) ScreenOutcome.NAVIGATED else ScreenOutcome.COMPLETED
                 IntentKind.CLICK -> if (clickTarget(session, snapshot, interp, log)) return ScreenOutcome.NAVIGATED
                 IntentKind.NO, IntentKind.SKIP -> return ScreenOutcome.COMPLETED
                 IntentKind.STOP -> return ScreenOutcome.STOPPED
@@ -2390,6 +2419,8 @@ class AssistantEngine(
         const val MAX_AGENT_TEXTS = 80
         const val MAX_AGENT_TEXT_CHARS = 200
         const val MAX_AGENT_REPEATS = 2
+        /** Back presses tried to reach a flow's first screen before opening its app afresh. */
+        const val MAX_BACKS_TO_START = 4
         /** Tries when the server is asleep or slow (each try waits up to the network timeout). */
         const val MAX_WAKE_RETRIES = 3
         const val WAKE_RETRY_DELAY_MS = 5_000L

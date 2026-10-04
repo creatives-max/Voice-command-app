@@ -37,7 +37,8 @@ sealed interface ScreenAction {
 
     /** Bring another installed app to the foreground (cross-app flows). */
     @Serializable @SerialName("launch_app")
-    data class LaunchApp(val packageName: String) : ScreenAction
+    /** [fresh]: start the app from its first screen, dropping where it was left. */
+    data class LaunchApp(val packageName: String, val fresh: Boolean = false) : ScreenAction
 
     /** The keyboard's Enter / search key in a field (search boxes that have no button). */
     @Serializable @SerialName("press_enter")

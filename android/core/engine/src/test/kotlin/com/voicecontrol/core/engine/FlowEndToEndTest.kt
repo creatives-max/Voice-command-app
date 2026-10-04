@@ -168,4 +168,63 @@ class FlowEndToEndTest {
         assertEquals(everyPress, pressesIn(again), again.actions.toString())
         assertEquals("z-paid", again.snapshot?.signature)
     }
+
+    @Test
+    fun `the item is found by name even when the list order changed, scrolling if needed`() = runTest {
+        // Taught when Maggi was the second result ("item #1"); today it is fourth, below the fold.
+        val row = { n: Int, label: String -> ScreenElement(if (n == 0) "vid:product" else "vid:product#$n", ElementKind.BUTTON, label) }
+        val taughtResults = ScreenSnapshot("com.zepto", elements = listOf(row(0, "Yippee Noodles"), row(1, "Maggi 2-Minute Noodles")), isScrollable = true, signature = "z-results")
+        val r = FlowRecorder()
+        r.onEvent(RecordedEvent.Screen(taughtResults))
+        r.onEvent(RecordedEvent.Pressed("vid:product#1", on = taughtResults))
+        r.onEvent(RecordedEvent.Screen(zItem))
+        r.onEvent(RecordedEvent.Pressed("vid:add", on = zItem))
+        val flow = RecordingToFlow.build(r.recording(), "list", 0)
+
+        val today = ScreenSnapshot("com.zepto", elements = listOf(row(0, "Top Ramen"), row(1, "Yippee Noodles")), isScrollable = true, signature = "z-results")
+        val below = ScreenSnapshot("com.zepto", elements = listOf(row(0, "Wai Wai"), row(1, "Maggi 2-Minute Noodles")), isScrollable = true, signature = "z-results")
+        val screen = FakeScreen(today).apply { onClick["vid:product#1"] = zItem; onClick["vid:add"] = zPaid }
+        val scrolling = object : com.voicecontrol.core.engine.port.ScreenGateway by screen {
+            override suspend fun perform(action: ScreenAction): com.voicecontrol.core.model.ActionResult {
+                if (action is ScreenAction.Scroll) screen.snapshot = below
+                return screen.perform(action)
+            }
+        }
+        AssistantEngine(
+            screen = scrolling, stt = ScriptedStt("haan", "stop"), tts = RecordingTts(), interpreter = LocalInterpreter(), flows = { null },
+            profiles = { null }, recorder = { }, config = { SessionConfig(confirmValues = false) }, scope = this, screenSettleMillis = 10, appDirectory = apps,
+        ).start(flow)
+        advanceUntilIdle()
+        // Yippee (the old position) is never pressed; Maggi is found below and pressed.
+        val clicks = screen.actions.filterIsInstance<ScreenAction.Click>()
+        assertTrue(screen.actions.any { it is ScreenAction.Scroll }, screen.actions.toString())
+        assertEquals("vid:product#1", clicks.first().elementId)
+        assertTrue(ScreenAction.Click("vid:add") in screen.actions, screen.actions.toString())
+    }
+
+    @Test
+    fun `a learned order types the item from the request by itself next time`() = runTest {
+        val learned = mutableListOf<FlowDefinition>()
+        val helper = GoalAgent { _, s, _, _ ->
+            when (s.signature) {
+                "z-home" -> AgentDecision(AgentAction.CLICK, "vid:search")
+                "z-search" -> if (s.element("vid:q")?.value.isNullOrBlank()) AgentDecision(AgentAction.FILL, "vid:q", value = "maggi") else AgentDecision(AgentAction.CLICK, "vid:q")
+                "z-results" -> AgentDecision(AgentAction.CLICK, "vid:maggi")
+                else -> AgentDecision(AgentAction.DONE, say = "Maggi khul gaya.")
+            }
+        }
+        engine(zepto(zHome), ScriptedStt("Zepto pe maggi order karo", "haan", "stop"), RecordingTts(), helper, learned).start()
+        advanceUntilIdle()
+        val flow = learned.single()
+        val search = flow.orderedSteps.single { it.elementId == "vid:q" }
+        assertEquals("maggi", search.defaultValue)
+
+        val again = zepto(launcher)
+        val tts = RecordingTts()
+        engine(again, ScriptedStt("haan", "stop"), tts).start(flow)
+        advanceUntilIdle()
+        assertTrue(ScreenAction.SetText("vid:q", "maggi") in again.actions, again.actions.toString())
+        assertTrue(tts.spoken.none { it == "What shall I search for?" }, tts.spoken.toString())
+        assertTrue(ScreenAction.Click("vid:maggi") in again.actions, again.actions.toString())
+    }
 }

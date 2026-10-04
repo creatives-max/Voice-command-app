@@ -31,6 +31,7 @@ class PlanBuilder(private val phrases: Phrases) {
         var submitButton: ScreenElement? = null
         var submitQuestion: String? = null
         var autoSubmit = false
+        val missing = mutableListOf<FlowStep>()
 
         val ordered = flow?.orderedSteps.orEmpty()
         val byId = ordered.associateBy { it.id }
@@ -56,7 +57,10 @@ class PlanBuilder(private val phrases: Phrases) {
                 }
                 else -> Unit
             }
-            val element = resolve(fs, snapshot.elements, used) ?: return@forEach
+            val element = resolve(fs, snapshot.elements, used) ?: run {
+                if (fs.action == StepAction.CLICK && fs.condition.isNullOrBlank()) missing += fs
+                return@forEach
+            }
             used += element.id
             if (fs.action == StepAction.CLICK && fs.condition.isNullOrBlank() && fs.id == lastClick) {
                 submitButton = element
@@ -74,7 +78,7 @@ class PlanBuilder(private val phrases: Phrases) {
         ordered.mapNotNull { it.repeat }.forEach { spec -> locate(spec.addMoreElementId, spec.addMoreLabel, snapshot.elements)?.let { used += it.id } }
         val fromFlow = submitButton != null
         if (submitButton == null) submitButton = ButtonMatcher.primarySubmit(snapshot.elements.filter { it.id !in used })
-        return ScreenPlan(steps, submitButton, submitQuestion, autoSubmit, flow?.id, flow?.version, submitFromFlow = fromFlow)
+        return ScreenPlan(steps, submitButton, submitQuestion, autoSubmit, flow?.id, flow?.version, submitFromFlow = fromFlow, missingPresses = missing)
     }
 
     /**
@@ -103,14 +107,26 @@ class PlanBuilder(private val phrases: Phrases) {
         return elements.filter { it.id == step.elementId || (it.kind == step.kind && label.isNotEmpty() && LabelText.normalize(it.label) == label) }
     }
 
+    /**
+     * The element a flow step means here. Fields keep their id. Presses go by name first: in lists the id
+     * is only a position ("item #2"), so yesterday's "Maggi" may be another product today. A press whose
+     * name isn't on screen falls back to its id only when that id is the app's own unique one.
+     */
     private fun resolve(step: FlowStep, elements: List<ScreenElement>, used: Set<String>): ScreenElement? {
-        elements.firstOrNull { it.id == step.elementId && it.id !in used }?.let { return it }
-        val label = LabelText.normalize(step.label).takeIf { it.isNotEmpty() } ?: return null
+        val label = LabelText.normalize(step.label)
+        val byId = elements.firstOrNull { it.id == step.elementId && it.id !in used }
+        if (step.action != StepAction.CLICK) {
+            byId?.let { return it }
+        } else if (byId != null && (label.isEmpty() || LabelText.normalize(byId.label).let { it.isEmpty() || it == label })) {
+            return byId
+        }
+        if (label.isEmpty()) return null
         val free = elements.filter { it.id !in used }
         free.firstOrNull { it.kind == step.kind && LabelText.normalize(it.label) == label }?.let { return it }
         // A button may come back as a link, an icon or a tab: for presses the name is what counts.
         if (step.action == StepAction.CLICK) {
             free.firstOrNull { !it.kind.isInput && !it.kind.isToggle && LabelText.normalize(it.label) == label }?.let { return it }
+            byId?.takeIf { '#' !in it.id }?.let { return it }
         }
         return null
     }

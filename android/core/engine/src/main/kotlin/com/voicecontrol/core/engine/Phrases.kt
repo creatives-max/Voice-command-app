@@ -22,8 +22,14 @@ class Phrases(private val language: Language) {
         FieldType.EMAIL -> askEmail()
         FieldType.PHONE -> askPhone()
         FieldType.DATE -> askDate(label)
+        FieldType.SEARCH -> askSearch()
         else -> askField(label)
     }
+
+    private fun askSearch() = t(
+        "What shall I search for?", "क्या सर्च करूं?", "Kya search karun?", "काय शोधू?",
+        "என்ன தேட வேண்டும்?", "ఏమి వెతకాలి?", "কী খুঁজব?", "શું શોધું?",
+    )
 
     fun whichButton(buttons: List<String>) = whichButtonOf(buttons.joinToString(", "))
 

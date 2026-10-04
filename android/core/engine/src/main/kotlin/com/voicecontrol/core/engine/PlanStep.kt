@@ -57,4 +57,6 @@ data class ScreenPlan(
     val flowVersion: Int?,
     /** The submit button is the flow's own click step (not a guess from the screen). */
     val submitFromFlow: Boolean = false,
+    /** The flow's presses whose button isn't on this screen (maybe further down a list). */
+    val missingPresses: List<com.voicecontrol.core.model.FlowStep> = emptyList(),
 )

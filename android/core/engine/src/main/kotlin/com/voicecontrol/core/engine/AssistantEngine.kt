@@ -367,21 +367,21 @@ class AssistantEngine(
             }
             while (visited < MAX_SCREENS) {
                 visited++
-                val snapshot = readScreen(session)
-                if (snapshot == null || !snapshot.hasReadableElements) {
+                val firstLook = readScreen(session)
+                if (firstLook == null || !firstLook.hasReadableElements) {
                     emit(EngineEvent.ERROR, "Could not read the screen")
                     say(session, session.phrases.cannotRead())
                     session.status = RunStatus.FAILED
                     return
                 }
-                session.appPackage = snapshot.packageName
-                _state.update { it.copy(appPackage = snapshot.packageName) }
+                session.appPackage = firstLook.packageName
+                _state.update { it.copy(appPackage = firstLook.packageName) }
                 setStatus(EngineStatus.THINKING, caption = null)
                 val running = active
                 val flow = if (running != null) {
                     running.copy(steps = running.segments[segment])
                 } else {
-                    val matched = runCatching { flows.flowFor(snapshot) }.getOrNull()
+                    val matched = runCatching { flows.flowFor(firstLook) }.getOrNull()
                     if (matched != null && matched.segments.size > 1) {
                         active = matched
                         segment = 0
@@ -390,6 +390,8 @@ class AssistantEngine(
                         matched
                     }
                 }
+                // A flow's item further down a list ("Maggi" in the results): scroll to it before starting.
+                val snapshot = if (flow != null) scrollToFlowItem(session, firstLook, flow) else firstLook
                 val profile = runCatching { profiles.profile() }.getOrNull()
                 session.profile = profile
                 session.screenVars = screenVariables(snapshot)
@@ -527,10 +529,16 @@ class AssistantEngine(
         if (ShortcutMatcher.core(heard) in buttons) return null
         val hit = ShortcutMatcher.match(heard, runCatching { source.shortcuts() }.getOrDefault(emptyList())) ?: return null
         if (ShortcutMatcher.core(hit.phrase) in buttons) return null
-        val flow = runCatching { source.flow(hit.flowId) }.getOrNull()
-        if (flow == null) {
+        val saved = runCatching { source.flow(hit.flowId) }.getOrNull()
+        if (saved == null) {
             emit(EngineEvent.ERROR, "Voice shortcut “${hit.phrase}”: its flow is not available")
             say(session, session.phrases.shortcutUnavailable(hit.phrase))
+            return null
+        }
+        // "Zepto pe doodh order karo" with a saved "Zepto pe maggi order karo": the flow orders doodh. When
+        // the words differ somewhere the flow can't change, it isn't used (the helper does it afresh).
+        val flow = FlowItemSwap.adapt(saved, hit.phrase, heard) ?: run {
+            emit(EngineEvent.STATUS, "Voice shortcut “${hit.phrase}” is close but asks for something else; not using it")
             return null
         }
         say(session, session.phrases.startingShortcut(flow.name))
@@ -1202,7 +1210,16 @@ class AssistantEngine(
         val memory = goalMemory ?: return
         if (recording.actionCount < MIN_LEARNED_ACTIONS) return
         val phrase = shortcutPhrase(goal) ?: return
-        val flow = runCatching { RecordingToFlow.build(recording, FlowDefinition.TAUGHT_PREFIX + newId(), clock(), name = phrase) }.getOrNull() ?: return
+        // What was typed from the request itself ("maggi" in "Zepto pe maggi order karo") is typed again next
+        // time without asking; anything the user was asked for is asked again.
+        fun words(text: String) = text.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
+        val goalWords = words(goal).toSet()
+        val fromGoal = recording.screens.flatMap { it.actions }.filter { a ->
+            a.action == StepAction.FILL && !a.value.isNullOrBlank() && words(a.value).let { w -> w.isNotEmpty() && w.all { it in goalWords } }
+        }.map { it.element.id }.toSet()
+        val flow = runCatching {
+            RecordingToFlow.build(recording, FlowDefinition.TAUGHT_PREFIX + newId(), clock(), keepValues = fromGoal, name = phrase, fillKept = true)
+        }.getOrNull() ?: return
         if (askYesNoOr(session, context, session.phrases.offerToRemember(phrase), default = false) != true) return
         if (runCatching { memory.learn(phrase, flow) }.getOrDefault(false)) {
             say(session, session.phrases.remembered())
@@ -1271,6 +1288,17 @@ class AssistantEngine(
         emit(EngineEvent.STEP, "Searched in the app: $query")
         session.noteAssistant("Searched $query")
         return true
+    }
+
+    /**
+     * The screen ready for [flow]: when a press of the flow isn't on screen (an item further down a list),
+     * scrolls down to find it. Returns the screen as it is now.
+     */
+    private suspend fun scrollToFlowItem(session: Session, snapshot: ScreenSnapshot, flow: FlowDefinition): ScreenSnapshot {
+        val missing = PlanBuilder(session.phrases).build(snapshot, flow, null).missingPresses.firstOrNull() ?: return snapshot
+        if (!snapshot.isScrollable) return snapshot
+        findByScrolling(session, missing.label) ?: return snapshot
+        return screen.capture() ?: snapshot
     }
 
     /**
@@ -1794,7 +1822,11 @@ class AssistantEngine(
             if (default != null && step.action == StepAction.FILL && !step.isSensitive) {
                 val ok = perform(ScreenAction.SetText(step.elementId, default)).isSuccess
                 log.put(step, if (ok) StepOutcome.DEFAULT_FILLED else StepOutcome.FAILED, null)
-                if (ok) remember(session, step, default)
+                if (ok) {
+                    remember(session, step, default)
+                    // A search box filled by itself still needs its Enter when nothing else moves on.
+                    session.lastFilledId = step.elementId
+                }
             } else {
                 log.put(step, StepOutcome.SKIPPED, null)
             }

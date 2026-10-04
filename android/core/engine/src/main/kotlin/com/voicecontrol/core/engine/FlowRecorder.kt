@@ -138,7 +138,15 @@ object RecordingToFlow {
      * [keepValues] lists element ids whose typed text becomes the step's default value (the user chose
      * this when reviewing); sensitive fields never keep values.
      */
-    fun build(recording: Recording, id: String, nowMillis: Long, keepValues: Set<String> = emptySet(), name: String? = null): FlowDefinition {
+    /** [fillKept]: kept values are typed in by themselves on replay (no question), e.g. a learned job's item. */
+    fun build(
+        recording: Recording,
+        id: String,
+        nowMillis: Long,
+        keepValues: Set<String> = emptySet(),
+        name: String? = null,
+        fillKept: Boolean = false,
+    ): FlowDefinition {
         require(!recording.isEmpty) { "Nothing was recorded" }
         val first = recording.screens.first().snapshot
         val steps = mutableListOf<FlowStep>()
@@ -173,7 +181,13 @@ object RecordingToFlow {
         }
         // Taught taps are replayed without asking, except the flow's very last one (it may send or pay).
         val lastClick = steps.indexOfLast { it.action == StepAction.CLICK }
-        steps.replaceAll { st -> if (st.action == StepAction.CLICK && steps.indexOf(st) != lastClick) st.copy(skip = true) else st }
+        steps.replaceAll { st ->
+            when {
+                st.action == StepAction.CLICK && steps.indexOf(st) != lastClick -> st.copy(skip = true)
+                fillKept && st.action == StepAction.FILL && st.defaultValue != null -> st.copy(skip = true)
+                else -> st
+            }
+        }
         require(steps.size <= MAX_STEPS) { "A taught flow can have at most $MAX_STEPS steps" }
         return FlowDefinition(
             id = id,

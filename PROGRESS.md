@@ -299,3 +299,7 @@ phase notes say which earlier phase covered the rest.
 - Fixed: paying asked twice ("Shall I press Pay Now?" then "Are you sure?"); now one question (with the scam warning during a call).
 - Fixed: a flow started while its app was open on another screen (the cart) didn't run; now Back up to 4 times to the flow's first screen, else the app is opened afresh.
 - Fixed: "Zepto pe Maggi order karo" pressed the "Zepto" button; a button named inside a longer request is pressed only when the other words just say to press it; "order karo / book karo / mangwao" start the helper.
+- Flow presses go by name first: list rows share an id that is only a position ("item #2"), so a replay no longer presses whatever moved into that position; a press whose name isn't on screen is looked for by scrolling down.
+- Search boxes are asked "Kya search karun?" instead of "Please say Search for products".
+- A flow learned from a request types the request's item by itself next time ("maggi" from "Zepto pe maggi order karo"), and presses Enter after it.
+- Said with another item ("Zepto pe doodh order karo"), the saved flow orders that item; when other words differ (another app) the flow isn't used and the helper does it afresh. Misheard spellings count as the same word.

@@ -352,6 +352,21 @@ class Phrases(private val language: Language) {
         "એપનું નામ લઈને ખોલો કહી શકો, જેમ કે વોટ્સએપ ખોલો, અથવા નીચે, પાછળ કે રોકો કહો.",
     )
 
+    fun closedApp(app: String) = t(
+        "Closed $app.", "$app बंद कर दिया।", "$app band kar diya.", "$app बंद केले.",
+        "$app மூடப்பட்டது.", "$app మూసివేశాను.", "$app বন্ধ করে দিলাম।", "$app બંધ કરી દીધું.",
+    )
+
+    fun noAppOpen() = t(
+        "No app is open right now.", "अभी कोई ऐप खुला नहीं है।", "Abhi koi app khula nahi hai.", "आत्ता कोणतेही अॅप उघडे नाही.",
+        "இப்போது எந்த ஆப்பும் திறக்கப்படவில்லை.", "ఇప్పుడు ఏ యాప్ తెరిచి లేదు.", "এখন কোনো অ্যাপ খোলা নেই।", "અત્યારે કોઈ એપ ખુલ્લી નથી.",
+    )
+
+    fun appNotOpen(app: String) = t(
+        "$app isn't open right now.", "$app अभी खुला नहीं है।", "$app abhi khula nahi hai.", "$app आत्ता उघडे नाही.",
+        "$app இப்போது திறக்கப்படவில்லை.", "$app ఇప్పుడు తెరిచి లేదు.", "$app এখন খোলা নেই।", "$app અત્યારે ખુલ્લી નથી.",
+    )
+
     fun opening(app: String) = t(
         "Opening $app.",
         "$app खोल रहा हूं।",

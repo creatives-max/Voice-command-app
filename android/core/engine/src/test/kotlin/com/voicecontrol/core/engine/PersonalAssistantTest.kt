@@ -230,4 +230,29 @@ class PersonalAssistantTest {
         advanceUntilIdle()
         assertTrue("Aap aksar WhatsApp, YouTube kholte hain. Inmein se koi boliye, ya bataiye kya chahiye." in tts.spoken, tts.spoken.toString())
     }
+
+    @Test
+    fun `closes the app in front by name or as this app, and says when it isn't open`() = runTest {
+        val wa = ScreenSnapshot("com.whatsapp", elements = listOf(ScreenElement("vid:chats", ElementKind.BUTTON, "Chats")), signature = "wa-home")
+        val screen = FakeScreen(wa)
+        val phone = object : PhoneActions by Phone(screen, chat) {
+            override suspend fun system(action: com.voicecontrol.core.nlp.SystemAction) = true.also { screen.snapshot = home }
+        }
+        val tts = RecordingTts()
+        AssistantEngine(
+            screen = screen, stt = ScriptedStt("YouTube band karo", "WhatsApp band karo", "stop"), tts = tts, interpreter = LocalInterpreter(),
+            flows = { null }, profiles = { null }, recorder = { }, config = { SessionConfig(language = Language.HINGLISH, confirmValues = false) },
+            scope = this, screenSettleMillis = 10, clock = { noon }, phoneActions = phone,
+            appDirectory = {
+                listOf(
+                    com.voicecontrol.core.engine.port.InstalledApp("WhatsApp", "com.whatsapp"),
+                    com.voicecontrol.core.engine.port.InstalledApp("YouTube", "com.google.android.youtube"),
+                )
+            },
+        ).start()
+        advanceUntilIdle()
+        assertTrue("YouTube abhi khula nahi hai." in tts.spoken, tts.spoken.toString())
+        assertTrue("WhatsApp band kar diya." in tts.spoken, tts.spoken.toString())
+        assertEquals("home", screen.snapshot?.signature)
+    }
 }

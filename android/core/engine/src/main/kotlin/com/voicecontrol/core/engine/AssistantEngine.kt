@@ -130,7 +130,7 @@ class AssistantEngine(
     /** Installed apps, for "open WhatsApp". */
     private val appDirectory: com.voicecontrol.core.engine.port.AppDirectory? = null,
     /** Alarms, timers, searches, calls and messages for the personal assistant. */
-    phoneActions: com.voicecontrol.core.engine.port.PhoneActions? = null,
+    private val phoneActions: com.voicecontrol.core.engine.port.PhoneActions? = null,
     /** Operates apps towards a spoken goal ("mujhe bill bharna hai"), asking the user for what it needs. */
     private val goalAgent: com.voicecontrol.core.engine.port.GoalAgent? = null,
     /** Keeps goals that were done as flows with a voice shortcut, so they run straight away next time. */
@@ -792,6 +792,11 @@ class AssistantEngine(
             }
             // Personal assistant: "6 baje ka alarm", "YouTube pe gaane chalao", "Rahul ko call karo", "time kya hua".
             PhoneTask.parse(heard)?.let { task ->
+                if (task is PhoneTask.CloseApp) {
+                    if (closeApp(session, snapshot, task.app)) return ScreenOutcome.NAVIGATED
+                    prompt = phrases.anythingElse(turn)
+                    return@repeat
+                }
                 emit(EngineEvent.STEP, "Assistant: ${task::class.simpleName}")
                 session.noteAssistant(task::class.simpleName ?: "Assistant")
                 setStatus(EngineStatus.ACTING)
@@ -1129,6 +1134,34 @@ class AssistantEngine(
         val favourites = if (here.isNotEmpty()) emptyList() else runCatching { appDirectory?.favourites(MAX_FAVOURITES) }.getOrNull().orEmpty()
             .filter { it.packageName != snapshot.packageName }.map { it.label }
         return session.phrases.suggest(here, favourites)
+    }
+
+    /**
+     * "WhatsApp band karo": leaves the app in front for the home screen (Android doesn't let other apps
+     * end it; it stays in recent apps). [name] null means whatever app is open. False after explaining.
+     */
+    private suspend fun closeApp(session: Session, snapshot: ScreenSnapshot, name: String?): Boolean {
+        val phrases = session.phrases
+        val apps = runCatching { appDirectory?.apps() }.getOrNull().orEmpty()
+        val front = apps.firstOrNull { it.packageName == snapshot.packageName }
+        val target = if (name == null) front else AppMatcher.find(name, apps)
+        when {
+            target == null && name == null -> say(session, phrases.noAppOpen())
+            target == null -> say(session, phrases.appNotFound(name.orEmpty()))
+            target.packageName != snapshot.packageName -> say(session, phrases.appNotOpen(target.label))
+            else -> {
+                setStatus(EngineStatus.ACTING)
+                val ok = runCatching { phoneActions?.system(com.voicecontrol.core.nlp.SystemAction.HOME) }.getOrNull() == true ||
+                    perform(ScreenAction.Back).isSuccess && screen.capture()?.packageName != target.packageName
+                say(session, if (ok) phrases.closedApp(target.label) else phrases.taskFailed())
+                if (ok) {
+                    emit(EngineEvent.STEP, "Closed ${target.label}")
+                    session.noteAssistant("Closed ${target.label}")
+                }
+                return ok
+            }
+        }
+        return false
     }
 
     /** Opens the installed app the user named; false (after explaining) when there is none. */

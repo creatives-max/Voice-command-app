@@ -262,3 +262,4 @@ phase notes say which earlier phase covered the rest.
 - Smart mode knows to press the search box itself after typing when there is no search button (checked with the real model: "YouTube pe kesariya gaana chalao" typed, searched and played).
 - Barge-in is off by default again (new settings key so the earlier default isn't kept): listening while talking uses the phone-call audio path, which made the voice quieter on many phones. Settings explains this.
 - Dashboard image: files are owned by the app user, so Next.js can write its page cache (EACCES on .next/server/route-cache in the Render logs).
+- "WhatsApp band karo", "close YouTube", "ye app band karo": the app in front goes to the home screen ("WhatsApp band kar diya."); a named app that isn't open is said so. Torch/gaana/phone/data "band karo" keep their own meaning.

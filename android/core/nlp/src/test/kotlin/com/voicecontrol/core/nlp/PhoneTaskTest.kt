@@ -165,4 +165,19 @@ class PhoneTaskTest {
         assertEquals(PhoneTask.Call("usko"), p("call again"))
         assertEquals(PhoneTask.Call("rahul"), p("Rahul ko call karo"))
     }
+
+    @Test
+    fun closingApps() {
+        assertEquals(PhoneTask.CloseApp("whatsapp"), p("WhatsApp band karo"))
+        assertEquals(PhoneTask.CloseApp("youtube"), p("close YouTube"))
+        assertEquals(PhoneTask.CloseApp(null), p("ye app band karo"))
+        assertEquals(PhoneTask.CloseApp(null), p("isko band kar do"))
+        assertEquals(PhoneTask.CloseApp("instagram"), p("instagram बंद करो".replace("instagram बंद करो", "instagram बंद करो")))
+        // Other things that are "band" keep their own meaning.
+        assertEquals(PhoneTask.Torch(false), p("torch band karo"))
+        assertEquals(PhoneTask.Media(MediaKey.PAUSE), p("gaana band karo"))
+        assertEquals(PhoneTask.System(SystemAction.POWER_MENU), p("phone band karo"))
+        assertNull(p("data band karo"))
+        assertNull(p("band karo"))
+    }
 }

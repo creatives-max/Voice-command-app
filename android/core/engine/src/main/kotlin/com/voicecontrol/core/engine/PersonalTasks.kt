@@ -235,6 +235,8 @@ internal class PersonalTasks(
                 say(phrases.openingAlarms())
             }
             PhoneTask.TimeNow, PhoneTask.DateToday, PhoneTask.Capabilities, is PhoneTask.Calculate -> Unit
+            // Needs the screen and the app list: done by the engine.
+            is PhoneTask.CloseApp -> Unit
         }
         return Result.MOVED
     }

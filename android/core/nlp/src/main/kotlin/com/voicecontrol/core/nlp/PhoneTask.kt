@@ -38,6 +38,8 @@ sealed interface PhoneTask {
     /** "tum kya kya kar sakte ho": a short tour of what the assistant does. */
     data object Capabilities : PhoneTask
     data class System(val action: SystemAction) : PhoneTask
+    /** "WhatsApp band karo", "close YouTube", "ye app band karo" ([app] null = the app in front). */
+    data class CloseApp(val app: String?) : PhoneTask
     data class Camera(val video: Boolean, val selfie: Boolean) : PhoneTask
     /** Screen brightness; [VolumeChange.MUTE] means lowest. */
     data class Brightness(val change: VolumeChange) : PhoneTask
@@ -64,7 +66,7 @@ sealed interface PhoneTask {
             val words = text.split(' ')
             return emergency(text, words) ?: notes(text) ?: contactNumber(text) ?: showAlarms(text, words) ?: quickSearch(text, words) ?: capabilities(text) ?: time(text) ?: calculate(words) ?: system(text, words) ?: device(text, words) ?: notifications(text) ?:
                 camera(text, words) ?: media(text, words) ?: reminder(text, words) ?: alarm(text, words) ?:
-                timer(text, words) ?: message(text) ?: call(text) ?: search(text, words)
+                timer(text, words) ?: closeApp(text) ?: message(text) ?: call(text) ?: search(text, words)
         }
 
         // --- time and date ---------------------------------------------------------------------
@@ -407,6 +409,35 @@ sealed interface PhoneTask {
                 }
             }
             return if (total in 1..86_400) Timer(total) else null
+        }
+
+        // --- closing an app ----------------------------------------------------------------------
+
+        private val closeTails = listOf(
+            "band karo", "band kar do", "band kardo", "band karde", "band kar", "close karo", "close kar do", "close kardo", "exit karo",
+            "बंद करो", "बंद कर दो", "बंद करें", "बंद कर", "क्लोज करो", "क्लोज़ करो",
+        )
+        private val closeHeads = listOf("close the", "close", "exit", "quit")
+        /** "ye app", "isko": the app in front. */
+        private val thisApp = setOf("ye", "yeh", "is", "isko", "ise", "ko", "app", "ऐप", "एप", "यह", "ये", "इस", "इसे", "इसको", "को", "the", "this")
+        /** Not apps: handled by other commands or by nothing on the phone. */
+        private val notApps = setOf(
+            "data", "mobile data", "internet", "net", "location", "gps", "hotspot", "notification", "notifications", "alarm", "timer",
+            "light", "ac", "fan", "tv", "screen", "voice control", "voicecontrol", "assistant", "mic", "sunna", "bolna", "baat", "session",
+        )
+
+        private fun closeApp(text: String): PhoneTask? {
+            val rest = closeTails.sortedByDescending { it.length }.firstNotNullOfOrNull { tail ->
+                text.takeIf { it.endsWith(" $tail") }?.removeSuffix(" $tail")
+            } ?: closeHeads.firstNotNullOfOrNull { head -> text.takeIf { it.startsWith("$head ") }?.removePrefix("$head ") }
+                ?: return null
+            val words = rest.split(' ').filter { it.isNotEmpty() }
+            val name = words.filter { it !in thisApp }.joinToString(" ")
+            return when {
+                name.isEmpty() -> if (words.isNotEmpty()) CloseApp(null) else null
+                name in notApps || name.length > 30 -> null
+                else -> CloseApp(name)
+            }
         }
 
         // --- calls and messages ----------------------------------------------------------------

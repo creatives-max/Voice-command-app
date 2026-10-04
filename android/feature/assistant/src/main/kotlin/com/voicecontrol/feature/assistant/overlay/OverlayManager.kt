@@ -44,6 +44,7 @@ class OverlayManager @Inject constructor(
     private val microphone: MicrophoneForeground,
     private val teach: TeachController,
     private val scan: com.voicecontrol.feature.assistant.scan.ScanSession,
+    private val tts: com.voicecontrol.core.voice.AndroidTextToSpeech,
 ) : ServiceListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -82,6 +83,9 @@ class OverlayManager @Inject constructor(
                 overlay.hide()
             }
         }.launchIn(scope)
+
+        // Which volume the voice uses follows Settings.
+        settings.settings.map { it.voiceOnMediaVolume }.distinctUntilChanged().onEach { tts.onMediaVolume = it }.launchIn(scope)
 
         microphone.attach(service)
         controller.state.map { it.sessionActive }.distinctUntilChanged().onEach { active ->

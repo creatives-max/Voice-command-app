@@ -52,7 +52,7 @@ sealed interface SettingsIntent {
     data object WipePhone : SettingsIntent
 }
 
-enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START, REMOTE_RUNS, USE_TEMPLATES, BARGE_IN, CONFIRM_LOW_CONFIDENCE, WAKE_WORD, CONFIRM_DESTRUCTIVE, CRASH_REPORTS, OFFLINE_SPEECH, REMEMBER_ANSWERS, ANNOUNCE_CALLS, SMART_MODE }
+enum class Option { TRANSLITERATE, CONFIRM_VALUES, ASK_BEFORE_SUBMIT, SKIP_FILLED, LOCAL_ONLY, SAVE_HISTORY, SHOW_OVERLAY, VISION_FALLBACK, AUTO_START, REMOTE_RUNS, USE_TEMPLATES, BARGE_IN, CONFIRM_LOW_CONFIDENCE, WAKE_WORD, CONFIRM_DESTRUCTIVE, CRASH_REPORTS, OFFLINE_SPEECH, REMEMBER_ANSWERS, ANNOUNCE_CALLS, SMART_MODE, MEDIA_VOLUME }
 
 sealed interface SettingsEffect {
     data class Message(val text: String) : SettingsEffect
@@ -72,6 +72,7 @@ fun AppSettings.with(option: Option, enabled: Boolean): AppSettings = when (opti
     )
     // Smart mode needs the server too.
     Option.SMART_MODE -> copy(smartMode = enabled, localOnly = if (enabled) false else localOnly)
+    Option.MEDIA_VOLUME -> copy(voiceOnMediaVolume = enabled)
     Option.SAVE_HISTORY -> copy(saveHistory = enabled)
     Option.SHOW_OVERLAY -> copy(showOverlay = enabled)
     Option.VISION_FALLBACK -> copy(visionFallback = enabled, localOnly = if (enabled) false else localOnly)
@@ -109,6 +110,7 @@ fun AppSettings.isOn(option: Option): Boolean = when (option) {
     Option.OFFLINE_SPEECH -> offlineSpeech
     Option.REMEMBER_ANSWERS -> rememberAnswers
     Option.SMART_MODE -> smartMode
+    Option.MEDIA_VOLUME -> voiceOnMediaVolume
 }
 
 /** What to tell the user after testing their wake phrase. */

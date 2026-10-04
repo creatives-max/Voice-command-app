@@ -103,6 +103,7 @@ private val toggles = listOf(
     Triple(Option.CONFIRM_DESTRUCTIVE, "Confirm risky buttons", "Ask before pressing Pay, Delete, Sign out and other buttons that can't be undone."),
     Triple(Option.REMEMBER_ANSWERS, "Remember my answers", "Offer what you said last time on the same field (\"same as last time\"). Kept only on this phone, never passwords, OTPs or PINs."),
     Triple(Option.OFFLINE_SPEECH, "Speech on the phone", "Understand speech with downloaded language packs, even without internet. See Offline languages."),
+    Triple(Option.MEDIA_VOLUME, "Speak on media volume", "Turn on if VoiceControl's voice is too quiet: it then follows the normal volume buttons instead of the separate Accessibility volume."),
     Triple(Option.BARGE_IN, "Interrupt by speaking", "Start answering while VoiceControl is still talking; it stops and listens. On some phones this makes VoiceControl's voice quieter."),
     Triple(Option.CONFIRM_LOW_CONFIDENCE, "Check unclear answers", "Ask \"Did you say …?\" when speech recognition is unsure."),
     Triple(Option.ANNOUNCE_CALLS, "Say who is calling", "When the phone rings, VoiceControl says the caller's name, like “Rahul ka call aa raha hai”."),

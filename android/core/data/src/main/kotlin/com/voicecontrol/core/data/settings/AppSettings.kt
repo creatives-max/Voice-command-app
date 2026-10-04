@@ -32,6 +32,8 @@ data class AppSettings(
      * phone-call audio path, which makes the voice quieter on many phones.
      */
     val bargeIn: Boolean = false,
+    /** VoiceControl speaks on the media volume instead of the (often low) accessibility volume. */
+    val voiceOnMediaVolume: Boolean = false,
     /** Ask "Did you say …?" when speech recognition is unsure. */
     val confirmLowConfidence: Boolean = true,
     /** Listen for [wakeWord] while idle and start a session when it is heard. */

@@ -47,6 +47,7 @@ class SettingsRepository @Inject constructor(
         // New key: the setting was on by default for a few builds and got saved as on; it starts off again.
         val bargeIn = booleanPreferencesKey("barge_in_v2")
         val smartMode = booleanPreferencesKey("smart_mode")
+        val voiceOnMediaVolume = booleanPreferencesKey("voice_on_media_volume")
         val offlineSpeech = booleanPreferencesKey("offline_speech")
         val rememberAnswers = booleanPreferencesKey("remember_answers")
         val rememberedAnswers = stringPreferencesKey("remembered_answers")
@@ -147,6 +148,7 @@ class SettingsRepository @Inject constructor(
             p[Keys.useTemplates] = next.useTemplates
             p[Keys.bargeIn] = next.bargeIn
             p[Keys.smartMode] = next.smartMode
+            p[Keys.voiceOnMediaVolume] = next.voiceOnMediaVolume
             p[Keys.offlineSpeech] = next.offlineSpeech
             p[Keys.rememberAnswers] = next.rememberAnswers
             p[Keys.confirmLowConfidence] = next.confirmLowConfidence
@@ -183,6 +185,7 @@ class SettingsRepository @Inject constructor(
             useTemplates = p[Keys.useTemplates] ?: d.useTemplates,
             bargeIn = p[Keys.bargeIn] ?: d.bargeIn,
             smartMode = p[Keys.smartMode] ?: d.smartMode,
+            voiceOnMediaVolume = p[Keys.voiceOnMediaVolume] ?: d.voiceOnMediaVolume,
             offlineSpeech = p[Keys.offlineSpeech] ?: d.offlineSpeech,
             rememberAnswers = p[Keys.rememberAnswers] ?: d.rememberAnswers,
             confirmLowConfidence = p[Keys.confirmLowConfidence] ?: d.confirmLowConfidence,

@@ -35,6 +35,25 @@ class AndroidTextToSpeech @Inject constructor(
     private var chosenVoice: String? = null
     private val brokenVoices = mutableSetOf<String>()
 
+    /**
+     * Speak on the media volume (the volume keys' usual slider) instead of the separate accessibility
+     * volume, which is often low. Set from Settings; applies from the next sentence.
+     */
+    @Volatile var onMediaVolume: Boolean = false
+    private var appliedMedia: Boolean? = null
+
+    private fun applyAudio(engine: PlatformTts) {
+        val media = onMediaVolume
+        if (appliedMedia == media) return
+        engine.setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(if (media) AudioAttributes.USAGE_MEDIA else AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build(),
+        )
+        appliedMedia = media
+    }
+
     private suspend fun engine(): PlatformTts? = initMutex.withLock {
         tts?.let { return it }
         val ready = CompletableDeferred<Boolean>()
@@ -43,12 +62,7 @@ class AndroidTextToSpeech @Inject constructor(
             created.shutdown()
             return null
         }
-        created.setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                .build(),
-        )
+        applyAudio(created)
         created.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) = Unit
             override fun onDone(utteranceId: String?) = complete(utteranceId, Outcome.DONE)
@@ -74,6 +88,7 @@ class AndroidTextToSpeech @Inject constructor(
             selectLanguage(engine, languageTag)
             currentTag = languageTag
         }
+        applyAudio(engine)
         engine.setSpeechRate(rate.coerceIn(0.5f, 2f))
         when (utter(engine, text)) {
             Outcome.DONE -> return true

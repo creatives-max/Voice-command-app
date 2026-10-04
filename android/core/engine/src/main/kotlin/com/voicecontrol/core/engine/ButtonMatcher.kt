@@ -26,7 +26,12 @@ object ButtonMatcher {
             it.isEnabled && (it.kind == ElementKind.BUTTON || it.kind == ElementKind.LINK || it.kind.isToggle || it.kind == ElementKind.DROPDOWN)
         }
         return clickable
-            .map { it to score(target, normalize(it.label)) }
+            .map { el ->
+                val label = normalize(el.label)
+                // Sound matching only across scripts (said in Hindi, written in English or the other way):
+                // in one script it would turn "back" into a "Bike" button.
+                el to maxOf(score(target, label), if (indic(spoken) != indic(el.label)) soundsAlike(target, label) else 0.0)
+            }
             .filter { it.second >= minScore }
             .maxByOrNull { it.second }
             ?.first
@@ -59,6 +64,42 @@ object ButtonMatcher {
         val overlap = a.intersect(b).size.toDouble() / a.union(b).size
         val fuzzy = 1.0 - levenshtein(target, label).toDouble() / maxOf(target.length, label.length)
         return maxOf(overlap, fuzzy * 0.9)
+    }
+
+    /** Written in an Indian script (Devanagari, Bengali, Gujarati, Tamil, Telugu…). */
+    private fun indic(text: String) = text.any { it in '\u0900'..'\u0DFF' }
+
+    /**
+     * Same sound, different spelling: "रिचार्ज" (richarj) is "Recharge", "प्रोफाइल" (prophail) is "Profile",
+     * "कॉल्स" (kols) is "Calls". Words are compared by their consonants after common sound rules; very short
+     * words ("pay", "up") never match this way.
+     */
+    internal fun soundsAlike(target: String, label: String): Double {
+        val a = target.split(' ').map(::soundKey).filter { it.isNotEmpty() }
+        val b = label.split(' ').map(::soundKey).filter { it.isNotEmpty() }
+        if (a.isEmpty() || b.isEmpty() || a.any { it.length < 2 } && a.size == 1) return 0.0
+        val sa = a.joinToString(" ")
+        val sb = b.joinToString(" ")
+        if (sa.length < 2 || sb.length < 2) return 0.0
+        return when {
+            sa == sb -> 0.9
+            a.all { it.length >= 2 } && (" $sb ".contains(" $sa ") || " $sa ".contains(" $sb ")) -> STRICT
+            else -> 0.0
+        }
+    }
+
+    private fun soundKey(word: String): String {
+        var w = word.lowercase()
+        if (w.length > 3 && w.endsWith("es")) w = w.dropLast(2) else if (w.length > 3 && w.endsWith("s")) w = w.dropLast(1)
+        w = w.replace("tion", "shan").replace("ign", "in").replace("dge", "j").replace("ph", "f").replace("ck", "k")
+            .replace("sh", "S").replace("ch", "C").replace("th", "t").replace("kh", "k").replace("gh", "g").replace("bh", "b")
+            .replace("dh", "d").replace("jh", "j").replace("x", "ks").replace("q", "k").replace("w", "v").replace("z", "j")
+        if (w.endsWith("ge")) w = w.dropLast(2) + "j"
+        w = w.replace(Regex("c(?=[eiy])"), "s").replace("c", "k")
+        val first = w.firstOrNull() ?: return ""
+        val rest = w.drop(1).filter { it !in "aeiouyh" }
+        val key = (if (first in "aeiouy") "" else first.toString()) + rest
+        return key.fold(StringBuilder()) { acc, ch -> if (acc.isEmpty() || acc.last() != ch) acc.append(ch) else acc }.toString()
     }
 
     private fun levenshtein(a: String, b: String): Int {

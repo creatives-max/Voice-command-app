@@ -279,3 +279,4 @@ phase notes say which earlier phase covered the rest.
 - DONE only when the screen shows the result; otherwise it looks first.
 - The model sees a smaller screen: short ids (e1, e2…), unnamed icons dropped, long labels cut, texts that repeat a label left out; ids are mapped back on the server.
 - Forms start like a person: "Yahan aapka Name, Mobile number aur Email bharna hai. Main ek-ek karke poochta hoon." instead of "Mujhe 3 fields mile".
+- Button names said in Hindi script match English buttons by sound ("रिचार्ज" → Recharge, "प्रोफाइल" → Profile, "कॉल्स" → Calls) and the other way; only across scripts, so "back" never presses "Bike".

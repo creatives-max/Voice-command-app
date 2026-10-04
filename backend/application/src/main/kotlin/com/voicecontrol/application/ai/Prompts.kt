@@ -161,6 +161,9 @@ object Prompts {
           application or shares personal data; the phone asks the user first. With confirm, put in question a
           short yes/no question that says exactly what will happen with the key details read back, in the
           user's language ("Rahul ko 500 rupaye bhej doon?", "Naam Rahul Sharma, mobile 98xxxx3210, submit kar doon?").
+          With confirm leave say empty (the question is spoken instead). Ask once per payment or send: when the
+          history shows "The user agreed" to it, the steps that complete it (PIN screen "Submit", "Proceed",
+          "Confirm") are pressed with confirm false.
         - The history may start with "Known about the user" (details they saved in the app) and "Earlier the
           user said" (the conversation before this goal). FILL fields that ask for a known detail without asking,
           and say what you filled ("Aapka naam bhar diya."); ask only for what is not known. Use what the user

@@ -239,4 +239,25 @@ class GoalHelperTest {
         assertFalse(tts.spoken.any { it.startsWith("Good morning") || it.startsWith("Good evening") || it.startsWith("Good afternoon") }, tts.spoken.toString())
         assertTrue(ScreenAction.Click("vid:pay") in screen.actions)
     }
+
+    @Test
+    fun `a payment the user agreed to is not asked about again on the PIN screen, and nothing is said before the question`() = runTest {
+        val amount = ScreenSnapshot("com.phonepe.app", elements = listOf(button("pay", "Pay 540")), signature = "amount")
+        val pinScreen = ScreenSnapshot("com.phonepe.app", elements = listOf(upiPin, button("confirmpay", "Confirm payment")), signature = "pin")
+        val screen = FakeScreen(amount).apply { onClick["vid:pay"] = pinScreen; onClick["vid:confirmpay"] = done }
+        val ai = GoalAgent { _, s, history, _ ->
+            when (s.signature) {
+                "amount" -> AgentDecision(AgentAction.CLICK, "vid:pay", say = "Payment kar raha hoon.", confirm = true, question = "540 rupaye bhar doon?")
+                "pin" -> if (history.none { "themselves" in it }) AgentDecision(AgentAction.ASK, "vid:pin", question = "Apna PIN daaliye.")
+                    else AgentDecision(AgentAction.CLICK, "vid:confirmpay")
+                else -> AgentDecision(AgentAction.DONE, say = "Ho gaya.")
+            }
+        }
+        val tts = RecordingTts()
+        engine(screen, ScriptedStt("bill bhar do", "haan", "next", "stop"), tts, ai, smart = true).start()
+        advanceUntilIdle()
+        assertEquals(1, tts.spoken.count { it.endsWith("?") && ("540" in it || "Confirm payment" in it) }, tts.spoken.toString())
+        assertFalse("Payment kar raha hoon." in tts.spoken)
+        assertTrue(ScreenAction.Click("vid:confirmpay") in screen.actions, tts.spoken.toString())
+    }
 }

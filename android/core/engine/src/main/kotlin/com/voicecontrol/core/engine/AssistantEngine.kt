@@ -879,7 +879,9 @@ class AssistantEngine(
         var lastKey = ""
         var repeats = 0
         var saidMoment = false
+        var stepsSinceAgreed = Int.MAX_VALUE / 2
         repeat(MAX_AGENT_STEPS) {
+            stepsSinceAgreed++
             val snap = readScreen(session) ?: return ScreenOutcome.NAVIGATED
             learned.onEvent(RecordedEvent.Screen(snap))
             session.appPackage = snap.packageName
@@ -921,7 +923,8 @@ class AssistantEngine(
                 lastKey = ""
                 return@repeat
             }
-            if (d.action != AgentAction.ASK) d.say?.let { say(session, it) }
+            // Not "paying now" before "shall I pay?": a confirmed press speaks its question instead.
+            if (d.action != AgentAction.ASK && !(d.action == AgentAction.CLICK && d.confirm)) d.say?.let { say(session, it) }
             when (d.action) {
                 AgentAction.CLICK -> {
                     val target = d.targetId?.let(snap::element)
@@ -931,11 +934,16 @@ class AssistantEngine(
                     }
                     val named = target.label.ifBlank { target.hint.orEmpty() }
                     // One confirmation, in the planner's words when it gave them ("Rahul ko 500 rupaye bhej doon?").
-                    val risky = session.cfg.confirmDestructive && DestructiveActions.isDestructive(named)
+                    // The "Submit" after the PIN of a payment the user just agreed to isn't asked again.
+                    val destructive = session.cfg.confirmDestructive && DestructiveActions.isDestructive(named)
+                    val risky = destructive && (d.confirm || stepsSinceAgreed > AGREED_FOLLOW_UP_STEPS)
                     if (d.confirm || risky) {
                         val question = d.question?.takeIf { d.confirm } ?: if (risky) phrases.confirmDestructive(named) else phrases.confirmPress(named)
                         when (askYesNoOr(session, snap, question, default = false)) {
-                            true -> Unit
+                            true -> {
+                                history += "The user agreed: $question"
+                                stepsSinceAgreed = 0
+                            }
                             null -> return ScreenOutcome.STOPPED
                             false -> {
                                 say(session, phrases.notPressed(named))
@@ -943,7 +951,7 @@ class AssistantEngine(
                             }
                         }
                     }
-                    if (press(session, target, log, confirmed = d.confirm || risky)) {
+                    if (press(session, target, log, confirmed = d.confirm || destructive)) {
                         learned.onEvent(RecordedEvent.Pressed(target.id, on = snap))
                         delay(screenSettleMillis)
                         // Tell the planner when a press did nothing, so it tries another way.
@@ -2117,6 +2125,8 @@ class AssistantEngine(
         const val MAX_AGENT_TEXTS = 80
         const val MAX_AGENT_TEXT_CHARS = 200
         const val MAX_AGENT_REPEATS = 2
+        /** Steps after the user agreed to a payment or send in which its PIN "Submit" isn't asked again. */
+        const val AGREED_FOLLOW_UP_STEPS = 3
         const val AGENT_WAIT_MS = 1_500L
         /** A request this long that matched nothing on screen is tried as a goal. */
         const val MIN_GOAL_WORDS = 4

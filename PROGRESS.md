@@ -253,3 +253,5 @@ phase notes say which earlier phase covered the rest.
 - The helper now always gets the user's saved profile details ("Known about the user") and the last few things they said, so it fills those without asking and understands follow-ups.
 - One confirmation before pay/send/submit, in the helper's own words with the key details read back ("Rahul ko 500 rupaye bhej doon?"), instead of a generic "Press Pay?".
 - No greeting after a job is done; friendlier, non-technical wording in the helper's prompt.
+- Tested against the real model (backend `LiveAgentScenariosTest`, runs only with `VC_ANTHROPIC_API_KEY`): electricity bill, sign-up form with saved details, WhatsApp message, "usko 500 bhejo" follow-up all finished correctly (~2.5–3 s per step).
+- Fixes from that run: a payment is confirmed once (the PIN screen's "Submit"/"Confirm payment" right after isn't asked again), and no "paying now" line is spoken before "shall I pay?".

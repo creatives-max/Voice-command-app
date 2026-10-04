@@ -428,6 +428,11 @@ class Phrases(private val language: Language) {
         "હું $app નહીં ખોલું: એનાથી કોઈ બીજું તમારો ફોન ચલાવી શકે છે, અને છેતરપિંડી કરનારા આનો ઉપયોગ કરે છે. ખરેખર જરૂર હોય તો જાતે ખોલો.",
     )
 
+    fun hearMore(count: Int) = t(
+        "$count more. Shall I read them?", "$count और हैं। सुनाऊँ?", "$count aur hain. Sunaaun?", "आणखी $count आहेत. वाचू?",
+        "இன்னும் $count உள்ளன. படிக்கட்டுமா?", "ఇంకా $count ఉన్నాయి. చదవనా?", "আরও ${count}টি আছে। পড়ব?", "હજી $count છે. વાંચું?",
+    )
+
     fun closedApp(app: String) = t(
         "Closed $app.", "$app बंद कर दिया।", "$app band kar diya.", "$app बंद केले.",
         "$app மூடப்பட்டது.", "$app మూసివేశాను.", "$app বন্ধ করে দিলাম।", "$app બંધ કરી દીધું.",

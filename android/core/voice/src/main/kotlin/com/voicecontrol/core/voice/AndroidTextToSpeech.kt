@@ -161,6 +161,20 @@ class AndroidTextToSpeech @Inject constructor(
         return engine.isLanguageAvailable(Locale.forLanguageTag(tag)) >= PlatformTts.LANG_AVAILABLE
     }
 
+    override fun earcon() {
+        runCatching {
+            val stream = if (onMediaVolume) android.media.AudioManager.STREAM_MUSIC else android.media.AudioManager.STREAM_ACCESSIBILITY
+            val tone = android.media.ToneGenerator(stream, EARCON_VOLUME)
+            tone.startTone(android.media.ToneGenerator.TONE_PROP_ACK, EARCON_MS)
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ tone.release() }, EARCON_MS + 100L)
+        }
+    }
+
+    private companion object {
+        const val EARCON_VOLUME = 60
+        const val EARCON_MS = 150
+    }
+
     override fun stop() {
         tts?.stop()
         pending.keys.toList().forEach { complete(it, Outcome.STOPPED) }

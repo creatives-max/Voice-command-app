@@ -556,7 +556,8 @@ class AssistantEngine(
         visionElements = emptyMap()
         if (snapshot != null && snapshot.hasReadableElements) return withHybridVision(session, snapshot)
         val detector = vision ?: return snapshot
-        if (!session.cfg.visionFallback || session.cfg.localOnly) return snapshot
+        // Smart mode looks at screens the phone can't read (web pages, games) too.
+        if (!(session.cfg.visionFallback || session.cfg.smartMode) || session.cfg.localOnly) return snapshot
         setStatus(EngineStatus.THINKING, caption = session.phrases.lookingAtScreen())
         val shot = screen.screenshot() ?: return snapshot
         val pkg = snapshot?.packageName ?: _state.value.appPackage ?: ""
@@ -576,7 +577,7 @@ class AssistantEngine(
      */
     private suspend fun withHybridVision(session: Session, snapshot: ScreenSnapshot): ScreenSnapshot {
         val detector = vision ?: return snapshot
-        if (!session.cfg.visionFallback || session.cfg.localOnly || !HybridVision.needsHelp(snapshot)) return snapshot
+        if (!(session.cfg.visionFallback || session.cfg.smartMode) || session.cfg.localOnly || !HybridVision.needsHelp(snapshot)) return snapshot
         val result = session.hybrid[snapshot.signature] ?: run {
             setStatus(EngineStatus.THINKING, caption = session.phrases.lookingAtScreen())
             val shot = screen.screenshot() ?: return snapshot
@@ -1987,6 +1988,8 @@ class AssistantEngine(
      */
     private suspend fun askAndListen(session: Session, question: String): String? {
         if (session.cfg.bargeIn && speechDetector != null) sayInterruptible(session, question, speechDetector) else say(session, question)
+        // Listening without a question (after something was done): a soft tone instead of words.
+        if (question.isBlank()) tts.earcon()
         setStatus(EngineStatus.LISTENING, caption = question)
         var early: String? = null
         suspend fun listenOnce(): ListenResult = coroutineScope {

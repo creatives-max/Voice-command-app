@@ -56,6 +56,9 @@ interface TextToSpeech {
     suspend fun speak(text: String, languageTag: String, rate: Float = 1f): Boolean
 
     fun stop()
+
+    /** A short soft tone that says "I'm listening" without words. */
+    fun earcon() = Unit
 }
 
 /** How a language pack download was started. */

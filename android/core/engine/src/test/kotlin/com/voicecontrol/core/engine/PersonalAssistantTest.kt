@@ -269,4 +269,19 @@ class PersonalAssistantTest {
         assertTrue(i1 >= 0 && i3 > i1, tts.spoken.toString())
         assertTrue(tts.spoken.subList(i1, i3).any { it.startsWith("Sorry, I didn't catch that.") }, tts.spoken.toString())
     }
+
+    @Test
+    fun `long message lists are read three at a time`() = runTest {
+        val screen = FakeScreen(home)
+        val phone = object : PhoneActions by Phone(screen, chat) {
+            override suspend fun notifications() = (1..5).map { com.voicecontrol.core.engine.port.NotificationInfo("WhatsApp", "Friend $it", "Hello $it") }
+        }
+        val tts = RecordingTts()
+        engine(screen, ScriptedStt("kya naya message aaya", "haan", "stop"), tts, phone).start()
+        advanceUntilIdle()
+        val firstThree = tts.spoken.indexOf("WhatsApp par Friend 3: Hello 3.")
+        val ask = tts.spoken.indexOf("2 aur hain. Sunaaun?")
+        assertTrue(firstThree in 0 until ask, tts.spoken.toString())
+        assertTrue(tts.spoken.indexOf("WhatsApp par Friend 5: Hello 5.") > ask)
+    }
 }

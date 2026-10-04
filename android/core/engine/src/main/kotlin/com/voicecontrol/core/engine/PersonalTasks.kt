@@ -131,8 +131,13 @@ internal class PersonalTasks(
                 if (latest.isEmpty()) {
                     say(phrases.noNotifications())
                 } else {
+                    // Three at a time, then ask: a long list read in one go is hard to follow.
                     say(phrases.notificationsIntro(latest.size))
-                    latest.forEach { n -> say(phrases.notificationLine(n.app, n.title, n.text.take(MAX_NOTIFICATION_CHARS))) }
+                    latest.take(FIRST_READ).forEach { n -> say(phrases.notificationLine(n.app, n.title, n.text.take(MAX_NOTIFICATION_CHARS))) }
+                    val rest = latest.drop(FIRST_READ)
+                    if (rest.isNotEmpty() && ask(phrases.hearMore(rest.size))?.let(::isYes) == true) {
+                        rest.forEach { n -> say(phrases.notificationLine(n.app, n.title, n.text.take(MAX_NOTIFICATION_CHARS))) }
+                    }
                 }
                 return Result.ANSWERED
             }
@@ -272,8 +277,13 @@ internal class PersonalTasks(
 
     companion object {
         const val EMERGENCY_NUMBER = "112"
+        private fun isYes(answer: String) =
+            answer.lowercase().split(Regex("[\\s,.!?।]+")).any { it in yesWords || it in moreWords }
+        private val moreWords = setOf("sunao", "padho", "aur", "baaki", "सुनाओ", "पढ़ो", "बाकी", "more", "continue", "read")
         private val yesWords = setOf("haan", "ha", "han", "haa", "yes", "ji", "हाँ", "हां", "जी", "karo", "करो", "please", "call")
-        const val MAX_READ_NOTIFICATIONS = 5
+        const val MAX_READ_NOTIFICATIONS = 8
+        /** Read before asking whether to go on. */
+        const val FIRST_READ = 3
         const val MAX_READ_NOTES = 10
         const val MAX_NOTIFICATION_CHARS = 200
 

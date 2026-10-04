@@ -287,3 +287,6 @@ phase notes say which earlier phase covered the rest.
 - Per-app notes: after a job, a short note of what was pressed or filled (names only, never values) is kept for that app on the phone (last 5); the helper gets them as "Tips for this app from earlier jobs".
 - Faster/cheaper AI: the system prompts are marked for prompt caching (read from cache after the first call within five minutes). Checked live: all scenarios pass; steps ~2.8 s after the first.
 - Server warm-up: starting a voice session pings the server's health check (at most every 4 minutes, not in on-device only mode), so a sleeping free-plan server wakes during the greeting.
+- Listening without a question plays a soft tone ("I'm listening") instead of silence.
+- Smart mode also looks at screens the phone can't read (web pages): a screenshot is used to find the buttons and fields.
+- New messages are read three at a time, then "2 aur hain. Sunaaun?".

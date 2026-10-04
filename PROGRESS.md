@@ -263,3 +263,5 @@ phase notes say which earlier phase covered the rest.
 - Barge-in is off by default again (new settings key so the earlier default isn't kept): listening while talking uses the phone-call audio path, which made the voice quieter on many phones. Settings explains this.
 - Dashboard image: files are owned by the app user, so Next.js can write its page cache (EACCES on .next/server/route-cache in the Render logs).
 - "WhatsApp band karo", "close YouTube", "ye app band karo": the app in front goes to the home screen ("WhatsApp band kar diya."); a named app that isn't open is said so. Torch/gaana/phone/data "band karo" keep their own meaning.
+- No more one-button flows: a screen where only a button was pressed (e.g. Zepto's "Pay Now") no longer becomes a saved flow on its own.
+- A job stopped at the payment question ("Maggi order karo", then "nahi" at Pay) is still offered as a shortcut, up to that point; jobs asked for in smart mode are offered too (only smart mode's own form-filling isn't).

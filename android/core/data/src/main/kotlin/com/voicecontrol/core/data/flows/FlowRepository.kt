@@ -5,6 +5,7 @@ import com.voicecontrol.core.data.db.FlowDao
 import com.voicecontrol.core.data.db.FlowEntity
 import com.voicecontrol.core.engine.FlowGenerator
 import com.voicecontrol.core.engine.TemplateMatcher
+import com.voicecontrol.core.model.ElementKind
 import com.voicecontrol.core.model.FlowDefinition
 import com.voicecontrol.core.model.FlowStep
 import com.voicecontrol.core.model.ScreenSnapshot
@@ -62,6 +63,8 @@ class FlowRepository @Inject constructor(
             }
             // Screens handled by a template are saved as the user's own flow, keeping the template's questions.
             if ((screen.flowId != null && template == null) || screen.steps.isEmpty()) continue
+            // A screen where only a button was pressed ("Pay Now") makes no useful flow on its own.
+            if (screen.steps.all { it.kind == ElementKind.BUTTON || it.kind == ElementKind.LINK }) continue
             val existing = dao.byPackage(screen.appPackage).any { it.screenSignature == screen.screenSignature }
             if (existing) continue
             val flow = FlowGenerator.fromScreen(screen, FlowDefinition.LOCAL_PREFIX + UUID.randomUUID(), nowMillis, template)

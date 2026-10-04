@@ -281,4 +281,27 @@ class GoalHelperTest {
         assertTrue(ScreenAction.PressEnter("vid:q") in screen.actions)
         assertTrue(ScreenAction.Click("vid:go") in screen.actions, screen.actions.toString())
     }
+
+    @Test
+    fun `stopping before paying still offers to remember the way up to there`() = runTest {
+        val shop = ScreenSnapshot("com.zepto", elements = listOf(button("search", "Search"), button("maggi", "Maggi 2-minute noodles")), signature = "shop")
+        val item = ScreenSnapshot("com.zepto", elements = listOf(button("add", "Add to cart"), button("cart", "View cart")), signature = "item")
+        val cart = ScreenSnapshot("com.zepto", elements = listOf(button("paynow", "Pay Now")), signature = "cart")
+        val screen = FakeScreen(shop).apply { onClick["vid:maggi"] = item; onClick["vid:add"] = item.copy(signature = "added"); onClick["vid:cart"] = cart }
+        val ai = GoalAgent { _, s, _, _ ->
+            when (s.signature) {
+                "shop" -> AgentDecision(AgentAction.CLICK, "vid:maggi")
+                "item" -> AgentDecision(AgentAction.CLICK, "vid:add")
+                "added" -> AgentDecision(AgentAction.CLICK, "vid:cart")
+                else -> AgentDecision(AgentAction.CLICK, "vid:paynow", confirm = true, question = "Maggi ke 14 rupaye pay kar doon?")
+            }
+        }
+        val tts = RecordingTts()
+        engine(screen, ScriptedStt("mujhe maggi order karni hai", "nahi", "haan", "stop"), tts, ai).start()
+        advanceUntilIdle()
+        assertFalse(ScreenAction.Click("vid:paynow") in screen.actions)
+        assertTrue(tts.spoken.any { it.startsWith("Kya main ye tareeka yaad rakh loon?") || it.startsWith("Shall I remember") }, tts.spoken.toString())
+        val (_, flow) = learned.single()
+        assertEquals(listOf("vid:maggi", "vid:add", "vid:cart"), flow.orderedSteps.filter { it.elementId.isNotEmpty() }.map { it.elementId })
+    }
 }

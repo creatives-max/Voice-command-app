@@ -815,7 +815,8 @@ class AssistantEngine(
             val smartRequest = session.smart && localCommands.commandOf(request(session, snapshot, heard)) == null &&
                 ButtonMatcher.find(heard, snapshot.elements, ButtonMatcher.STRICT) == null
             if (goalAgent != null && (smartRequest || GoalRequest.isGoal(heard))) {
-                val outcome = runGoal(session, heard, log, auto = smartRequest && !GoalRequest.isGoal(heard))
+                // Something the user asked for: announced and offered as a shortcut; without the AI, carry on.
+                val outcome = runGoal(session, heard, log, fallback = smartRequest && !GoalRequest.isGoal(heard))
                 if (!session.smartOff) return outcome
             }
             // The answer is usually just a button's name: "Login", "लॉगिन", "OK", "Next". When the recognizer's
@@ -879,11 +880,11 @@ class AssistantEngine(
      * says stop, or after [MAX_AGENT_STEPS]; then the conversation carries on ("What next?").
      */
     /**
-     * [auto]: started by smart mode rather than asked for as a job. It doesn't announce itself, isn't
-     * offered as a shortcut, and when the AI can't be reached it turns smart mode off for the session
-     * (silently) so the caller carries on the built-in way.
+     * [auto]: started by smart mode rather than asked for as a job (a form): it doesn't announce itself and
+     * isn't offered as a shortcut. [fallback]: when the AI can't be reached it turns smart mode off for the
+     * session (silently) so the caller carries on the built-in way.
      */
-    private suspend fun runGoal(session: Session, goal: String, log: ScreenLog, auto: Boolean = false): ScreenOutcome {
+    private suspend fun runGoal(session: Session, goal: String, log: ScreenLog, auto: Boolean = false, fallback: Boolean = auto): ScreenOutcome {
         val agent = goalAgent ?: return ScreenOutcome.NAVIGATED
         val phrases = session.phrases
         emit(EngineEvent.STATUS, if (auto) "Smart mode" else "Helping with a goal")
@@ -925,7 +926,7 @@ class AssistantEngine(
                 if (filler != null && !saidMoment) filler.cancel() else filler?.join()
                 result
             }
-            if (d == null && auto && history.isEmpty()) {
+            if (d == null && fallback && history.isEmpty()) {
                 emit(EngineEvent.STATUS, "Smart mode unavailable; carrying on without it")
                 session.smartOff = true
                 return ScreenOutcome.NAVIGATED
@@ -970,6 +971,9 @@ class AssistantEngine(
                             null -> return ScreenOutcome.STOPPED
                             false -> {
                                 say(session, phrases.notPressed(named))
+                                // "Order Maggi, up to paying": the way so far is worth keeping; next time the
+                                // flow stops at this same question.
+                                if (!auto) offerToRemember(session, goal, learned.recording(), snap)
                                 return ScreenOutcome.NAVIGATED
                             }
                         }

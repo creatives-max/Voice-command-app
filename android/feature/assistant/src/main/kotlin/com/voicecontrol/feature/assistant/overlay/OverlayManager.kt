@@ -21,6 +21,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -55,7 +56,12 @@ class OverlayManager @Inject constructor(
         val overlay = OverlayWindow(service)
         window = overlay
 
-        settings.settings.map { it.showOverlay }.distinctUntilChanged().onEach { show ->
+        // A hidden mic still appears while VoiceControl is talking or recording (wake phrase, tile, widget).
+        combine(
+            settings.settings.map { it.showOverlay },
+            controller.state.map { it.sessionActive },
+            teach.state.map { it.active },
+        ) { wanted, talking, teaching -> wanted || talking || teaching }.distinctUntilChanged().onEach { show ->
             if (show) {
                 overlay.show { onDrag, alignStart ->
                     val state by controller.state.collectAsStateWithLifecycle()
@@ -133,6 +139,18 @@ class OverlayManager @Inject constructor(
     private val actions: OverlayActions = object : OverlayActions by controller {
         override fun onMicTap() {
             if (teach.state.value.active) teach.stop() else controller.onMicTap()
+        }
+
+        override fun onHideMic() {
+            controller.onClosePanel()
+            scope.launch { settings.update { it.copy(showOverlay = false) } }
+            service?.let {
+                android.widget.Toast.makeText(
+                    it,
+                    "Mic hidden. It still shows while VoiceControl talks. To bring it back: VoiceControl → Settings → Show the floating mic.",
+                    android.widget.Toast.LENGTH_LONG,
+                ).show()
+            }
         }
 
         override fun onTeach() {

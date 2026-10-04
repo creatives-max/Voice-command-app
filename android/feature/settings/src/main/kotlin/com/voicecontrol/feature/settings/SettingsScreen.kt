@@ -94,7 +94,7 @@ private val toggles = listOf(
         "Smart mode (Claude)",
         "Claude reads every screen, asks you in plain words, fills in and presses for you. More accurate on new apps; needs internet, is a little slower and uses more AI. Pay, send and delete are still confirmed. Your saved profile details are shared with Claude so it asks less.",
     ),
-    Triple(Option.SHOW_OVERLAY, "Show the floating mic", "The bubble appears over other apps while the service is on."),
+    Triple(Option.SHOW_OVERLAY, "Show the floating mic", "The bubble appears over other apps while the service is on. When hidden (long-press the mic → Hide mic) it still shows while VoiceControl is talking."),
     Triple(Option.CONFIRM_VALUES, "Read back answers", "Say \"Got it, …\" after filling so you can correct mistakes."),
     Triple(Option.ASK_BEFORE_SUBMIT, "Ask before pressing submit", "Confirm before the final button of a form."),
     Triple(Option.SKIP_FILLED, "Skip fields that already have a value", "Otherwise VoiceControl asks whether to keep them."),

@@ -655,7 +655,25 @@ class AssistantEngine(
     private var visionElements: Map<String, ScreenElement> = emptyMap()
 
     /** Routes actions on vision-detected elements to taps/typing; everything else goes to the gateway. */
+    /**
+     * The keyboard's Enter/Search key on [action]'s field. Where the phone or app has none (Android 10 and
+     * older, some apps), the search button next to the field is pressed instead.
+     */
+    private suspend fun pressEnter(action: ScreenAction.PressEnter): ActionResult {
+        val enter = screen.perform(action)
+        if (enter.isSuccess) return enter
+        val snap = screen.capture() ?: return enter
+        val field = snap.element(action.elementId) ?: return enter
+        val button = snap.buttons
+            .filter { b -> b.isEnabled && b.id != field.id && listOf(b.label, b.hint.orEmpty()).any { it.trim().lowercase() in SEARCH_BUTTON_WORDS } }
+            .minByOrNull { b -> kotlin.math.abs(b.bounds.centerY - field.bounds.centerY) * 2 + kotlin.math.abs(b.bounds.centerX - field.bounds.centerX) }
+            ?: return enter
+        emit(EngineEvent.STEP, "No Enter key here; pressed ${button.label}")
+        return screen.perform(ScreenAction.Click(button.id))
+    }
+
     private suspend fun perform(action: ScreenAction): ActionResult {
+        if (action is ScreenAction.PressEnter) return pressEnter(action)
         val elementId = when (action) {
             is ScreenAction.SetText -> action.elementId
             is ScreenAction.Click -> action.elementId
@@ -2113,6 +2131,10 @@ class AssistantEngine(
         const val SCREEN_POLL_MS = 500L
         /** How long a flow waits after the last answer before pressing Enter in that field. */
         const val ENTER_AFTER_MS = 3_000L
+        /** Buttons that do what the keyboard's Enter does in a search box. */
+        private val SEARCH_BUTTON_WORDS = setOf(
+            "search", "go", "find", "submit", "search button", "खोजें", "खोज", "सर्च", "ढूंढें", "शोधा", "தேடு", "వెతకండి", "খুঁজুন", "શોધો",
+        )
         const val MAX_AGENT_STEPS = 40
         /** App package / signature / flow id of the history screen that lists assistant jobs. */
         const val ASSISTANT_SCREEN = "assistant"

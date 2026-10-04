@@ -179,4 +179,21 @@ class ParseWithNodesTest {
         val fieldId = result.snapshot.textFields.single().id
         assertTrue(result.nodesById[fieldId] === field)
     }
+
+    @Test
+    fun `a search box is called Search, never by what is typed in it`() {
+        val typed = editText(id = "com.yt:id/search_edit_text", text = "arijit songs").copy(contentDescription = "arijit songs")
+        val view = FakeUiNode(
+            className = "android.widget.SearchView\$SearchAutoComplete", text = "kesariya", isEditable = true,
+            boundsInScreen = Bounds(0, 300, 1000, 420),
+        )
+        val snapshot = ScreenParser().parse(root(typed, view), "com.yt")
+        val first = snapshot.textFields[0]
+        val second = snapshot.textFields[1]
+        assertEquals("Search", first.label)
+        assertEquals("arijit songs", first.value)
+        assertEquals(FieldType.SEARCH, first.fieldType)
+        assertEquals("Search", second.label)
+        assertEquals(FieldType.SEARCH, second.fieldType)
+    }
 }

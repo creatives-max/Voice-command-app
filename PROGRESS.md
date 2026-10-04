@@ -255,3 +255,8 @@ phase notes say which earlier phase covered the rest.
 - No greeting after a job is done; friendlier, non-technical wording in the helper's prompt.
 - Tested against the real model (backend `LiveAgentScenariosTest`, runs only with `VC_ANTHROPIC_API_KEY`): electricity bill, sign-up form with saved details, WhatsApp message, "usko 500 bhejo" follow-up all finished correctly (~2.5–3 s per step).
 - Fixes from that run: a payment is confirmed once (the PIN screen's "Submit"/"Confirm payment" right after isn't asked again), and no "paying now" line is spoken before "shall I pay?".
+
+### Search boxes
+- A search box is never named by what is typed in it (some apps put the typed text in the description too); a search box without a real caption is called "Search". SearchView-type fields count as search boxes.
+- Enter: Android 11+ presses the keyboard's Enter/Search key; where there is none (Android 8–10, some apps) the Search/Go button next to the box is pressed instead.
+- Smart mode knows to press the search box itself after typing when there is no search button (checked with the real model: "YouTube pe kesariya gaana chalao" typed, searched and played).

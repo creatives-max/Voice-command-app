@@ -218,6 +218,24 @@ class LiveAgentScenariosTest {
             if (s.saysBeforeConfirm > 0) problems += "${s.now.pkg}: spoke a 'doing it' line together with a confirmation"
         }
 
+        // 5. A search box with no search button: type, then press the field itself (the phone presses Enter).
+        val yt = run(
+            "YouTube search (no button)", "YouTube pe kesariya gaana chalao",
+            Sim(
+                listOf(
+                    Screen("search", "com.google.android.youtube", listOf(button("back", "Navigate up"), field("q", "Search", FieldType.SEARCH), button("mic", "Search with your voice"))),
+                    Screen("results", "com.google.android.youtube", listOf(button("v1", "Kesariya - Brahmastra | Arijit Singh"), button("v2", "Kesariya Lofi")), listOf("Results for kesariya")),
+                    Screen("playing", "com.google.android.youtube", listOf(button("pause", "Pause video")), listOf("Kesariya - Brahmastra")),
+                ),
+                "search",
+                onClick = mapOf("q" to "results", "v1" to "playing"),
+                otherAnswer = { "haan" },
+            ),
+        )
+        if (yt.filledByAgent["q"]?.contains("kesariya", ignoreCase = true) != true) problems += "search: did not type the song (${yt.filledByAgent})"
+        if ("q" !in yt.pressed) problems += "search: did not press Enter on the search box (${yt.pressed})"
+        if (yt.now.name != "playing") problems += "search: did not play the song (at ${yt.now.name})"
+
         out.appendLine().appendLine("PROBLEMS: ${if (problems.isEmpty()) "none" else ""}")
         problems.forEach { out.appendLine("  - $it") }
         File("build").mkdirs()

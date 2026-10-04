@@ -260,4 +260,25 @@ class GoalHelperTest {
         assertFalse("Payment kar raha hoon." in tts.spoken)
         assertTrue(ScreenAction.Click("vid:confirmpay") in screen.actions, tts.spoken.toString())
     }
+
+    @Test
+    fun `with no Enter key the search button next to the box is pressed`() = runTest {
+        val search = ScreenSnapshot(
+            "com.shop",
+            elements = listOf(ScreenElement("vid:q", ElementKind.TEXT_FIELD, "Search", FieldType.SEARCH), button("go", "Go")),
+            signature = "search",
+        )
+        val screen = FakeScreen(search).apply { onClick["vid:go"] = done }
+        val ai = GoalAgent { _, s, history, _ ->
+            when {
+                s.signature == "done" -> AgentDecision(AgentAction.DONE, say = "Mil gaya.")
+                history.none { it.startsWith("Typed") } -> AgentDecision(AgentAction.FILL, "vid:q", value = "chawal")
+                else -> AgentDecision(AgentAction.CLICK, "vid:q")
+            }
+        }
+        engine(screen, ScriptedStt("chawal dhundo", "stop"), RecordingTts(), ai, smart = true).start()
+        advanceUntilIdle()
+        assertTrue(ScreenAction.PressEnter("vid:q") in screen.actions)
+        assertTrue(ScreenAction.Click("vid:go") in screen.actions, screen.actions.toString())
+    }
 }

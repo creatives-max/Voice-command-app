@@ -2,6 +2,7 @@ package com.voicecontrol.core.screen
 
 import com.voicecontrol.core.model.Bounds
 import com.voicecontrol.core.model.ElementKind
+import com.voicecontrol.core.model.FieldType
 import com.voicecontrol.core.model.ScreenElement
 import com.voicecontrol.core.model.ScreenSnapshot
 import com.voicecontrol.core.model.ScreenText
@@ -122,10 +123,13 @@ class ScreenParser(
             node.isShowingHintText -> null
             else -> LabelText.clean(node.text)?.takeIf { it != LabelText.clean(node.hintText) }
         }
+        // A search box without a real caption is called "Search", not "Text field" or what is typed in it.
+        val made = draft.label == defaultLabel(kind) || draft.label == currentValue || draft.label == LabelText.humanizeViewId(node.viewIdResourceName)
+        val label = if (fieldType == FieldType.SEARCH && made) SEARCH_LABEL else draft.label
         return ScreenElement(
             id = id,
             kind = kind,
-            label = draft.label,
+            label = label,
             fieldType = fieldType,
             hint = LabelText.clean(node.hintText),
             value = currentValue,
@@ -172,6 +176,8 @@ class ScreenParser(
 
     private fun resolveLabel(candidate: Candidate, texts: List<TextNode>, consumed: MutableSet<TextNode>): String {
         val node = candidate.node
+        // What is typed in a field is its value, never its name (some apps also put it in the description).
+        val typed = if (candidate.kind == ElementKind.TEXT_FIELD && !node.isShowingHintText) LabelText.clean(node.text) else null
         val own = when (candidate.kind) {
             // For an editable field `text` is the *value*, so it is only a label fallback via hint.
             ElementKind.TEXT_FIELD -> listOf(
@@ -183,7 +189,7 @@ class ScreenParser(
                 node.text.takeIf { node.isShowingHintText },
             )
             else -> listOf(node.text, node.contentDescription, candidate.innerText, node.tooltipText, node.labeledBy?.text)
-        }.firstNotNullOfOrNull { LabelText.clean(it) }
+        }.mapNotNull { LabelText.clean(it) }.firstOrNull { typed == null || it != typed }
 
         // A generic hint such as "Type here" is worse than a real caption printed above the field.
         val ownIsGenericHint = own != null && candidate.kind == ElementKind.TEXT_FIELD &&
@@ -228,6 +234,7 @@ class ScreenParser(
 
     companion object {
         const val ROW_TOLERANCE_PX = 24
+        const val SEARCH_LABEL = "Search"
         private val genericHints = setOf("type here", "enter here", "enter", "required", "optional", "enter value", "yahan likhen", "यहां लिखें")
     }
 }

@@ -59,6 +59,9 @@ object FieldClassifier {
         if (containsWord(text, pincodeWords)) return FieldType.PINCODE
         if (containsWord(text, pinWords)) return FieldType.PIN
 
+        // Search views (SearchView, SearchAutoComplete, search bars) are search boxes whatever they show.
+        if (node.className.orEmpty().contains("Search", ignoreCase = true)) return FieldType.SEARCH
+
         // 2. Input-type bits.
         when (cls) {
             TYPE_CLASS_PHONE -> return FieldType.PHONE

@@ -1292,13 +1292,25 @@ class AssistantEngine(
 
     /**
      * The screen ready for [flow]: when a press of the flow isn't on screen (an item further down a list),
-     * scrolls down to find it. Returns the screen as it is now.
+     * scrolls down to find it. A pop-up in the way ("Rate us" with "Not now") is closed first, quietly.
+     * Returns the screen as it is now.
      */
     private suspend fun scrollToFlowItem(session: Session, snapshot: ScreenSnapshot, flow: FlowDefinition): ScreenSnapshot {
-        val missing = PlanBuilder(session.phrases).build(snapshot, flow, null).missingPresses.firstOrNull() ?: return snapshot
-        if (!snapshot.isScrollable) return snapshot
-        findByScrolling(session, missing.label) ?: return snapshot
-        return screen.capture() ?: snapshot
+        var current = snapshot
+        repeat(MAX_POPUPS_CLOSED + 1) { closed ->
+            val missing = PlanBuilder(session.phrases).build(current, flow, null).missingPresses.firstOrNull() ?: return current
+            val close = if (closed < MAX_POPUPS_CLOSED) PopupCloser.find(current.elements, flow) else null
+            if (close == null) {
+                if (!current.isScrollable) return current
+                findByScrolling(session, missing.label) ?: return current
+                return screen.capture() ?: current
+            }
+            if (!perform(ScreenAction.Click(close.id)).isSuccess) return current
+            emit(EngineEvent.STEP, "Closed a pop-up: ${close.label}")
+            delay(screenSettleMillis)
+            current = screen.capture() ?: return current
+        }
+        return current
     }
 
     /**
@@ -1407,7 +1419,7 @@ class AssistantEngine(
         val button = plan.submitButton ?: return ScreenOutcome.COMPLETED
         val phrases = session.phrases
         if (plan.autoSubmit || !session.cfg.askBeforeSubmit) {
-            return if (press(session, button, log)) ScreenOutcome.NAVIGATED else ScreenOutcome.COMPLETED
+            return if (press(session, button, log, quiet = plan.autoSubmit)) ScreenOutcome.NAVIGATED else ScreenOutcome.COMPLETED
         }
         // This question is the one confirmation (with the scam warning during a call): no second "are you sure?".
         val question = (plan.submitQuestion ?: phrases.confirmPress(button.label))
@@ -1509,7 +1521,8 @@ class AssistantEngine(
             }
             StepAction.CLICK -> {
                 // A conditional button press inside the screen (e.g. "Add nominee"); the plan continues.
-                if (press(session, step.element, log)) delay(screenSettleMillis)
+                // A saved flow's own taps are done quietly: no "Pressed Search, Pressed Maggi…".
+                if (press(session, step.element, log, quiet = step.flowStepId != null)) delay(screenSettleMillis)
                 return StepResult.Done
             }
             StepAction.NEXT_SCREEN, StepAction.OPEN_APP -> return StepResult.Done
@@ -2293,7 +2306,13 @@ class AssistantEngine(
     }
 
     /** Presses [button]; asks first when it can't be undone, unless the user [confirmed] it already. */
-    private suspend fun press(session: Session, button: ScreenElement, log: ScreenLog, confirmed: Boolean = false): Boolean {
+    private suspend fun press(
+        session: Session,
+        button: ScreenElement,
+        log: ScreenLog,
+        confirmed: Boolean = false,
+        quiet: Boolean = false,
+    ): Boolean {
         if (!confirmed && session.cfg.confirmDestructive && DestructiveActions.isDestructive(button.label)) {
             val context = screen.capture() ?: ScreenSnapshot.empty(session.appPackage)
             if (askYesNoOr(session, context, scamCheck(session, session.phrases.confirmDestructive(button.label)), default = false) != true) {
@@ -2304,8 +2323,9 @@ class AssistantEngine(
         }
         // A taught "press Enter" in a search box is a press on the field itself.
         val action = if (button.kind == ElementKind.TEXT_FIELD) ScreenAction.PressEnter(button.id) else ScreenAction.Click(button.id)
-        val ok = act(session, action, session.phrases.pressed(button.label))
+        val ok = act(session, action, if (quiet) null else session.phrases.pressed(button.label))
         if (ok) {
+            if (quiet) emit(EngineEvent.STEP, "Pressed ${button.label}")
             log.putClick(button)
             recordUndo(button, wasPress = true)
         }
@@ -2399,6 +2419,8 @@ class AssistantEngine(
         private const val MAX_NOTE_STEPS = 8
         /** Scrolls when looking further down a list for a name. */
         private const val MAX_SCROLL_SEARCHES = 5
+        /** Pop-ups closed in a row while looking for a flow's next press. */
+        private const val MAX_POPUPS_CLOSED = 2
         /** Screen-sharing / remote-control apps (package prefixes) VoiceControl won't open by voice. */
         private val REMOTE_ACCESS_APPS = listOf(
             "com.anydesk.", "com.teamviewer.", "com.rustdesk.", "com.sand.airdroid", "com.splashtop.", "com.realvnc.",

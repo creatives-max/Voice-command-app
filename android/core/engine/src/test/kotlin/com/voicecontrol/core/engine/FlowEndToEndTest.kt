@@ -103,6 +103,24 @@ class FlowEndToEndTest {
     }
 
     @Test
+    fun `a pop-up in the way is closed by itself and the flow's own taps are done quietly`() = runTest {
+        val rateUs = zResults.copy(
+            elements = listOf(button("rate", "Rate us 5 stars"), button("notnow", "Not now")),
+            signature = "z-rate-us",
+        )
+        val screen = zepto(zHome).apply {
+            onEnter["vid:q"] = rateUs
+            onClick["vid:notnow"] = zResults
+        }
+        val tts = RecordingTts()
+        engine(screen, ScriptedStt("maggi", "haan", "stop"), tts).start(teachByHand())
+        advanceUntilIdle()
+        assertEquals(listOf("vid:search", "vid:notnow", "vid:maggi", "vid:add", "vid:cart", "vid:pay"), pressesIn(screen), tts.spoken.toString())
+        assertEquals("z-paid", screen.snapshot?.signature)
+        assertTrue(tts.spoken.none { it.startsWith("Pressed") && "Pay" !in it }, tts.spoken.toString())
+    }
+
+    @Test
     fun `running it while the app is already open on its home screen works the same`() = runTest {
         val screen = zepto(zHome)
         engine(screen, ScriptedStt("maggi", "haan", "stop"), RecordingTts()).start(teachByHand())

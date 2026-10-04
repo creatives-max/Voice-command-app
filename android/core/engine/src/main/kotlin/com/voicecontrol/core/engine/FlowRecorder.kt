@@ -91,6 +91,15 @@ class FlowRecorder(private val homePackages: () -> Set<String> = { emptySet() })
         }
         // A screen where nothing happened is replaced by the next one.
         if (screen != null && screen.actions.isEmpty()) screens.removeAt(screens.lastIndex)
+        val back = current
+        if (screen != null && screen !== back && back != null && sameScreen(back.snapshot, snapshot)) {
+            // Back where they were without doing anything there: the tap that went there was a wrong turn
+            // ("Offers" instead of "Search"). A loading screen (nothing to press) is not a wrong turn.
+            val last = back.actions.entries.lastOrNull()
+            if (screen.snapshot.elements.isNotEmpty() && last?.value?.action == StepAction.CLICK) back.actions.remove(last.key)
+            back.snapshot = snapshot
+            return
+        }
         screens += MutableScreen(snapshot)
     }
 

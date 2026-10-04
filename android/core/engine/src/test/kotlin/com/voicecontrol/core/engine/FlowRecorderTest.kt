@@ -64,6 +64,37 @@ class FlowRecorderTest {
     }
 
     @Test
+    fun `a wrong turn the teacher backed out of is not saved`() {
+        val offers = ScreenElement("vid:offers", ElementKind.BUTTON, "Offers")
+        val search = ScreenElement("vid:search", ElementKind.BUTTON, "Search")
+        val back = ScreenElement("vid:back", ElementKind.BUTTON, "Back")
+        val home = screen("com.shop", "home", offers, search)
+        val r = FlowRecorder()
+        r.onEvent(RecordedEvent.Screen(home))
+        r.onEvent(RecordedEvent.Screen(screen("com.shop", "offers", back))) // the app moved before the press arrived
+        r.onEvent(RecordedEvent.Pressed("vid:offers", on = home))
+        r.onEvent(RecordedEvent.Screen(home)) // pressed Back
+        r.onEvent(RecordedEvent.Pressed("vid:search"))
+        r.onEvent(RecordedEvent.Screen(screen("com.shop", "results", name)))
+        r.onEvent(RecordedEvent.Typed("vid:name"))
+
+        val screens = r.recording().screens
+        assertEquals(listOf("home", "results"), screens.map { it.snapshot.signature })
+        assertEquals(listOf("vid:search"), screens[0].actions.map { it.element.id })
+
+        // A loading screen in between is not a wrong turn: "Apply" stays.
+        val apply = ScreenElement("vid:apply", ElementKind.BUTTON, "Apply")
+        val cart = screen("com.shop", "cart", apply, pay)
+        val r2 = FlowRecorder()
+        r2.onEvent(RecordedEvent.Screen(cart))
+        r2.onEvent(RecordedEvent.Pressed("vid:apply"))
+        r2.onEvent(RecordedEvent.Screen(screen("com.shop", "spinner")))
+        r2.onEvent(RecordedEvent.Screen(cart))
+        r2.onEvent(RecordedEvent.Pressed("vid:pay"))
+        assertEquals(listOf("vid:apply", "vid:pay"), r2.recording().screens.single().actions.map { it.element.id })
+    }
+
+    @Test
     fun `pressing a button again moves it last and empty recordings are refused`() {
         val r = FlowRecorder()
         r.onEvent(RecordedEvent.Screen(screen("com.a", "s", name, next)))

@@ -44,7 +44,8 @@ class AssistantModeTest {
         assertEquals("What can I do for you?", tts.spoken.first())
         assertTrue(ScreenAction.LaunchApp("com.whatsapp") in screen.actions)
         assertTrue("Opening WhatsApp." in tts.spoken)
-        assertTrue("What next?" in tts.spoken, "still listening in the opened app")
+        // Still listening in the opened app, without asking "What next?" after every step.
+        assertFalse("What next?" in tts.spoken, tts.spoken.toString())
         assertTrue(ScreenAction.Click("vid:calls") in screen.actions)
     }
 
@@ -76,7 +77,7 @@ class AssistantModeTest {
         assertTrue(tts.spoken.any { it.startsWith("Here you can: Recharge, Pay bill, History.") })
         // After pressing Recharge the assistant stays awake on the next screen.
         assertTrue(ScreenAction.Click("vid:recharge") in screen.actions)
-        assertTrue("What next?" in tts.spoken)
+        assertFalse("What next?" in tts.spoken)
         assertTrue(ScreenAction.Click("vid:postpaid") in screen.actions)
     }
 
@@ -101,6 +102,8 @@ class AssistantModeTest {
         advanceUntilIdle()
         assertTrue(ScreenAction.LaunchApp("com.whatsapp") in screen.actions)
         assertFalse("What can I do for you?" in tts.spoken)
-        assertTrue("What next?" in tts.spoken)
+        // Then it listens quietly in WhatsApp.
+        assertTrue(stt.requests.isNotEmpty())
+        assertFalse("What next?" in tts.spoken)
     }
 }

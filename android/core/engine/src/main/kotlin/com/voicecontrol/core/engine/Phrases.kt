@@ -352,6 +352,22 @@ class Phrases(private val language: Language) {
         "એપનું નામ લઈને ખોલો કહી શકો, જેમ કે વોટ્સએપ ખોલો, અથવા નીચે, પાછળ કે રોકો કહો.",
     )
 
+    fun lookingFor(name: String) = t(
+        "Looking for $name…", "$name ढूंढ रहा हूं…", "$name dhoondh raha hoon…", "$name शोधत आहे…",
+        "$name தேடுகிறேன்…", "$name వెతుకుతున్నాను…", "$name খুঁজছি…", "$name શોધી રહ્યો છું…",
+    )
+
+    fun notFoundAfterScrolling(name: String) = t(
+        "I couldn't find $name here. Say it another way, or say search.",
+        "यहाँ $name नहीं मिला। दूसरे तरीके से बोलिए, या सर्च बोलिए।",
+        "Yahan $name nahi mila. Doosre tarike se boliye, ya search boliye.",
+        "इथे $name सापडले नाही. दुसऱ्या शब्दांत सांगा, किंवा सर्च म्हणा.",
+        "இங்கே $name கிடைக்கவில்லை. வேறு விதமாக சொல்லுங்கள், அல்லது தேடு என்று சொல்லுங்கள்.",
+        "ఇక్కడ $name దొరకలేదు. వేరే విధంగా చెప్పండి, లేదా సెర్చ్ అని చెప్పండి.",
+        "এখানে $name পেলাম না। অন্যভাবে বলুন, অথবা সার্চ বলুন।",
+        "અહીં $name ન મળ્યું. બીજી રીતે કહો, અથવા સર્ચ કહો.",
+    )
+
     fun closedApp(app: String) = t(
         "Closed $app.", "$app बंद कर दिया।", "$app band kar diya.", "$app बंद केले.",
         "$app மூடப்பட்டது.", "$app మూసివేశాను.", "$app বন্ধ করে দিলাম।", "$app બંધ કરી દીધું.",

@@ -242,6 +242,9 @@ class AssistantEngine(
         val hybrid = HashMap<String, HybridVision.Result>()
         /** Signature of the screen as last seen (loops can change it by adding rows). */
         var currentSignature: String = ""
+        /** Screens smart mode already filled in this session (not filled again when they come back). */
+        val smartHandled = HashSet<String>()
+
         /** Smart mode could not reach the AI in this session: carry on the built-in way. */
         var smartOff = false
 
@@ -455,7 +458,6 @@ class AssistantEngine(
                         session.status = RunStatus.FAILED
                         return
                     }
-                    say(session, session.phrases.newScreen())
                     continue
                 }
                 active = null
@@ -468,7 +470,6 @@ class AssistantEngine(
                 val sameScreen = next.signature == session.currentSignature
                 // The form just filled is still showing (submitted, or the app shows it again): finished.
                 if (hasForm && sameScreen) break
-                if (hasForm) say(session, session.phrases.newScreen())
             }
             say(session, session.phrases.done())
         } catch (e: UserStop) {
@@ -748,7 +749,10 @@ class AssistantEngine(
         // Nothing to fill and no press taught by a flow, or the user already said what they want: talk instead.
         if ((plan.steps.isEmpty() && !plan.submitFromFlow) || session.firstRequest != null) return commandMode(session, snapshot, log)
         // Smart mode: a form without a saved flow is filled by the AI, which asks the user in plain words.
+        // A video's comment box or a lone search box isn't a form: talk instead of explaining that it isn't.
         if (session.smart && plan.flowId == null) {
+            if (!isRealForm(snapshot) || snapshot.signature in session.smartHandled) return commandMode(session, snapshot, log)
+            session.smartHandled += snapshot.signature
             val outcome = runGoal(session, SMART_FORM_GOAL, log, auto = true)
             if (!session.smartOff) return outcome
         }
@@ -772,14 +776,18 @@ class AssistantEngine(
      */
     private suspend fun commandMode(session: Session, snapshot: ScreenSnapshot, log: ScreenLog): ScreenOutcome {
         val phrases = session.phrases
-        var prompt = if (session.greeted) phrases.whatNext() else greeting(session, snapshot)
+        // After something was done the mic just listens (the bubble shows it); "What next?" only if the user stays quiet.
+        var prompt = if (session.greeted) "" else greeting(session, snapshot)
         session.greeted = true
         repeat(MAX_COMMAND_TURNS) { turn ->
             val heard = session.firstRequest?.also {
                 session.firstRequest = null
                 emit(EngineEvent.STATUS, "Request with the wake phrase")
                 _state.update { s -> s.copy(heard = it) }
-            } ?: askAndListen(session, prompt) ?: return@repeat
+            } ?: askAndListen(session, prompt) ?: run {
+                if (prompt.isBlank()) prompt = phrases.whatNext()
+                return@repeat
+            }
             session.noteTurn(USER_SAID, heard)
             shortcutFlow(session, snapshot, heard)?.let { flow ->
                 session.switchTo = flow
@@ -792,6 +800,14 @@ class AssistantEngine(
             }
             // Personal assistant: "6 baje ka alarm", "YouTube pe gaane chalao", "Rahul ko call karo", "time kya hua".
             PhoneTask.parse(heard)?.let { task ->
+                // "Maggi search karo" inside an app with a search box searches there, not on Google.
+                if (task is PhoneTask.Search && task.place == com.voicecontrol.core.nlp.SearchPlace.WEB && GOOGLE_WORDS.none { it in heard.lowercase() }) {
+                    snapshot.elements.firstOrNull { it.kind.isInput && it.fieldType == com.voicecontrol.core.model.FieldType.SEARCH }?.let { box ->
+                        if (searchHere(session, box, task.query)) return ScreenOutcome.NAVIGATED
+                        prompt = phrases.anythingElse(turn)
+                        return@repeat
+                    }
+                }
                 if (task is PhoneTask.CloseApp) {
                     if (closeApp(session, snapshot, task.app)) return ScreenOutcome.NAVIGATED
                     prompt = phrases.anythingElse(turn)
@@ -860,6 +876,15 @@ class AssistantEngine(
                 // "phir se bolo": the last answer again (the question is asked again anyway).
                 IntentKind.REPEAT -> session.lastAnswer.takeIf { it.isNotEmpty() }?.let { say(session, it.joinToString(" ")) }
                 else -> {
+                    // A short name that isn't on screen ("Maggi"): look further down the list for it.
+                    if (interp.reply.isNullOrBlank() && heard.trim().split(' ').size <= MAX_SCROLL_SEARCH_WORDS && snapshot.isScrollable) {
+                        val found = findByScrolling(session, heard)
+                        if (found != null && press(session, found, log)) return ScreenOutcome.NAVIGATED
+                        if (found == null) {
+                            prompt = phrases.notFoundAfterScrolling(heard)
+                            return@repeat
+                        }
+                    }
                     // A longer request nothing on screen matches: try doing it step by step.
                     if (goalAgent != null && interp.reply.isNullOrBlank() && heard.trim().split(' ').size >= MIN_GOAL_WORDS) {
                         return runGoal(session, heard, log)
@@ -904,6 +929,8 @@ class AssistantEngine(
         var repeats = 0
         var saidMoment = false
         var stepsSinceAgreed = Int.MAX_VALUE / 2
+        // A job asked for already got "Theek hai, main kar deta hoon": the steps can stay quiet.
+        var narrated = !auto
         repeat(MAX_AGENT_STEPS) {
             stepsSinceAgreed++
             val snap = readScreen(session) ?: return ScreenOutcome.NAVIGATED
@@ -947,8 +974,14 @@ class AssistantEngine(
                 lastKey = ""
                 return@repeat
             }
-            // Not "paying now" before "shall I pay?": a confirmed press speaks its question instead.
-            if (d.action != AgentAction.ASK && !(d.action == AgentAction.CLICK && d.confirm)) d.say?.let { say(session, it) }
+            // Spoken: the first step, the result and anything that went wrong. The steps in between only show
+            // under the mic, so the helper doesn't narrate every tap. Not "paying now" before "shall I pay?":
+            // a confirmed press speaks its question instead.
+            val finalStep = d.action == AgentAction.DONE || d.action == AgentAction.GIVE_UP
+            if (d.action != AgentAction.ASK && !(d.action == AgentAction.CLICK && d.confirm)) d.say?.let { line ->
+                if (finalStep || !narrated) say(session, line) else setStatus(EngineStatus.ACTING, caption = line)
+                narrated = true
+            }
             when (d.action) {
                 AgentAction.CLICK -> {
                     val target = d.targetId?.let(snap::element)
@@ -1131,6 +1164,51 @@ class AssistantEngine(
             .map { it.label.trim() }
             .distinct()
             .take(MAX_SUGGESTIONS)
+
+    /** Types [query] into this app's search [box] and presses Enter (or the search button next to it). */
+    private suspend fun searchHere(session: Session, box: ScreenElement, query: String): Boolean {
+        setStatus(EngineStatus.ACTING)
+        say(session, session.phrases.searching(query))
+        if (!perform(ScreenAction.SetText(box.id, query)).isSuccess) {
+            say(session, session.phrases.taskFailed())
+            return false
+        }
+        delay(screenSettleMillis)
+        perform(ScreenAction.PressEnter(box.id))
+        emit(EngineEvent.STEP, "Searched in the app: $query")
+        session.noteAssistant("Searched $query")
+        return true
+    }
+
+    /**
+     * Scrolls down (up to [MAX_SCROLL_SEARCHES] times) looking for a button or item named [name]; null when
+     * the list ends or nothing matched. It says "Dhoondh raha hoon…" once so the scrolling isn't silent.
+     */
+    private suspend fun findByScrolling(session: Session, name: String): ScreenElement? {
+        say(session, session.phrases.lookingFor(name))
+        var lastSignature = screen.capture()?.signature
+        repeat(MAX_SCROLL_SEARCHES) {
+            if (!perform(ScreenAction.Scroll(ScrollDirection.DOWN)).isSuccess) return null
+            delay(screenSettleMillis)
+            val snap = screen.capture() ?: return null
+            ButtonMatcher.find(name, snap.elements, ButtonMatcher.STRICT)?.let { return it }
+            if (snap.signature == lastSignature) return null
+            lastSignature = snap.signature
+        }
+        return null
+    }
+
+    /**
+     * Worth filling as a form: two or more fields, or one field with a button to send it — not counting
+     * search boxes and comment or message boxes (a video's comments, a chat).
+     */
+    private fun isRealForm(snapshot: ScreenSnapshot): Boolean {
+        val fields = snapshot.elements.filter { e ->
+            e.kind.isInput && e.fieldType != com.voicecontrol.core.model.FieldType.SEARCH &&
+                NOT_FORM_FIELD_WORDS.none { it in (e.label + " " + e.hint.orEmpty()).lowercase() }
+        }
+        return fields.size >= 2 || (fields.size == 1 && ButtonMatcher.primarySubmit(snapshot.elements) != null)
+    }
 
     /** What the user can say here: the screen's buttons, else the apps they open most. */
     private suspend fun suggestHere(session: Session, snapshot: ScreenSnapshot): String {
@@ -1469,7 +1547,7 @@ class AssistantEngine(
             items = ScreenReader.items(snapshot)
             index = 0
             navigated = true
-            if (announce) say(session, phrases.newScreen() + " " + phrases.readerStart(items.size))
+            if (announce) say(session, phrases.readerStart(items.size))
         }
         while (true) {
             if (items.isEmpty()) {
@@ -1921,6 +1999,7 @@ class AssistantEngine(
 
     /** Speaks [text] but stops as soon as the user starts talking (barge-in). */
     private suspend fun sayInterruptible(session: Session, text: String, detector: SpeechDetector) {
+        if (text.isBlank()) return
         session.noteTurn(ASSISTANT_SAID, text)
         setStatus(EngineStatus.SPEAKING, caption = text)
         coroutineScope {
@@ -2113,6 +2192,7 @@ class AssistantEngine(
     }
 
     private suspend fun say(session: Session, text: String) {
+        if (text.isBlank()) return
         session.noteTurn(ASSISTANT_SAID, text)
         setStatus(EngineStatus.SPEAKING, caption = text)
         tts.speak(text, session.cfg.language.voiceTag, session.rate)
@@ -2142,11 +2222,18 @@ class AssistantEngine(
         const val MAX_COMMAND_TURNS = 12
         const val MAX_SUGGESTIONS = 4
         private const val MAX_TURNS = 8
+        /** Scrolls when looking further down a list for a name. */
+        private const val MAX_SCROLL_SEARCHES = 5
+        /** Saying one of these sends a search to Google even inside an app with its own search box. */
+        private val GOOGLE_WORDS = listOf("google", "गूगल", "internet", "इंटरनेट", "web")
+        private const val MAX_SCROLL_SEARCH_WORDS = 4
+        /** Text boxes that don't make a screen a form. */
+        private val NOT_FORM_FIELD_WORDS = listOf("comment", "message", "reply", "chat", "टिप्पणी", "संदेश", "मैसेज", "search", "खोज")
         private const val MAX_EARLIER_TURNS = 3
         /** What smart mode asks the AI to do on a form screen without a saved flow. */
         const val SMART_FORM_GOAL = "Help the user with the form on this screen: ask them, in a friendly way and one at a time, " +
             "for each value it needs (skip what is already filled), fill it in, then submit once they agree. " +
-            "If it is not really a form, ask what they want to do here."
+            "If it is not really a form, finish with DONE and an empty say."
         private const val MAX_FAVOURITES = 3
         private const val MAX_TURN_CHARS = 200
         const val USER_SAID = "user said"

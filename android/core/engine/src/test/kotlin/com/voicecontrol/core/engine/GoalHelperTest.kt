@@ -304,4 +304,40 @@ class GoalHelperTest {
         val (_, flow) = learned.single()
         assertEquals(listOf("vid:maggi", "vid:add", "vid:cart"), flow.orderedSteps.filter { it.elementId.isNotEmpty() }.map { it.elementId })
     }
+
+    @Test
+    fun `a name further down the list is found by scrolling, quietly`() = runTest {
+        val top = ScreenSnapshot("com.zepto", elements = listOf(button("dal", "Toor dal"), button("rice", "Basmati rice")), isScrollable = true, signature = "top")
+        val lower = ScreenSnapshot("com.zepto", elements = listOf(button("oil", "Sunflower oil"), button("maggi", "Maggi 2-minute noodles")), isScrollable = true, signature = "lower")
+        val screen = object : com.voicecontrol.core.engine.port.ScreenGateway by FakeScreen(top) {
+            val inner = FakeScreen(top).apply { onClick["vid:maggi"] = done }
+            override suspend fun capture() = inner.capture()
+            override suspend fun perform(action: ScreenAction): com.voicecontrol.core.model.ActionResult {
+                if (action is ScreenAction.Scroll) inner.snapshot = lower
+                return inner.perform(action)
+            }
+        }
+        val tts = RecordingTts()
+        AssistantEngine(
+            screen = screen, stt = ScriptedStt("maggi", "stop"), tts = tts, interpreter = LocalInterpreter(), flows = { null }, profiles = { null },
+            recorder = { }, config = { SessionConfig(confirmValues = false) }, scope = this, screenSettleMillis = 10,
+        ).start()
+        advanceUntilIdle()
+        assertTrue(ScreenAction.Click("vid:maggi") in screen.inner.actions, tts.spoken.toString())
+        assertTrue(tts.spoken.any { it.startsWith("Looking for maggi") }, tts.spoken.toString())
+        assertFalse(tts.spoken.any { it.startsWith("New screen") || it == "What next?" }, tts.spoken.toString())
+    }
+
+    @Test
+    fun `smart mode doesn't treat a video's comment box as a form`() = runTest {
+        val video = ScreenSnapshot(
+            "com.google.android.youtube",
+            elements = listOf(button("like", "Like"), ScreenElement("vid:c", ElementKind.TEXT_FIELD, "Add a comment…")),
+            signature = "video",
+        )
+        val goals = mutableListOf<String>()
+        engine(FakeScreen(video), ScriptedStt("stop"), RecordingTts(), GoalAgent { g, _, _, _ -> goals += g; null }, smart = true).start()
+        advanceUntilIdle()
+        assertTrue(goals.none { it == AssistantEngine.SMART_FORM_GOAL }, goals.toString())
+    }
 }

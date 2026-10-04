@@ -265,3 +265,10 @@ phase notes say which earlier phase covered the rest.
 - "WhatsApp band karo", "close YouTube", "ye app band karo": the app in front goes to the home screen ("WhatsApp band kar diya."); a named app that isn't open is said so. Torch/gaana/phone/data "band karo" keep their own meaning.
 - No more one-button flows: a screen where only a button was pressed (e.g. Zepto's "Pay Now") no longer becomes a saved flow on its own.
 - A job stopped at the payment question ("Maggi order karo", then "nahi" at Pay) is still offered as a shortcut, up to that point; jobs asked for in smart mode are offered too (only smart mode's own form-filling isn't).
+
+### Talks less, finds more
+- No "New screen." on every navigation; after an action the mic just listens ("What next?" only if the user stays quiet).
+- Smart mode fills only real forms (two fields, or one with a send button; not search, comment or chat boxes), once per screen: no more "this is not a form, it's a YouTube video".
+- The helper speaks the first step, its questions and the result; the steps in between show under the mic instead of being spoken. It never describes the screen.
+- A short name not on screen ("Maggi") is looked for by scrolling down (up to 5 times), then pressed; "not found" if the list ends.
+- "Maggi search karo" inside an app with a search box searches in that app; "Google pe …" still goes to Google.

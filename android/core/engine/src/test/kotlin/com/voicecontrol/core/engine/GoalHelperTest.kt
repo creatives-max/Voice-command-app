@@ -367,4 +367,35 @@ class GoalHelperTest {
         assertTrue(second.any { it == "Your plan: type number > press go" }, second.toString())
         assertTrue(second.any { it.endsWith("but the field still looks empty") }, second.toString())
     }
+
+    @Test
+    fun `a payment during a call comes with a scam warning, and remote-access apps aren't opened`() = runTest {
+        val amount = ScreenSnapshot("com.phonepe.app", elements = listOf(button("pay", "Pay 540")), signature = "amount")
+        val screen = FakeScreen(amount).apply { onClick["vid:pay"] = done }
+        val ai = GoalAgent { _, s, _, _ ->
+            if (s.signature == "done") AgentDecision(AgentAction.DONE, say = "Ho gaya.")
+            else AgentDecision(AgentAction.CLICK, "vid:pay", confirm = true, question = "540 rupaye bhar doon?")
+        }
+        val onCall = object : com.voicecontrol.core.engine.port.PhoneActions {
+            override suspend fun setAlarm(hour: Int, minute: Int) = false
+            override suspend fun setTimer(seconds: Int) = false
+            override suspend fun search(place: com.voicecontrol.core.nlp.SearchPlace, query: String) = false
+            override suspend fun findContact(name: String) = com.voicecontrol.core.engine.port.ContactResult.NotFound
+            override suspend fun call(number: String) = com.voicecontrol.core.engine.port.DialResult.FAILED
+            override suspend fun whatsapp(number: String, text: String?) = false
+            override suspend fun inCall() = true
+        }
+        val tts = RecordingTts()
+        val anydesk = AppDirectory { listOf(InstalledApp("AnyDesk", "com.anydesk.anydeskandroid"), InstalledApp("PhonePe", "com.phonepe.app")) }
+        AssistantEngine(
+            screen = screen, stt = ScriptedStt("AnyDesk kholo", "bill bhar do", "nahi", "stop"), tts = tts, interpreter = LocalInterpreter(),
+            flows = { null }, profiles = { null }, recorder = { }, config = { SessionConfig(confirmValues = false, smartMode = true) }, scope = this,
+            screenSettleMillis = 10, appDirectory = anydesk, goalAgent = ai, phoneActions = onCall,
+        ).start()
+        advanceUntilIdle()
+        assertFalse(screen.actions.any { it is ScreenAction.LaunchApp }, screen.actions.toString())
+        assertTrue(tts.spoken.any { it.startsWith("I won't open AnyDesk") }, tts.spoken.toString())
+        assertTrue(tts.spoken.any { it.startsWith("Careful: a call is going on.") && it.endsWith("540 rupaye bhar doon?") }, tts.spoken.toString())
+        assertFalse(ScreenAction.Click("vid:pay") in screen.actions)
+    }
 }

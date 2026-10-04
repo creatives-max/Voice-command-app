@@ -215,6 +215,11 @@ class AndroidPhoneActions @Inject constructor(
 
     private val prefs by lazy { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
 
+    override suspend fun inCall(): Boolean = runCatching {
+        val audio = context.getSystemService(android.media.AudioManager::class.java)
+        audio.mode == android.media.AudioManager.MODE_IN_CALL || audio.mode == android.media.AudioManager.MODE_IN_COMMUNICATION
+    }.getOrDefault(false)
+
     override suspend fun emergencyContact(): String? = prefs.getString(KEY_EMERGENCY, null)?.takeIf { it.isNotBlank() }
 
     override suspend fun setEmergencyContact(name: String): Boolean = prefs.edit().putString(KEY_EMERGENCY, name).commit()

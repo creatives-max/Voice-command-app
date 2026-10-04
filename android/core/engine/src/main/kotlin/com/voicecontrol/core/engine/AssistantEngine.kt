@@ -1002,7 +1002,7 @@ class AssistantEngine(
                     val risky = destructive && (d.confirm || stepsSinceAgreed > AGREED_FOLLOW_UP_STEPS)
                     if (d.confirm || risky) {
                         val question = d.question?.takeIf { d.confirm } ?: if (risky) phrases.confirmDestructive(named) else phrases.confirmPress(named)
-                        when (askYesNoOr(session, snap, question, default = false)) {
+                        when (askYesNoOr(session, snap, scamCheck(session, question), default = false)) {
                             true -> {
                                 history += "The user agreed: $question"
                                 stepsSinceAgreed = 0
@@ -1266,6 +1266,12 @@ class AssistantEngine(
         val app = AppMatcher.find(name, apps)
         if (app == null) {
             say(session, session.phrases.appNotFound(name))
+            return false
+        }
+        // Apps that let someone else control the phone are how most "support" scams empty accounts.
+        if (REMOTE_ACCESS_APPS.any { app.packageName.startsWith(it) }) {
+            emit(EngineEvent.STEP, "Refused to open ${app.label} (remote access)")
+            say(session, session.phrases.remoteAccessRefused(app.label))
             return false
         }
         val ok = act(session, ScreenAction.LaunchApp(app.packageName), session.phrases.opening(app.label))
@@ -2153,7 +2159,7 @@ class AssistantEngine(
     private suspend fun press(session: Session, button: ScreenElement, log: ScreenLog, confirmed: Boolean = false): Boolean {
         if (!confirmed && session.cfg.confirmDestructive && DestructiveActions.isDestructive(button.label)) {
             val context = screen.capture() ?: ScreenSnapshot.empty(session.appPackage)
-            if (askYesNoOr(session, context, session.phrases.confirmDestructive(button.label), default = false) != true) {
+            if (askYesNoOr(session, context, scamCheck(session, session.phrases.confirmDestructive(button.label)), default = false) != true) {
                 say(session, session.phrases.notPressed(button.label))
                 emit(EngineEvent.STEP, "Not pressed (needs confirmation): ${button.label}")
                 return false
@@ -2192,6 +2198,15 @@ class AssistantEngine(
         val b = norm(typed)
         return a == b || (b.isNotEmpty() && a.contains(b))
     }
+
+    /** [question] for a payment or send, with a scam warning first when a call is going on. */
+    private suspend fun scamCheck(session: Session, question: String): String =
+        if (runCatching { phoneActions?.inCall() }.getOrNull() == true) {
+            emit(EngineEvent.STEP, "Payment asked during a call: warned the user")
+            session.phrases.callScamWarning() + " " + question
+        } else {
+            question
+        }
 
     /** The user's saved details for the helper, or null when none are saved. */
     private fun knownAbout(profile: UserProfile?): String? {
@@ -2246,6 +2261,11 @@ class AssistantEngine(
         private const val MAX_TURNS = 8
         /** Scrolls when looking further down a list for a name. */
         private const val MAX_SCROLL_SEARCHES = 5
+        /** Screen-sharing / remote-control apps (package prefixes) VoiceControl won't open by voice. */
+        private val REMOTE_ACCESS_APPS = listOf(
+            "com.anydesk.", "com.teamviewer.", "com.rustdesk.", "com.sand.airdroid", "com.splashtop.", "com.realvnc.",
+            "com.microsoft.rdc.", "com.google.chromeremotedesktop", "com.carriez.flutter_hbb", "com.zoho.assist", "com.logmein.",
+        )
         /** Saying one of these sends a search to Google even inside an app with its own search box. */
         private val GOOGLE_WORDS = listOf("google", "गूगल", "internet", "इंटरनेट", "web")
         private const val MAX_SCROLL_SEARCH_WORDS = 4

@@ -280,3 +280,4 @@ phase notes say which earlier phase covered the rest.
 - The model sees a smaller screen: short ids (e1, e2…), unnamed icons dropped, long labels cut, texts that repeat a label left out; ids are mapped back on the server.
 - Forms start like a person: "Yahan aapka Name, Mobile number aur Email bharna hai. Main ek-ek karke poochta hoon." instead of "Mujhe 3 fields mile".
 - Button names said in Hindi script match English buttons by sound ("रिचार्ज" → Recharge, "प्रोफाइल" → Profile, "कॉल्स" → Calls) and the other way; only across scripts, so "back" never presses "Bike".
+- Fraud: a payment, send or delete asked while a call is going on starts with a scam warning ("Dhyaan dijiye: abhi call chal raha hai…") and still needs a yes; remote-control apps (AnyDesk, TeamViewer, RustDesk, AirDroid…) aren't opened by voice or by the helper.

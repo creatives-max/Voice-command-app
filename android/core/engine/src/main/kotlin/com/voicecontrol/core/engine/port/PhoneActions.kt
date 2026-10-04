@@ -43,6 +43,8 @@ interface PhoneActions {
     suspend fun media(key: com.voicecontrol.core.nlp.MediaKey): Boolean = false
     /** The contact called on "bachao" / "emergency" (kept on the phone). */
     suspend fun emergencyContact(): String? = null
+    /** A phone or internet call is going on now (scammers ask for payments during a call). */
+    suspend fun inCall(): Boolean = false
     suspend fun setEmergencyContact(name: String): Boolean = false
     /** Notes kept on the phone, oldest first. */
     suspend fun addNote(text: String): Boolean = false

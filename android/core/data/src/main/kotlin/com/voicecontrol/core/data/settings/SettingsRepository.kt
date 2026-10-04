@@ -44,7 +44,8 @@ class SettingsRepository @Inject constructor(
         val localShortcuts = stringPreferencesKey("local_voice_shortcuts")
         val templates = stringPreferencesKey("starter_templates")
         val useTemplates = booleanPreferencesKey("use_templates")
-        val bargeIn = booleanPreferencesKey("barge_in")
+        // New key: the setting was on by default for a few builds and got saved as on; it starts off again.
+        val bargeIn = booleanPreferencesKey("barge_in_v2")
         val smartMode = booleanPreferencesKey("smart_mode")
         val offlineSpeech = booleanPreferencesKey("offline_speech")
         val rememberAnswers = booleanPreferencesKey("remember_answers")

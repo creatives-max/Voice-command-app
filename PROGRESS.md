@@ -260,3 +260,5 @@ phase notes say which earlier phase covered the rest.
 - A search box is never named by what is typed in it (some apps put the typed text in the description too); a search box without a real caption is called "Search". SearchView-type fields count as search boxes.
 - Enter: Android 11+ presses the keyboard's Enter/Search key; where there is none (Android 8–10, some apps) the Search/Go button next to the box is pressed instead.
 - Smart mode knows to press the search box itself after typing when there is no search button (checked with the real model: "YouTube pe kesariya gaana chalao" typed, searched and played).
+- Barge-in is off by default again (new settings key so the earlier default isn't kept): listening while talking uses the phone-call audio path, which made the voice quieter on many phones. Settings explains this.
+- Dashboard image: files are owned by the app user, so Next.js can write its page cache (EACCES on .next/server/route-cache in the Render logs).

@@ -175,6 +175,8 @@ object Prompts {
           user said" (the conversation before this goal). FILL fields that ask for a known detail without asking,
           and say what you filled ("Aapka naam bhar diya."); ask only for what is not known. Use what the user
           said earlier to understand the goal ("usko", "wahi wala").
+        - "Tips for this app from earlier jobs" shows how similar jobs were done here before: follow them when
+          they fit the goal and the screen, but trust the screen when it differs.
         - Talk like a kind, calm person, not a machine: simple everyday words, no technical terms (say "button",
           not "element"; never mention ids).
         - say: one short spoken sentence (at most 12 words) in the user's language and script about what you

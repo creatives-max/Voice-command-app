@@ -398,4 +398,31 @@ class GoalHelperTest {
         assertTrue(tts.spoken.any { it.startsWith("Careful: a call is going on.") && it.endsWith("540 rupaye bhar doon?") }, tts.spoken.toString())
         assertFalse(ScreenAction.Click("vid:pay") in screen.actions)
     }
+
+    @Test
+    fun `a finished job leaves a note for the app, and the next job gets it`() = runTest {
+        val notes = HashMap<String, MutableList<String>>()
+        val memory = object : com.voicecontrol.core.engine.port.GoalMemory {
+            override suspend fun learn(goal: String, flow: com.voicecontrol.core.model.FlowDefinition) = true
+            override suspend fun notes(appPackage: String) = notes[appPackage].orEmpty()
+            override suspend fun addNote(appPackage: String, note: String) { notes.getOrPut(appPackage) { mutableListOf() } += note }
+        }
+        val seen = mutableListOf<List<String>>()
+        val ai = GoalAgent { _, s, history, _ ->
+            seen += history
+            if (s.signature == "done") AgentDecision(AgentAction.DONE, say = "Ho gaya.") else AgentDecision(AgentAction.CLICK, "vid:recharge")
+        }
+        fun session(stt: ScriptedStt) = AssistantEngine(
+            screen = FakeScreen(ppHome).apply { onClick["vid:recharge"] = done }, stt = stt, tts = RecordingTts(), interpreter = LocalInterpreter(),
+            flows = { null }, profiles = { null }, recorder = { }, config = { SessionConfig(confirmValues = false) }, scope = this,
+            screenSettleMillis = 10, appDirectory = apps, goalAgent = ai, goalMemory = memory,
+        )
+        session(ScriptedStt("I want to recharge my phone", "nahi", "stop")).start()
+        advanceUntilIdle()
+        assertEquals(listOf("To I want to recharge my phone: Recharge"), notes["com.phonepe.app"]?.toList())
+        seen.clear()
+        session(ScriptedStt("I want to recharge my phone", "nahi", "stop")).start()
+        advanceUntilIdle()
+        assertTrue(seen.first().any { it == "Tips for this app from earlier jobs: To I want to recharge my phone: Recharge" }, seen.first().toString())
+    }
 }

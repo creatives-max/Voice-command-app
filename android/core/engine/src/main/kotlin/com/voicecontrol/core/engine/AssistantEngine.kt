@@ -939,6 +939,12 @@ class AssistantEngine(
         var stepsSinceAgreed = Int.MAX_VALUE / 2
         // The helper's own plan, carried from step to step.
         var plan: String? = null
+        // Notes from earlier jobs in each app ("Tips for this app"), read once per app.
+        val tips = HashMap<String, String?>()
+        suspend fun appTips(pkg: String): String? = tips.getOrPut(pkg) {
+            runCatching { goalMemory?.notes(pkg) }.getOrNull().orEmpty().takeIf { it.isNotEmpty() }
+                ?.joinToString(" | ", prefix = "Tips for this app from earlier jobs: ")
+        }
         // A job asked for already got "Theek hai, main kar deta hoon": the steps can stay quiet.
         var narrated = !auto
         repeat(MAX_AGENT_STEPS) {
@@ -952,7 +958,7 @@ class AssistantEngine(
                 texts = snap.texts.take(MAX_AGENT_TEXTS).map { it.copy(text = TextMask.mask(it.text.take(MAX_AGENT_TEXT_CHARS))) },
             )
             val d = coroutineScope {
-                val planned = async { runCatching { agent.next(goal, shown, known + listOfNotNull(plan?.let { "Your plan: $it" }) + history.takeLast(MAX_AGENT_HISTORY), session.cfg.language) }.getOrNull() }
+                val planned = async { runCatching { agent.next(goal, shown, known + listOfNotNull(appTips(snap.packageName), plan?.let { "Your plan: $it" }) + history.takeLast(MAX_AGENT_HISTORY), session.cfg.language) }.getOrNull() }
                 // A slow step: say "one moment" (once per goal) instead of going quiet.
                 val filler = if (saidMoment) null else launch {
                     delay(AGENT_FILLER_MS)
@@ -1108,6 +1114,7 @@ class AssistantEngine(
                 }
                 AgentAction.DONE -> {
                     if (d.say == null) say(session, phrases.goalDone())
+                    rememberHowItWent(goal, snap.packageName, history)
                     emit(EngineEvent.STATUS, "Goal done")
                     screen.capture()?.let { learned.onEvent(RecordedEvent.Screen(it)) }
                     if (!auto) offerToRemember(session, goal, learned.recording(), snap)
@@ -1121,6 +1128,25 @@ class AssistantEngine(
         }
         say(session, phrases.goalFailed())
         return ScreenOutcome.NAVIGATED
+    }
+
+    /**
+     * After a job: a short note for this app ("To order maggi: Search > Maggi 2-minute > Add to cart"), so
+     * the helper finds its way faster next time. Only the names of what was pressed or filled; never values.
+     */
+    private suspend fun rememberHowItWent(goal: String, appPackage: String, history: List<String>) {
+        val memory = goalMemory ?: return
+        val steps = history.mapNotNull { line ->
+            when {
+                line.startsWith("Pressed \"") -> line.substringAfter("Pressed \"").substringBefore('"')
+                line.startsWith("Typed \"") -> "type in " + line.substringAfter(" into \"").substringBefore('"')
+                line.startsWith("Asked for \"") -> "ask " + line.substringAfter("Asked for \"").substringBefore('"')
+                line == "Scrolled down" -> "scroll"
+                else -> null
+            }
+        }.takeLast(MAX_NOTE_STEPS)
+        if (steps.isEmpty()) return
+        runCatching { memory.addNote(appPackage, "To ${goal.take(60)}: " + steps.joinToString(" > ")) }
     }
 
     /** After a goal was reached: offer to keep the way as a flow that the goal's words start next time. */
@@ -2286,6 +2312,7 @@ class AssistantEngine(
         const val MAX_COMMAND_TURNS = 12
         const val MAX_SUGGESTIONS = 4
         private const val MAX_TURNS = 8
+        private const val MAX_NOTE_STEPS = 8
         /** Scrolls when looking further down a list for a name. */
         private const val MAX_SCROLL_SEARCHES = 5
         /** Screen-sharing / remote-control apps (package prefixes) VoiceControl won't open by voice. */

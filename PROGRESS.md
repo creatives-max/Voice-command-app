@@ -284,3 +284,4 @@ phase notes say which earlier phase covered the rest.
 - Settings → "Speak on media volume": VoiceControl's voice follows the normal volume buttons instead of the separate (often low) Accessibility volume.
 - Patient listening: a sentence ending on a joining word ("Rahul ko …", "doodh aur …") is waited for once more and joined with the rest.
 - Not understood: first "Thoda doosre tareeke se boliye?", then what this screen offers, then examples of what to say; counted only in a row.
+- Per-app notes: after a job, a short note of what was pressed or filled (names only, never values) is kept for that app on the phone (last 5); the helper gets them as "Tips for this app from earlier jobs".

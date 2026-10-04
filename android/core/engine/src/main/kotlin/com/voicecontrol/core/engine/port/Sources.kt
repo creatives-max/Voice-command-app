@@ -133,4 +133,10 @@ fun interface GoalAgent {
  */
 fun interface GoalMemory {
     suspend fun learn(goal: String, flow: com.voicecontrol.core.model.FlowDefinition): Boolean
+
+    /** Short notes on how earlier jobs were done in this app ("To order maggi: Search > Maggi > Add"), newest last. */
+    suspend fun notes(appPackage: String): List<String> = emptyList()
+
+    /** Keeps a note for this app after a job was done there. */
+    suspend fun addNote(appPackage: String, note: String) = Unit
 }

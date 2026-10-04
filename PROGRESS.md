@@ -250,3 +250,6 @@ phase notes say which earlier phase covered the rest.
 - On other screens every request that isn't a plain command ("stop", "back", "next") or an exact button name goes to the AI, which decides what to press and what to ask.
 - Saved flows still run as taught. Pay/send/delete are still confirmed. Passwords, OTPs and PINs are still typed by the user.
 - If the AI can't be reached, smart mode switches itself off for that session and the built-in way carries on.
+- The helper now always gets the user's saved profile details ("Known about the user") and the last few things they said, so it fills those without asking and understands follow-ups.
+- One confirmation before pay/send/submit, in the helper's own words with the key details read back ("Rahul ko 500 rupaye bhej doon?"), instead of a generic "Press Pay?".
+- No greeting after a job is done; friendlier, non-technical wording in the helper's prompt.

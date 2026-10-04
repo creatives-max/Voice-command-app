@@ -214,4 +214,29 @@ class GoalHelperTest {
         assertTrue(ScreenAction.Click("vid:recharge") in screen2.actions)
         assertTrue(goals2.isEmpty())
     }
+
+    @Test
+    fun `the helper gets the saved details, and asks once in its own words before a payment`() = runTest {
+        val screen = FakeScreen(pay).apply { onClick["vid:pay"] = done }
+        val seen = mutableListOf<List<String>>()
+        val ai = GoalAgent { _, s, history, _ ->
+            seen += history
+            if (s.signature == "done") AgentDecision(AgentAction.DONE, say = "Ho gaya.")
+            else AgentDecision(AgentAction.CLICK, "vid:pay", confirm = true, question = "Bijli ke 540 rupaye bhar doon?")
+        }
+        val tts = RecordingTts()
+        AssistantEngine(
+            screen = screen, stt = ScriptedStt("haan", "stop"), tts = tts, interpreter = LocalInterpreter(), flows = { null },
+            profiles = { com.voicecontrol.core.model.UserProfile(fullName = "Rahul Sharma", phone = "9876543210") },
+            recorder = { }, config = { SessionConfig(confirmValues = false, smartMode = true) }, scope = this, screenSettleMillis = 10,
+            appDirectory = apps, goalAgent = ai,
+        ).start()
+        advanceUntilIdle()
+        assertTrue(seen.first().first().startsWith("Known about the user: name Rahul Sharma; mobile 9876543210"), seen.first().toString())
+        assertEquals(1, tts.spoken.count { it == "Bijli ke 540 rupaye bhar doon?" }, tts.spoken.toString())
+        assertFalse(tts.spoken.any { "Pay 540" in it && it.endsWith("?") }, tts.spoken.toString())
+        // Already talking: no greeting after the job.
+        assertFalse(tts.spoken.any { it.startsWith("Good morning") || it.startsWith("Good evening") || it.startsWith("Good afternoon") }, tts.spoken.toString())
+        assertTrue(ScreenAction.Click("vid:pay") in screen.actions)
+    }
 }

@@ -866,7 +866,14 @@ class AssistantEngine(
         emit(EngineEvent.STATUS, if (auto) "Smart mode" else "Helping with a goal")
         session.noteAssistant(if (auto) "Smart mode" else "Did it for me")
         if (!auto) say(session, phrases.onIt())
+        session.greeted = true
         val history = mutableListOf<String>()
+        // Always sent first: details saved in the app and what was said before (the helper uses them without asking).
+        val known = listOfNotNull(
+            knownAbout(session.profile),
+            session.turns.filter { it.label == USER_SAID && it.value != goal }.takeLast(MAX_EARLIER_TURNS)
+                .takeIf { it.isNotEmpty() }?.let { said -> "Earlier the user said: " + said.joinToString(" / ") { it.value } },
+        )
         // What was done, screen by screen, to remember the way when the goal is reached.
         val learned = FlowRecorder()
         var lastKey = ""
@@ -882,7 +889,7 @@ class AssistantEngine(
                 texts = snap.texts.take(MAX_AGENT_TEXTS).map { it.copy(text = TextMask.mask(it.text.take(MAX_AGENT_TEXT_CHARS))) },
             )
             val d = coroutineScope {
-                val planned = async { runCatching { agent.next(goal, shown, history.takeLast(MAX_AGENT_HISTORY), session.cfg.language) }.getOrNull() }
+                val planned = async { runCatching { agent.next(goal, shown, known + history.takeLast(MAX_AGENT_HISTORY), session.cfg.language) }.getOrNull() }
                 // A slow step: say "one moment" (once per goal) instead of going quiet.
                 val filler = if (saidMoment) null else launch {
                     delay(AGENT_FILLER_MS)
@@ -923,9 +930,11 @@ class AssistantEngine(
                         return@repeat
                     }
                     val named = target.label.ifBlank { target.hint.orEmpty() }
-                    // press() already confirms what looks destructive; the plan can ask for more.
-                    if (d.confirm && !(session.cfg.confirmDestructive && DestructiveActions.isDestructive(named))) {
-                        when (askYesNoOr(session, snap, phrases.confirmPress(named), default = false)) {
+                    // One confirmation, in the planner's words when it gave them ("Rahul ko 500 rupaye bhej doon?").
+                    val risky = session.cfg.confirmDestructive && DestructiveActions.isDestructive(named)
+                    if (d.confirm || risky) {
+                        val question = d.question?.takeIf { d.confirm } ?: if (risky) phrases.confirmDestructive(named) else phrases.confirmPress(named)
+                        when (askYesNoOr(session, snap, question, default = false)) {
                             true -> Unit
                             null -> return ScreenOutcome.STOPPED
                             false -> {
@@ -934,7 +943,7 @@ class AssistantEngine(
                             }
                         }
                     }
-                    if (press(session, target, log)) {
+                    if (press(session, target, log, confirmed = d.confirm || risky)) {
                         learned.onEvent(RecordedEvent.Pressed(target.id, on = snap))
                         delay(screenSettleMillis)
                         // Tell the planner when a press did nothing, so it tries another way.
@@ -1984,8 +1993,9 @@ class AssistantEngine(
         return press(session, target, log)
     }
 
-    private suspend fun press(session: Session, button: ScreenElement, log: ScreenLog): Boolean {
-        if (session.cfg.confirmDestructive && DestructiveActions.isDestructive(button.label)) {
+    /** Presses [button]; asks first when it can't be undone, unless the user [confirmed] it already. */
+    private suspend fun press(session: Session, button: ScreenElement, log: ScreenLog, confirmed: Boolean = false): Boolean {
+        if (!confirmed && session.cfg.confirmDestructive && DestructiveActions.isDestructive(button.label)) {
             val context = screen.capture() ?: ScreenSnapshot.empty(session.appPackage)
             if (askYesNoOr(session, context, session.phrases.confirmDestructive(button.label), default = false) != true) {
                 say(session, session.phrases.notPressed(button.label))
@@ -2017,6 +2027,17 @@ class AssistantEngine(
             say(session, session.phrases.actionFailed())
         }
         return result.isSuccess
+    }
+
+    /** The user's saved details for the helper, or null when none are saved. */
+    private fun knownAbout(profile: UserProfile?): String? {
+        profile ?: return null
+        val known = listOfNotNull(
+            profile.fullName?.let { "name $it" }, profile.phone?.let { "mobile $it" }, profile.email?.let { "email $it" },
+            profile.addressLine?.let { "address $it" }, profile.city?.let { "city $it" }, profile.state?.let { "state $it" },
+            profile.pincode?.let { "pincode $it" }, profile.dateOfBirth?.let { "date of birth $it" },
+        ).filter { it.substringAfter(' ').isNotBlank() }
+        return known.takeIf { it.isNotEmpty() }?.joinToString("; ", prefix = "Known about the user: ")
     }
 
     /** "Namaste Rahul ji! WhatsApp khula hai, bataiye kya karna hai?": by name, time of day and the open app. */
@@ -2058,6 +2079,7 @@ class AssistantEngine(
         const val MAX_COMMAND_TURNS = 12
         const val MAX_SUGGESTIONS = 4
         private const val MAX_TURNS = 8
+        private const val MAX_EARLIER_TURNS = 3
         /** What smart mode asks the AI to do on a form screen without a saved flow. */
         const val SMART_FORM_GOAL = "Help the user with the form on this screen: ask them, in a friendly way and one at a time, " +
             "for each value it needs (skip what is already filled), fill it in, then submit once they agree. " +

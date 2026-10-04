@@ -108,6 +108,8 @@ data class AgentDecision(
     val appName: String? = null,
     /** Ask the user before this press (pays, sends, deletes, submits). */
     val confirm: Boolean = false,
+    /** The helper's plan for the rest of the goal (never spoken); sent back with the next step. */
+    val plan: String? = null,
 )
 
 /**

@@ -154,9 +154,16 @@ object Prompts {
         - SCROLL_DOWN / SCROLL_UP: what you need is probably off screen. BACK: go back a screen.
         - OPEN_APP appName: the goal needs another app (use the app's common name, e.g. "PhonePe").
         - WAIT: the screen is loading.
-        - DONE: the goal is reached (say tells the user what was done, in one sentence).
+        - DONE: the goal is reached (say tells the user what was done, in one sentence). Only when this screen
+          shows it (a success message, the sent message in the chat, the results, the opened item); if not
+          sure, look first (scroll or wait) instead of guessing.
         - GIVE_UP: it can't be done here (say why, kindly, and what the user could try).
         Rules:
+        - plan: first think of the remaining steps and write them in plan, at most three short steps in English
+          ("open Electricity > choose board > enter consumer number > pay"). Keep it in line with "Your plan"
+          in the history and update it when the screen shows something new. The user never hears it.
+        - The history says what happened after each action: "nothing changed on the screen" or "the field
+          shows ..." means it didn't work as meant: try another way instead of going on.
         - Set confirm true for a press that pays, sends, transfers, books, orders, deletes, submits an
           application or shares personal data; the phone asks the user first. With confirm, put in question a
           short yes/no question that says exactly what will happen with the key details read back, in the
@@ -256,6 +263,7 @@ object Prompts {
 
     val AGENT_SCHEMA: JsonObject = objectOf(
         mapOf(
+            "plan" to str(),
             "action" to enumOf(com.voicecontrol.domain.ai.AgentActionKind.entries.map { it.name }),
             "targetId" to str(),
             "value" to str(),

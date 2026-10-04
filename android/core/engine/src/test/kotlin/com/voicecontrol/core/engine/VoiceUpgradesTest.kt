@@ -133,11 +133,11 @@ class VoiceUpgradesTest {
     @Test
     fun `new languages speak their own phrases`() = runTest {
         val expected = mapOf(
-            Language.MARATHI to "मला 1 रकाने सापडले. चला भरूया.",
-            Language.TAMIL to "1 புலங்கள் உள்ளன. நிரப்புவோம்.",
-            Language.TELUGU to "1 ఖాళీలు ఉన్నాయి. నింపుదాం.",
-            Language.BENGALI to "1টি ঘর পেয়েছি। চলুন পূরণ করি।",
-            Language.GUJARATI to "મને 1 ખાનાં મળ્યાં. ચાલો ભરીએ.",
+            Language.MARATHI to "इथे तुमचे Name भरायचे आहे. मी एक-एक करून विचारतो.",
+            Language.TAMIL to "இங்கே உங்கள் Name நிரப்ப வேண்டும். ஒவ்வொன்றாகக் கேட்கிறேன்.",
+            Language.TELUGU to "ఇక్కడ మీ Name నింపాలి. ఒక్కొక్కటిగా అడుగుతాను.",
+            Language.BENGALI to "এখানে আপনার Name পূরণ করতে হবে। একে একে জিজ্ঞেস করছি।",
+            Language.GUJARATI to "અહીં તમારું Name ભરવાનું છે. હું એક-એક કરીને પૂછું છું.",
         )
         expected.forEach { (language, phrase) ->
             val screen = FakeScreen(ScreenSnapshot("com.form", elements = listOf(name), signature = "s"))

@@ -31,7 +31,7 @@ class RemoteGoalAgent @Inject constructor(
         val action = AgentAction.entries.firstOrNull { it.name == step.action } ?: return null
         // No model behind the server (or it failed): let the phone carry on by itself.
         if (action == AgentAction.GIVE_UP && step.source in NO_PLANNER) return null
-        return AgentDecision(action, step.targetId, step.value, step.say, step.question, step.appName, step.confirm)
+        return AgentDecision(action, step.targetId, step.value, step.say, step.question, step.appName, step.confirm, step.plan)
     }
 
     private companion object {

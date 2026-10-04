@@ -64,6 +64,7 @@ object ModelOutput {
             question = o.str("question"),
             appName = o.str("appName"),
             confirm = (o["confirm"] as? kotlinx.serialization.json.JsonPrimitive)?.content == "true",
+            plan = o.str("plan"),
             source = source,
         )
     }

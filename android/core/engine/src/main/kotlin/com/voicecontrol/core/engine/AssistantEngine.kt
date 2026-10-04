@@ -756,8 +756,11 @@ class AssistantEngine(
             val outcome = runGoal(session, SMART_FORM_GOAL, log, auto = true)
             if (!session.smartOff) return outcome
         }
-        val questions = plan.steps.count { !it.skip && !it.virtual && it.action != StepAction.CLICK }
-        if (announce && questions > 0) say(session, phrases.start(questions))
+        // "Yahan aapka naam aur mobile number bharna hai. Main ek-ek karke poochta hoon." instead of "I found 2 fields".
+        val asked = plan.steps.filter { !it.skip && !it.virtual && it.action != StepAction.CLICK && it.action != StepAction.READ }
+        if (announce && asked.isNotEmpty()) {
+            say(session, phrases.fillIntro(asked.map { it.label.trim().trimEnd('*', ':', ' ') }.filter { it.isNotBlank() }.distinct()))
+        }
 
         when (runSteps(session, snapshot, plan.steps, log, progressPrefix = "")) {
             StepResult.Stop -> return ScreenOutcome.STOPPED
@@ -929,6 +932,8 @@ class AssistantEngine(
         var repeats = 0
         var saidMoment = false
         var stepsSinceAgreed = Int.MAX_VALUE / 2
+        // The helper's own plan, carried from step to step.
+        var plan: String? = null
         // A job asked for already got "Theek hai, main kar deta hoon": the steps can stay quiet.
         var narrated = !auto
         repeat(MAX_AGENT_STEPS) {
@@ -942,7 +947,7 @@ class AssistantEngine(
                 texts = snap.texts.take(MAX_AGENT_TEXTS).map { it.copy(text = TextMask.mask(it.text.take(MAX_AGENT_TEXT_CHARS))) },
             )
             val d = coroutineScope {
-                val planned = async { runCatching { agent.next(goal, shown, known + history.takeLast(MAX_AGENT_HISTORY), session.cfg.language) }.getOrNull() }
+                val planned = async { runCatching { agent.next(goal, shown, known + listOfNotNull(plan?.let { "Your plan: $it" }) + history.takeLast(MAX_AGENT_HISTORY), session.cfg.language) }.getOrNull() }
                 // A slow step: say "one moment" (once per goal) instead of going quiet.
                 val filler = if (saidMoment) null else launch {
                     delay(AGENT_FILLER_MS)
@@ -962,6 +967,7 @@ class AssistantEngine(
                 say(session, if (history.isEmpty()) phrases.needInternetForHelp() else phrases.goalFailed())
                 return ScreenOutcome.NAVIGATED
             }
+            d.plan?.takeIf { it.isNotBlank() }?.let { plan = it }
             // The same step on the same screen again and again: the plan is stuck, so ask the user.
             val key = "${snap.signature}|${d.action}|${d.targetId}|${d.appName}"
             repeats = if (key == lastKey) repeats + 1 else 0
@@ -1036,7 +1042,15 @@ class AssistantEngine(
                         recordUndo(target)
                         learned.onEvent(RecordedEvent.Typed(target.id, on = snap))
                     }
-                    history += if (ok) "Typed \"$value\" into \"${target.label}\"" else "Typing into \"${target.label}\" failed"
+                    // Check the words really landed: some apps ignore typing or change it (masks, autocomplete).
+                    val after = if (ok) { delay(screenSettleMillis); screen.capture()?.element(target.id) } else null
+                    val shown = after?.value
+                    history += when {
+                        !ok -> "Typing into \"${target.label}\" failed"
+                        after != null && shown.isNullOrBlank() -> "Typed \"$value\" into \"${target.label}\", but the field still looks empty"
+                        shown == null || sameText(shown, value) -> "Typed \"$value\" into \"${target.label}\""
+                        else -> "Typed \"$value\" into \"${target.label}\", but the field shows \"${shown.take(MAX_AGENT_TEXT_CHARS)}\""
+                    }
                 }
                 AgentAction.ASK -> {
                     val field = d.targetId?.let(snap::element)?.takeIf { it.kind.isInput || it.kind.isToggle }
@@ -2169,6 +2183,14 @@ class AssistantEngine(
             say(session, session.phrases.actionFailed())
         }
         return result.isSuccess
+    }
+
+    /** Typed text as the field shows it, ignoring case, spaces and separators ("98765 43210" = "9876543210"). */
+    private fun sameText(shown: String, typed: String): Boolean {
+        fun norm(t: String) = t.lowercase().filter { it.isLetterOrDigit() }
+        val a = norm(shown)
+        val b = norm(typed)
+        return a == b || (b.isNotEmpty() && a.contains(b))
     }
 
     /** The user's saved details for the helper, or null when none are saved. */

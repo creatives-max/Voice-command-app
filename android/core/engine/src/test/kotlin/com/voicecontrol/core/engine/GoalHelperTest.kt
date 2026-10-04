@@ -340,4 +340,31 @@ class GoalHelperTest {
         advanceUntilIdle()
         assertTrue(goals.none { it == AssistantEngine.SMART_FORM_GOAL }, goals.toString())
     }
+
+    @Test
+    fun `the helper is told when typing didn't land, and gets its own plan back`() = runTest {
+        val form = ScreenSnapshot("com.shop", elements = listOf(consumer, button("go", "Submit")), signature = "form")
+        // This app ignores typing: the field stays empty.
+        val screen = object : com.voicecontrol.core.engine.port.ScreenGateway by FakeScreen(form) {
+            val inner = FakeScreen(form)
+            override suspend fun capture() = inner.capture()
+            override suspend fun perform(action: ScreenAction) =
+                if (action is ScreenAction.SetText) com.voicecontrol.core.model.ActionResult.Success.also { inner.actions += action } else inner.perform(action)
+        }
+        val histories = mutableListOf<List<String>>()
+        val ai = GoalAgent { _, _, history, _ ->
+            histories += history
+            if (histories.size == 1) AgentDecision(AgentAction.FILL, "vid:consumer", value = "1234567", plan = "type number > press go")
+            else AgentDecision(AgentAction.GIVE_UP, say = "Ye app likhne nahi de raha.")
+        }
+        AssistantEngine(
+            screen = screen, stt = ScriptedStt("stop"), tts = RecordingTts(), interpreter = LocalInterpreter(),
+            flows = { null }, profiles = { null }, recorder = { }, config = { SessionConfig(confirmValues = false, smartMode = true) }, scope = this,
+            screenSettleMillis = 10, appDirectory = apps, goalAgent = ai,
+        ).start()
+        advanceUntilIdle()
+        val second = histories[1]
+        assertTrue(second.any { it == "Your plan: type number > press go" }, second.toString())
+        assertTrue(second.any { it.endsWith("but the field still looks empty") }, second.toString())
+    }
 }

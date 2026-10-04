@@ -102,6 +102,8 @@ data class AgentStep(
     val question: String? = null,
     val appName: String? = null,
     val confirm: Boolean = false,
+    /** The helper's short plan for the rest of the goal; the phone sends it back with the next step. */
+    val plan: String? = null,
     val source: String = "rules",
 )
 

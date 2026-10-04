@@ -117,5 +117,6 @@ data class AgentStepDto(
     val question: String? = null,
     val appName: String? = null,
     val confirm: Boolean = false,
+    val plan: String? = null,
     val source: String = "",
 )

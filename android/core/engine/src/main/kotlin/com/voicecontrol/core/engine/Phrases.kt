@@ -30,16 +30,32 @@ class Phrases(private val language: Language) {
     fun describeToggle(label: String, checked: Boolean) = if (checked) describeChecked(label) else describeUnchecked(label)
 
 
-    fun start(fieldCount: Int) = t(
-        "I found $fieldCount fields. Let's fill them.",
-        "मुझे $fieldCount खाने मिले। चलिए भरते हैं।",
-        "Mujhe $fieldCount fields mile. Chaliye bharte hain.",
-        "मला $fieldCount रकाने सापडले. चला भरूया.",
-        "$fieldCount புலங்கள் உள்ளன. நிரப்புவோம்.",
-        "$fieldCount ఖాళీలు ఉన్నాయి. నింపుదాం.",
-        "${fieldCount}টি ঘর পেয়েছি। চলুন পূরণ করি।",
-        "મને $fieldCount ખાનાં મળ્યાં. ચાલો ભરીએ.",
-    )
+    /**
+     * Before a form, like a person would: what it needs, in its own words, and that the questions come one by
+     * one ("Yahan aapka Full name, Mobile number aur Email bharna hai. Main ek-ek karke poochta hoon.").
+     * More than three things are summed up ("… aur 2 aur cheezein").
+     */
+    fun fillIntro(labels: List<String>): String {
+        if (labels.isEmpty()) return ""
+        val shown = labels.take(3)
+        val more = labels.size - shown.size
+        val and = t("and", "और", "aur", "आणि", "மற்றும்", "మరియు", "আর", "અને")
+        val list = when {
+            more > 0 -> shown.joinToString(", ") + " " + t("and $more more", "और $more चीज़ें", "aur $more aur cheezein", "आणि आणखी $more", "மேலும் $more", "ఇంకా $more", "আর ${more}টি", "અને બીજી $more")
+            shown.size == 1 -> shown.single()
+            else -> shown.dropLast(1).joinToString(", ") + " $and " + shown.last()
+        }
+        return t(
+            "This needs your $list. I'll ask one at a time.",
+            "यहाँ आपका $list भरना है। मैं एक-एक करके पूछता हूँ।",
+            "Yahan aapka $list bharna hai. Main ek-ek karke poochta hoon.",
+            "इथे तुमचे $list भरायचे आहे. मी एक-एक करून विचारतो.",
+            "இங்கே உங்கள் $list நிரப்ப வேண்டும். ஒவ்வொன்றாகக் கேட்கிறேன்.",
+            "ఇక్కడ మీ $list నింపాలి. ఒక్కొక్కటిగా అడుగుతాను.",
+            "এখানে আপনার $list পূরণ করতে হবে। একে একে জিজ্ঞেস করছি।",
+            "અહીં તમારું $list ભરવાનું છે. હું એક-એક કરીને પૂછું છું.",
+        )
+    }
 
     private fun askEmail() = t(
         "What is your email address?",

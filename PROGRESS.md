@@ -272,3 +272,10 @@ phase notes say which earlier phase covered the rest.
 - The helper speaks the first step, its questions and the result; the steps in between show under the mic instead of being spoken. It never describes the screen.
 - A short name not on screen ("Maggi") is looked for by scrolling down (up to 5 times), then pressed; "not found" if the list ends.
 - "Maggi search karo" inside an app with a search box searches in that app; "Google pe …" still goes to Google.
+
+### From the research report (items 1–3) and a friendlier form start
+- After typing, the helper is told what the field really shows ("but the field still looks empty" / "the field shows …"), so it tries another way.
+- The helper writes a short plan each step (never spoken); the phone sends it back as "Your plan: …" so it keeps on track.
+- DONE only when the screen shows the result; otherwise it looks first.
+- The model sees a smaller screen: short ids (e1, e2…), unnamed icons dropped, long labels cut, texts that repeat a label left out; ids are mapped back on the server.
+- Forms start like a person: "Yahan aapka Name, Mobile number aur Email bharna hai. Main ek-ek karke poochta hoon." instead of "Mujhe 3 fields mile".

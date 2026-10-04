@@ -147,8 +147,12 @@ class AiService(
             texts = command.texts.take(MAX_TEXTS).map { TextMask.mask(it.take(MAX_TEXT_CHARS)) }.filter { it.isNotBlank() },
         )
         if (provider.name == RulesInterpreter.SOURCE) return AgentStep(AgentActionKind.GIVE_UP, source = provider.name)
+        // The model sees short ids ("e1", "e2"…), no unnamed icons and no text repeated from a label: fewer
+        // tokens, so a faster and cheaper step. Its answer is mapped back to the phone's ids.
+        val compact = AgentScreen.compact(safe.screen, safe.texts)
         val raw = try {
-            withTimeout(timeoutMillis * 3) { provider.nextAgentStep(safe) }
+            withTimeout(timeoutMillis * 3) { provider.nextAgentStep(safe.copy(screen = compact.screen, texts = compact.texts)) }
+                .let { step -> step.copy(targetId = step.targetId?.let { compact.realId(it) }) }
         } catch (e: TimeoutCancellationException) {
             log.warn("LLM provider {} timed out planning a step", provider.name)
             return AgentStep(AgentActionKind.GIVE_UP, source = "timeout")
@@ -167,6 +171,7 @@ class AiService(
             question = step.question?.trim()?.take(MAX_SAY_CHARS)?.takeIf { it.isNotEmpty() },
             value = step.value?.take(MAX_VALUE_CHARS),
             appName = step.appName?.trim()?.take(60)?.takeIf { it.isNotEmpty() },
+            plan = step.plan?.trim()?.take(MAX_PLAN_CHARS)?.takeIf { it.isNotEmpty() },
         )
         val target = clean.targetId?.let { id -> screen.elements.firstOrNull { it.id == id } }
         return when (clean.action) {
@@ -232,6 +237,7 @@ class AiService(
         const val MAX_HISTORY = 30
         const val MAX_HISTORY_CHARS = 300
         const val MAX_SAY_CHARS = 300
+        const val MAX_PLAN_CHARS = 300
         const val MAX_VALUE_CHARS = 500
         const val MAX_QUESTION_CHARS = 200
         const val QUESTIONS_TTL_SECONDS = 30L * 24 * 3600

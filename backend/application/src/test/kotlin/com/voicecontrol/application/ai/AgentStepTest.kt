@@ -50,9 +50,19 @@ class AgentStepTest {
         val step = AiService(planner).nextAgentStep(cmd(List(40) { "step $it" }))
         assertEquals(AgentActionKind.CLICK, step.action)
         assertEquals("Bill payment khol raha hoon.", step.say)
-        assertNull(planner.last!!.screen.elements.first { it.id == "pin" }.value)
+        assertNull(planner.last!!.screen.elements.first { it.label == "UPI PIN" }.value)
         assertEquals(30, planner.last!!.history.size)
         assertEquals("step 39", planner.last!!.history.last())
+    }
+
+    @Test
+    fun `the model sees short ids and no repeated text, and its answer comes back with the phone's ids`() = runTest {
+        val planner = Planner { AgentStep(AgentActionKind.CLICK, targetId = "e1", plan = "pay > done", source = "fake") }
+        val step = AiService(planner).nextAgentStep(cmd().copy(texts = listOf("Pay bill", "Bill amount ₹540")))
+        assertEquals(listOf("e1", "e2", "e3"), planner.last!!.screen.elements.map { it.id })
+        assertEquals(listOf("Bill amount ₹540"), planner.last!!.texts)
+        assertEquals("pay", step.targetId)
+        assertEquals("pay > done", step.plan)
     }
 
     @Test

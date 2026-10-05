@@ -92,6 +92,9 @@ fun interface AppDirectory {
 
     /** The apps opened most often by voice, most used first. */
     suspend fun favourites(limit: Int): List<InstalledApp> = emptyList()
+
+    /** The phone's home screen apps (launchers): tapping an app icon there is just "open the app". */
+    suspend fun homeScreens(): Set<String> = emptySet()
 }
 
 /** What the helper does next while working towards the user's goal ("do it for me"). */

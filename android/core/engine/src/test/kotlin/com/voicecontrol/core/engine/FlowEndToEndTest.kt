@@ -121,6 +121,23 @@ class FlowEndToEndTest {
     }
 
     @Test
+    fun `a saved flow of only taps doesn't start by itself when the mic is pressed on its screen`() = runTest {
+        val tapsOnly = FlowDefinition(
+            "local-taught-x", 1, "com.launcher", "WhatsApp kholo", "home",
+            listOf(com.voicecontrol.core.model.FlowStep("s1", 0, "vid:zepto", "Zepto", ElementKind.BUTTON, action = com.voicecontrol.core.model.StepAction.CLICK)),
+        )
+        val screen = zepto(launcher)
+        val tts = RecordingTts()
+        AssistantEngine(
+            screen = screen, stt = ScriptedStt("stop"), tts = tts, interpreter = LocalInterpreter(), flows = { tapsOnly }, profiles = { null },
+            recorder = { }, config = { SessionConfig(confirmValues = false) }, scope = this, screenSettleMillis = 10, appDirectory = apps,
+        ).start()
+        advanceUntilIdle()
+        assertTrue(pressesIn(screen).isEmpty(), screen.actions.toString())
+        assertTrue(tts.spoken.none { "Zepto" in it }, tts.spoken.toString())
+    }
+
+    @Test
     fun `running it while the app is already open on its home screen works the same`() = runTest {
         val screen = zepto(zHome)
         engine(screen, ScriptedStt("maggi", "haan", "stop"), RecordingTts()).start(teachByHand())

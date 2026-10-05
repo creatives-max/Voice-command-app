@@ -47,6 +47,14 @@ class AndroidAppDirectory @Inject constructor(@ApplicationContext private val co
             .take(limit)
     }
 
+    override suspend fun homeScreens(): Set<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val home = android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME)
+            context.packageManager.queryIntentActivities(home, android.content.pm.PackageManager.MATCH_ALL)
+                .map { it.activityInfo.packageName }.toSet()
+        }.getOrDefault(emptySet())
+    }
+
     private companion object {
         const val CACHE_MS = 60_000L
         const val PREFS = "voicecontrol_app_opens"

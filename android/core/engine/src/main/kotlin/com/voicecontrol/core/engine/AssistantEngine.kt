@@ -381,7 +381,7 @@ class AssistantEngine(
                 val flow = if (running != null) {
                     running.copy(steps = running.segments[segment])
                 } else {
-                    val matched = runCatching { flows.flowFor(firstLook) }.getOrNull()
+                    val matched = runCatching { flows.flowFor(firstLook) }.getOrNull()?.takeIf { startsByItself(it, firstLook) }
                     if (matched != null && matched.segments.size > 1) {
                         active = matched
                         segment = 0
@@ -972,7 +972,9 @@ class AssistantEngine(
                 .takeIf { it.isNotEmpty() }?.let { said -> "Earlier the user said: " + said.joinToString(" / ") { it.value } },
         )
         // What was done, screen by screen, to remember the way when the goal is reached.
-        val learned = FlowRecorder()
+        // Taps on the home screen only opened the app; running the flow opens it by itself.
+        val home = runCatching { appDirectory?.homeScreens() }.getOrNull().orEmpty()
+        val learned = FlowRecorder(homePackages = { home })
         var lastKey = ""
         var repeats = 0
         var saidMoment = false
@@ -1288,6 +1290,16 @@ class AssistantEngine(
         emit(EngineEvent.STEP, "Searched in the app: $query")
         session.noteAssistant("Searched $query")
         return true
+    }
+
+    /**
+     * Whether a saved flow found for this screen starts when the mic is pressed here. A form's flow does
+     * (it fills fields); a flow of only taps here ("WhatsApp", "Search" then on) runs only when asked by its
+     * name or with Run, and nothing starts by itself on the home screen.
+     */
+    private suspend fun startsByItself(flow: FlowDefinition, snapshot: ScreenSnapshot): Boolean {
+        if (snapshot.packageName in runCatching { appDirectory?.homeScreens() }.getOrNull().orEmpty()) return false
+        return flow.segments.firstOrNull().orEmpty().any { it.action !in NAVIGATION_ONLY }
     }
 
     /**
@@ -2421,6 +2433,8 @@ class AssistantEngine(
         private const val MAX_SCROLL_SEARCHES = 5
         /** Pop-ups closed in a row while looking for a flow's next press. */
         private const val MAX_POPUPS_CLOSED = 2
+        /** Steps that only move around: a flow's first screen made of these doesn't start by itself. */
+        private val NAVIGATION_ONLY = setOf(StepAction.CLICK, StepAction.NEXT_SCREEN, StepAction.OPEN_APP)
         /** Screen-sharing / remote-control apps (package prefixes) VoiceControl won't open by voice. */
         private val REMOTE_ACCESS_APPS = listOf(
             "com.anydesk.", "com.teamviewer.", "com.rustdesk.", "com.sand.airdroid", "com.splashtop.", "com.realvnc.",
